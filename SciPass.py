@@ -88,6 +88,7 @@ class SciPass(app_manager.RyuApp):
         prefixList = bal.splitPrefixForSensors(test,2)
 
 	#--- flush the rules
+        self.flushRules()	
 
         #--- push rules to forward ARP
         self.pushArpRule(in_port=9,
@@ -121,7 +122,25 @@ class SciPass(app_manager.RyuApp):
         #---- we already have the flows just repush them
 	self.synchRules()
 
+    def flushRules(self):
+      #--- pushes a mode to remove all flows from switch 
+      #--- yep thats a hack, need to think about what multiple switches means for scipass
+      datapath = self.datapaths.values()[0]
+      ofp      = datapath.ofproto
+      parser   = datapath.ofproto_parser
 
+      # --- create flowmod to control traffic from the prefix to the interwebs
+      match = parser.OFPMatch()
+      mod = parser.OFPFlowMod(datapath,match,0,ofp.OFPFC_DELETE)
+
+      #--- remove mods in the flowmod cache
+      self.flowmods = [] 
+
+ 
+      #--- if dp is active then push the rules
+      if(datapath.is_active == True):
+        datapath.send_msg(mod)
+      
 
     def addPrefix(self,sensor,prefix):
       self.logger.debug("Add sensor: "+sensor+" prefix "+str(prefix))
@@ -261,8 +280,15 @@ class SciPass(app_manager.RyuApp):
                                 hard_timeout=0,
                                 actions=actions)
 
-      #--- push mods to the array
-      self.flowmods.append(mod)
+      #--- update local flowmod cache 
+      if(command == ofp.OFPFC_ADD):
+        self.flowmods.append(mod)
+
+      if(command == ofp.OFPFC_DELETE_STRICT):
+        try:
+          self.flowmods.remove(mod)
+        except:
+          pass
 
       #--- if dp is active then push the rules
       if(datapath.is_active == True):
