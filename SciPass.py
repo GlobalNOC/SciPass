@@ -17,6 +17,8 @@
 import logging
 import struct
 import time
+
+from ryu import cfg
 from operator import attrgetter
 from ryu.base import app_manager
 from ryu.controller import ofp_event
@@ -47,6 +49,40 @@ from SimpleBalancer import SimpleBalancer
 class SciPass(app_manager.RyuApp):
     def __init__(self, *args, **kwargs):
         super(SciPass,self).__init__(*args,**kwargs)
+        #--- register for configuration options
+        self.CONF.register_opts([
+          cfg.StrOpt('DataPathID',default='0xdeadbeef',
+                     help='DPID for the switch we should talk with'),
+	  cfg.StrOpt('Mode',default='InlineIDS',
+                     help='Operating Mode for SciPass: SciDMZ|InineIDS|Balancer'),
+          cfg.StrOpt('Prefix',default='10.0.13.0/24',
+                     help='prefix to balance on'),
+          cfg.StrOpt('BalPlanCache',default='/var/run/something.json',
+                     help='cachefile to keep balancing consistent across restarts'),
+          #-------
+          cfg.StrOpt('WANPort',default='0',
+                     help='Switch Port facing the WAN/Internet'),
+          cfg.StrOpt('LANPort',default='0',
+                     help='Switch Port facing the LAN/ DTN End Hosts'),
+  
+          cfg.StrOpt('FwWANPort',default='0',
+                     help='Switch Port facing the Firewall WAN Port'),
+          cfg.StrOpt('FwLANPort',default='0',
+                     help='Switch Port facing the Firewall LAN Port'),
+
+          cfg.StrOpt('SensorPorts',default='0',
+                     help='Switch Ports connecting sensors'),
+          #-------- 
+          cfg.StrOpt('MaxPrefixes',default='64',
+                     help='maxumum number of subnets the balancer is allowed'),
+          cfg.StrOpt('MostSpecificPrefixLen',default='32',
+                     help='most specific prefix allowed to subnet to when balancing'),
+          cfg.StrOpt('SensorLoadDeltaThresh',default='.05',
+                     help='smallest difference between max and min Sensor load to activate balancer'),
+          cfg.StrOpt('SensorLoadMinThresh',default='.3',
+                     help='Sensor load value below which, balancer will not activate'),
+        ])
+
         self.datapaths = {}
         self.isactive = 1
         self.statsInterval = 5
@@ -60,6 +96,8 @@ class SciPass(app_manager.RyuApp):
         self.prefix_bytes = defaultdict(lambda: defaultdict(int))
         self.lastStatsTime = None
         self.flowmods = []
+
+        print "DPID  is "+self.CONF.DataPathID
  
      
     def initFlows(self):
@@ -69,13 +107,13 @@ class SciPass(app_manager.RyuApp):
       if(self.bal == None):
 
         bal = SimpleBalancer(
-                        maxPrefixes             = 64,
-                        mostSpecificPrefixLen   = 29,
+                        maxPrefixes             = self.CONF.MaxPrefixes,
+                        mostSpecificPrefixLen   = self.CONF.MostSpecificPrefixLen,
                         leastSpecificPrefixLen  = 24,
                         ignoreSensorLoad        = 1,
                         ignorePrefixBW          = 0,
-                        sensorLoadMinThresh     = .25,
-                        sensorLoadDeltaThresh   = .05)
+                        sensorLoadMinThresh     = self.CONF.SensorLoadMinThresh,
+                        sensorLoadDeltaThresh   = self.CONF.SensorLoadDeltaThresh)
 
         bal.registerAddPrefixHandler(self.addPrefix)
         bal.registerDelPrefixHandler(self.delPrefix)
@@ -84,18 +122,18 @@ class SciPass(app_manager.RyuApp):
         self.bal   = bal
         ports      = self.ports
 
-        test       = ipaddr.IPv4Network('10.0.13.0/24')
+        test       = ipaddr.IPv4Network(self.CONF.Prefix)
         prefixList = bal.splitPrefixForSensors(test,2)
 
 	#--- flush the rules
         self.flushRules()	
 
         #--- push rules to forward ARP
-        self.pushArpRule(in_port=9,
-                        out_port=10)
+        self.pushArpRule(in_port=self.CONF.WANPort,
+                        out_port=self.CONF.LANPort)
 
-        self.pushArpRule(in_port=10,
-                        out_port=9)
+        self.pushArpRule(in_port=self.CONF.LANPort,
+                        out_port=self.CONF.WANPort)
 
 
 
