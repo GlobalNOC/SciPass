@@ -1,4 +1,18 @@
-#!/usr/bin/python
+# Copyright (C) 2014 The Trustees of Indiana University
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+# implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 
 import time
 import ipaddr
@@ -401,18 +415,6 @@ class SimpleBalancer:
 
       self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
 
-      #try:
-      #  subnets = self.splitPrefix(candidatePrefix);
-      #  for prefix in subnets:
-      #    self.addSensorPrefix(minxSensor,prefix)
-
-      #  self.delSensorPrefix(maxSensor,candidatePrefix)
-      #except MaxPrefixlenError as e:
-      #  print "at max prefix length limit"
-
-      #else:
-      #  print("below load Delta Threshold")
-
 
   def balanceByNetBytes(self):
     """Balance by network traffic with no regard to sensor load"""
@@ -539,9 +541,6 @@ class SimpleBalancer:
         if(estPreLoad <  (1 - minLoad) and estNewSensorLoad < maxLoad):
           #--- if it will fit, move it to minsensor
           self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
-          #--- as a simulation hack (MUST REMOVE THIS SOON) lets guess at what the new load will be
-          #self.setSensorLoad(maxSensor,self.sensorLoad[maxSensor]-estPreLoad)
-          #self.setSensorLoad(minSensor,estNewSensorLoad) 
 
         else:
           #--- will not fit, split, then leave on original sensor and retry later after

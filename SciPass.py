@@ -1,5 +1,5 @@
 # Copyright (C) 2011 Nippon Telegraph and Telephone Corporation.
-
+# Copyright (C) 2014 The Trustees of Indiana University
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -60,26 +60,26 @@ class SciPass(app_manager.RyuApp):
           cfg.StrOpt('BalPlanCache',default='/var/run/something.json',
                      help='cachefile to keep balancing consistent across restarts'),
           #-------
-          cfg.StrOpt('WANPort',default='0',
+          cfg.IntOpt('WANPort',default='9',
                      help='Switch Port facing the WAN/Internet'),
-          cfg.StrOpt('LANPort',default='0',
+          cfg.IntOpt('LANPort',default='10',
                      help='Switch Port facing the LAN/ DTN End Hosts'),
   
-          cfg.StrOpt('FwWANPort',default='0',
+          cfg.IntOpt('FwWANPort',default='11',
                      help='Switch Port facing the Firewall WAN Port'),
-          cfg.StrOpt('FwLANPort',default='0',
+          cfg.IntOpt('FwLANPort',default='12',
                      help='Switch Port facing the Firewall LAN Port'),
 
-          cfg.StrOpt('SensorPorts',default='0',
+          cfg.ListOpt('SensorPorts',default='[1,2]',
                      help='Switch Ports connecting sensors'),
           #-------- 
-          cfg.StrOpt('MaxPrefixes',default='64',
+          cfg.IntOpt('MaxPrefixes',default='64',
                      help='maxumum number of subnets the balancer is allowed'),
-          cfg.StrOpt('MostSpecificPrefixLen',default='32',
+          cfg.IntOpt('MostSpecificPrefixLen',default='32',
                      help='most specific prefix allowed to subnet to when balancing'),
-          cfg.StrOpt('SensorLoadDeltaThresh',default='.05',
+          cfg.FloatOpt('SensorLoadDeltaThresh',default='.05',
                      help='smallest difference between max and min Sensor load to activate balancer'),
-          cfg.StrOpt('SensorLoadMinThresh',default='.3',
+          cfg.FloatOpt('SensorLoadMinThresh',default='.3',
                      help='Sensor load value below which, balancer will not activate'),
         ])
 
@@ -123,7 +123,16 @@ class SciPass(app_manager.RyuApp):
         ports      = self.ports
 
         test       = ipaddr.IPv4Network(self.CONF.Prefix)
-        prefixList = bal.splitPrefixForSensors(test,2)
+        prefixList = bal.splitPrefixForSensors(test,len(self.CONF.SensorPorts)*2)
+
+	#--- define the various ports (why not just drive off of self.CONF?)
+	ports["net"][0] = self.CONF.WANPort
+        ports["net"][1] = self.CONF.LANPort
+        ports["fw"][0]  = self.CONF.FwWANPort
+        ports["fw"][1]  = self.CONF.FwLANPort
+        for port in self.CONF.SensorPorts:
+          ports["sensor"].append(port)
+
 
 	#--- flush the rules
         self.flushRules()	
@@ -136,29 +145,19 @@ class SciPass(app_manager.RyuApp):
                         out_port=self.CONF.WANPort)
 
 
-
-        #--- add the network , the port mapping is crap but ok for now
-        for x in range(0,2):
-          id = str(x)
-          port =  x+9;
-          ports["net"][id] = port
-
-        #--- add the fw , the port mapping is crap but ok for now
-        for x in range(0,2):
-          id = str(x)
-          port = x+11;
-          ports["fw"][id] = port
-
-        #--- add the sensors, the port mapping is crap but ok for now
-        for x in range(1,3):
-          id = str(x)
-          bal.addSensor(id)
-          ports["sensor"][id] = x
-          bal.addSensorPrefix(id,prefixList[x-1])
+        #--- assign prefixes to the sensors
+	#--- this will push new rules to switch
+        x =0;
+        for prefix in prefixList:
+          bal.addSensorPrefix(x,prefix)
+          if(x >= len(self.CONF.SensorPorts)):
+            x=0
+          else:
+            x = x+1
 
       else:
         #---- we already have the flows just repush them
-	self.synchRules()
+        self.synchRules()
 
     def flushRules(self):
       #--- pushes a mode to remove all flows from switch 
