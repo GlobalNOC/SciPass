@@ -331,8 +331,41 @@ class SciPass(app_manager.RyuApp):
       if(datapath.is_active == True):
         datapath.send_msg(mod)
 
+    def addWhiteListFlowMod(self, command=0, in_port=None, out_port=None, priority=None, nw_src=None, nw_src_mask=None, nw_dst=None, nw_dst_mask=None):
+        datapath = self.datapaths.values()[0]
+        ofp      = datapath.ofproto
+        parser   = datapath.ofproto_parser
 
+        # --- create flowmod to control traffic from the prefix to the interwebs
+        match = parser.OFPMatch( dl_type=ether.ETH_TYPE_IP,
+                                 in_port=in_port,
+                                 nw_src=nw_src,
+                                 nw_src_mask=nw_src_mask,
+                                 nw_dst=nw_dst,
+                                 nw_dst_mask=nw_dst_mask)
+        
+        actions = [parser.OFPActionOutput(out_port, 0)]
 
+        mod = parser.OFPFlowMod(
+            datapath=datapath,
+            priority=priority,
+            match=match,
+            cookie=0,
+            command=command,
+            idle_timeout=idle_timeout,
+            hard_timeout=hard_timeout,
+            actions=actions)
+        
+        #--- update local flowmod cache
+        if(command == ofp.OFPFC_ADD):
+            self.flowmods.append(mod)
+            
+        if(command == ofp.OFPFC_DELETE_STRICT):
+            try:
+                self.flowmods.remove(mod)
+            except:
+                pass
+                
     #def delPrefix(self,sensor,prefix):
     #  self.logger.debug("Del: sensor: "+sensor+" prefix "+str(prefix))
 
