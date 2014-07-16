@@ -26,13 +26,16 @@ from ryu.controller.handler import MAIN_DISPATCHER, DEAD_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ether
 from ryu.lib import hub
+from ryu.app.wsgi import ControllerBase, WSGIApplication, route
+from webob import Response
+import json
 
 import socket
 import ipaddr 
 
 from collections import defaultdict
 from SimpleBalancer import SimpleBalancer
-
+from SciPassApi import SciPassApi
 
 """
  Forwarding rule Priorities
@@ -41,19 +44,61 @@ from SimpleBalancer import SimpleBalancer
    Balancer 
    Default
 
-
-
 """
 
 
+class SciPassRest(ControllerBase):
+    def __init__(self, req, link, data, **config):
+        super(SciPassRest, self).__init__(req, link, data, **config)
+        self.scipass = data['scipass_rest']
+
+    #POST /scipass/flows/good_flow
+    @route('scipass', '/scipass/flows/good_flow', methods=['PUT'])
+    def good_flow(self, req):
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing good_flow signal %s", req.body)
+            return Response(status=400)
+
+        result = self.scipass.processGoodFlow(obj)
+        return Response(content_type='application/json',body=json.dumps(result))
+
+    #POST /scipass/flows/bad_flow
+    @route('scipass', '/scipass/flows/bad_flow', methods=['PUT'])
+    def bad_flow(self, req):
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing bad_flow signal %s", req.body)
+            return Response(status=400)
+        result = self.scipass.processBadFlow(obj)
+        return Response(content_type='application/json',body=json.dumps(result))
+
+    #GET /scipass/flows/get_good_flows
+    @route('scipass', '/scipass/flows/get_good_flows', methods=['GET'])
+    def get_good_flows(self, req):
+        result = self.scipass.getGoodFlows()
+        return Response(content_type='application/json',body=json.dumps(result))
+
+    #GET /scipass/flows/get_bad_flows
+    @route('scipass', '/scipass/flows/get_bad_flows', methods=['GET'])
+    def get_bad_flows(self, req):
+        result = self.scipass.getBadFlows()
+        return Response(content_type='application/json',body=json.dumps(result))
+
+
 class SciPass(app_manager.RyuApp):
-    def __init__(self, *args, **kwargs):
+
+     _CONTEXTS = { 'wsgi': WSGIApplication }
+
+     def __init__(self, *args, **kwargs):
         super(SciPass,self).__init__(*args,**kwargs)
         #--- register for configuration options
         self.CONF.register_opts([
           cfg.StrOpt('DataPathID',default='0xdeadbeef',
                      help='DPID for the switch we should talk with'),
-	  cfg.StrOpt('Mode',default='InlineIDS',
+            cfg.StrOpt('Mode',default='InlineIDS',
                      help='Operating Mode for SciPass: SciDMZ|InineIDS|Balancer'),
           cfg.StrOpt('Prefix',default='10.0.13.0/24',
                      help='prefix to balance on'),
@@ -81,26 +126,49 @@ class SciPass(app_manager.RyuApp):
                      help='smallest difference between max and min Sensor load to activate balancer'),
           cfg.FloatOpt('SensorLoadMinThresh',default='.3',
                      help='Sensor load value below which, balancer will not activate'),
+          cfg.IntOpt('WhiteListPriority', default='60000',
+                     help='white list rule priorities'),
+          cfg.IntOpt('BlackListPriority', default='65000',
+                     help='black list rule priorities'),
+          cfg.IntOpt('IdleTimeout', default='10',
+                     help='idle time until the flow is removed'),
+          cfg.IntOpt('HardTimeout', default='300',
+                     help='hard timeout when the flow will be removed even if it is still in use')
         ])
 
         self.datapaths = {}
         self.isactive = 1
         self.statsInterval = 5
         self.balanceInterval = 15 
-	self.bal = None
+        self.bal = None
 
         self.stats_thread = hub.spawn(self._stats_loop)
         self.balance_thread = hub.spawn(self._balance_loop)
 
-	self.ports = defaultdict(dict);
+        self.ports = defaultdict(dict);
         self.prefix_bytes = defaultdict(lambda: defaultdict(int))
         self.lastStatsTime = None
         self.flowmods = []
 
+        self.white_list_priority = self.CONF.WhiteListPriority
+        self.black_list_priority = self.CONF.BlackListPriority
+        self.idle_timeout = self.CONF.IdleTimeout
+        self.hard_timeout = self.CONF.HardTimeout
+
         print "DPID  is "+self.CONF.DataPathID
- 
      
-    def initFlows(self):
+        api = SciPassApi()
+
+        api.registerWhiteListHandler(self.addWhiteList)
+        api.registerBlackListHandler(self.addBlackList)
+
+        self.api = api
+
+        wsgi = kwargs['wsgi']
+        wsgi.register(SciPassRest, {'scipass_rest' : self})
+
+
+     def initFlows(self):
       """this is called after the switch joins, this needs refactoring as switches can come and go"""
 
       #--- bootstrap hack, need to figure out where to init and also how we want to support multiple ranges
@@ -120,6 +188,7 @@ class SciPass(app_manager.RyuApp):
         bal.registerMovePrefixHandler(self.movePrefix)
 
         self.bal   = bal
+
         ports      = self.ports
 
         test       = ipaddr.IPv4Network(self.CONF.Prefix)
@@ -130,9 +199,9 @@ class SciPass(app_manager.RyuApp):
         ports["net"][1] = self.CONF.LANPort
         ports["fw"][0]  = self.CONF.FwWANPort
         ports["fw"][1]  = self.CONF.FwLANPort
+        ports["sensor"] = []
         for port in self.CONF.SensorPorts:
           ports["sensor"].append(port)
-
 
 	#--- flush the rules
         self.flushRules()	
@@ -143,7 +212,6 @@ class SciPass(app_manager.RyuApp):
 
         self.pushArpRule(in_port=self.CONF.LANPort,
                         out_port=self.CONF.WANPort)
-
 
         #--- assign prefixes to the sensors
 	#--- this will push new rules to switch
@@ -158,8 +226,8 @@ class SciPass(app_manager.RyuApp):
       else:
         #---- we already have the flows just repush them
         self.synchRules()
-
-    def flushRules(self):
+        
+     def flushRules(self):
       #--- pushes a mode to remove all flows from switch 
       #--- yep thats a hack, need to think about what multiple switches means for scipass
       datapath = self.datapaths.values()[0]
@@ -179,10 +247,14 @@ class SciPass(app_manager.RyuApp):
         datapath.send_msg(mod)
       
 
-    def addPrefix(self,sensor,prefix):
-      self.logger.debug("Add sensor: "+sensor+" prefix "+str(prefix))
-      north_net_port = self.ports["net"]["0"]
-      south_net_port = self.ports["net"]["1"]
+     def addPrefix(self,sensor,prefix):
+      self.logger.debug("Add sensor: " + str(sensor) + " prefix "+str(prefix))
+      north_net_port = self.ports["net"][0]
+      south_net_port = self.ports["net"][1]
+      if(sensor >= len(self.ports["sensor"])):
+          self.logger.error("No sensor " + str(sensor) + " was defined")
+          return
+
       sensor_port    = self.ports["sensor"][sensor]
 
       net    = int(prefix)
@@ -206,7 +278,7 @@ class SciPass(app_manager.RyuApp):
                                 nw_src_mask=masklen,
 				)
 
-    def delPrefix(self,sensor,prefix):
+     def delPrefix(self,sensor,prefix):
       self.logger.debug("Del sensor: "+sensor+" prefix "+str(prefix))
       north_net_port = self.ports["net"]["0"]
       south_net_port = self.ports["net"]["1"]
@@ -238,14 +310,14 @@ class SciPass(app_manager.RyuApp):
                                 nw_src_mask=masklen,
                                 )
 
-    def movePrefix(self,oldSensor,newSensor,prefix):
+     def movePrefix(self,oldSensor,newSensor,prefix):
       self.logger.debug("Move prefix "+str(prefix)+" from "+oldSensor+" to "+newSensor)
       #--- openflow deletes are based on match criterial, we cant add then delete because the delete would hit both
       self.delPrefix(newSensor,prefix)
       self.addPrefix(oldSensor,prefix)
 
 
-    def synchRules(self):
+     def synchRules(self):
       #--- routine to syncronize the rules to the DP
       #--- currently just pushes, somday should diff
 
@@ -257,7 +329,7 @@ class SciPass(app_manager.RyuApp):
             datapath.send_msg(mod)
 
 
-    def pushArpRule(self,in_port=None,out_port=None ):
+     def pushArpRule(self,in_port=None,out_port=None ):
       #--- pushes a rule to allow arp from in to out
        #--- yep thats a hack, need to think about what multiple switches means for scipass
       datapath = self.datapaths.values()[0]
@@ -289,49 +361,191 @@ class SciPass(app_manager.RyuApp):
 
 
     #--- command=0, 0 == OFPFC_ADD = 0 # New flow. -- not sure how to cleanly reference as a default value
-    def pushPrefixSensorFlowMod(self,command=0,in_port=None,out_port=None,priority=None,sensor_port=None,nw_src=None,nw_src_mask=None,nw_dst=None,nw_dst_mask=None):
+     def pushPrefixSensorFlowMod(self,command=0,in_port=None,out_port=None,priority=None,sensor_port=None,nw_src=None,nw_src_mask=None,nw_dst=None,nw_dst_mask=None):
       #--- yep thats a hack, need to think about what multiple switches means for scipass
-      datapath = self.datapaths.values()[0]
-      ofp      = datapath.ofproto
-      parser   = datapath.ofproto_parser
+         datapath = self.datapaths.values()[0]
+         ofp      = datapath.ofproto
+         parser   = datapath.ofproto_parser
+         
+         match = {}
+         if(nw_dst == None):
+             match = parser.OFPMatch( in_port = int(in_port),
+                                      dl_type = ether.ETH_TYPE_IP,
+                                      nw_src = int(nw_src),
+                                      nw_src_mask = int(nw_src_mask))
+                                      
 
-      # --- create flowmod to control traffic from the prefix to the interwebs
-      match = parser.OFPMatch(
-                               dl_type=ether.ETH_TYPE_IP,
-                               in_port=in_port,
-                               nw_src=nw_src,
-                               nw_src_mask=nw_src_mask,
-			       nw_dst=nw_dst,
-			       nw_dst_mask=nw_dst_mask)
+         elif(nw_src == None):
+             match = parser.OFPMatch( in_port = int(in_port),
+                                      dl_type = ether.ETH_TYPE_IP,
+                                      nw_dst = int(nw_dst),
+                                      nw_dst_mask = int(nw_dst_mask))
+         else:
+             match = parser.OFPMatch( in_port = int(in_port),
+                                      dl_type = ether.ETH_TYPE_IP,
+                                      nw_src = int(nw_src),
+                                      nw_src_mask = int(nw_src_mask),
+                                      nw_dst = int(nw_dst),
+                                      nw_dst_mask = int(nw_dst_mask))
 
-      actions = [parser.OFPActionOutput(out_port, 0),
-                 parser.OFPActionOutput(sensor_port, 0)]
+     
 
-      mod = parser.OFPFlowMod(
-                                datapath=datapath,
-                                priority=priority,
-                                match=match,
-                                cookie=0,
-                                command=command,
-                                idle_timeout=0,
-                                hard_timeout=0,
-                                actions=actions)
 
-      #--- update local flowmod cache 
-      if(command == ofp.OFPFC_ADD):
+         # --- create flowmod to control traffic from the prefix to the interwebs
+
+         actions = [parser.OFPActionOutput(int(out_port), 0),
+                    parser.OFPActionOutput(int(sensor_port), 0)]
+
+         mod = parser.OFPFlowMod( datapath=datapath,
+                                  priority=int(priority),
+                                  match=match,
+                                  cookie=0,
+                                  command=command,
+                                  idle_timeout=0,
+                                  hard_timeout=0,
+                                  actions=actions)
+         
+         #--- update local flowmod cache 
+         if(command == ofp.OFPFC_ADD):
+             self.flowmods.append(mod)
+             
+         if(command == ofp.OFPFC_DELETE_STRICT):
+             try:
+                 self.flowmods.remove(mod)
+             except:
+                 pass
+
+         #--- if dp is active then push the rules
+         if(datapath.is_active == True):
+             datapath.send_msg(mod)
+                     
+     def addWhiteList(self, nw_src=None, nw_dst=None, nw_src_mask=None, nw_dst_mask=None, tp_src=None, tp_dst=None):
+                 
+        north_net_port = self.ports["net"][0]
+        south_net_port = self.ports["net"][1]
+        datapath = self.datapaths.values()[0]
+        ofp      = datapath.ofproto
+        parser   = datapath.ofproto_parser
+        
+        self.logger.warn("NW SRC: " + str(nw_src) + " nw_dst: " + str(nw_dst) + " nw_src_mask: " + str(nw_src_mask) + " nw_dst_mask: " + str(nw_dst_mask) + "tp_src = " + str(tp_src) + " tp_dst: " + str(tp_dst) + "in_port: " + str(south_net_port))
+
+        #the LAN -> WAN rule
+        # --- create flowmod to control traffic from the prefix to the interwebs
+        match = parser.OFPMatch( dl_type = ether.ETH_TYPE_IP,
+                                 in_port = south_net_port,
+                                 nw_src = nw_src,
+                                 nw_src_mask = nw_src_mask,
+                                 nw_dst = nw_dst,
+                                 nw_dst_mask = nw_dst_mask,
+                                 tp_src = tp_src,
+                                 tp_dst = tp_dst)
+        
+        actions = [parser.OFPActionOutput(north_net_port, 0)]
+        
+        mod = parser.OFPFlowMod( datapath=datapath,
+                                 priority=self.white_list_priority,
+                                 match=match,
+                                 cookie=0,
+                                 command=ofp.OFPFC_ADD,
+                                 idle_timeout=self.idle_timeout,
+                                 hard_timeout=self.hard_timeout,
+                                 actions=actions)
+        
         self.flowmods.append(mod)
+        if(datapath.is_active == True):
+            datapath.send_msg(mod)
+            
+        #the WAN -> LAN rule
+        # --- create flowmod to control traffic from the prefix to the interwebs
+        match = parser.OFPMatch( dl_type=ether.ETH_TYPE_IP,
+                                 in_port = north_net_port,
+                                 nw_src = nw_src,
+                                 nw_src_mask = nw_src_mask,
+                                 nw_dst = nw_dst,
+                                 nw_dst_mask = nw_dst_mask,
+                                 tp_src = tp_src,
+                                 tp_dst = tp_dst)
 
-      if(command == ofp.OFPFC_DELETE_STRICT):
-        try:
-          self.flowmods.remove(mod)
-        except:
-          pass
+        actions = [parser.OFPActionOutput(south_net_port, 0)]
 
-      #--- if dp is active then push the rules
-      if(datapath.is_active == True):
-        datapath.send_msg(mod)
+        mod = parser.OFPFlowMod( datapath=datapath,
+                                 priority=self.white_list_priority,
+                                 match=match,
+                                 cookie=0,
+                                 command=ofp.OFPFC_ADD,
+                                 idle_timeout=self.idle_timeout,
+                                 hard_timeout=self.hard_timeout,
+                                 actions=actions)
+        
+        self.flowmods.append(mod)
+        if(datapath.is_active == True):
+            datapath.send_msg(mod)        
+        #woot we are now on the fast path!
+
+     def addBlackList(self, nw_src=None, nw_dst=None, nw_src_mask=None, nw_dst_mask=None, tp_src=None, tp_dst=None):
+        north_net_port = self.ports["net"][0]
+        south_net_port = self.ports["net"][1]
+        datapath = self.datapaths.values()[0]
+        ofp      = datapath.ofproto
+        parser   = datapath.ofproto_parser
 
 
+        #the LAN -> WAN rule
+        # --- create flowmod to control traffic from the prefix to the interwebs
+        match = parser.OFPMatch( dl_type=ether.ETH_TYPE_IP,
+                                 in_port=south_net_port,
+                                 nw_src=nw_src,
+                                 nw_src_mask=nw_src_mask,
+                                 nw_dst=nw_dst,
+                                 nw_dst_mask=nw_dst_mask,
+                                 tp_src=tp_src,
+                                 tp_dst=tp_dst)
+
+        actions = []
+
+        mod = parser.OFPFlowMod(
+            datapath=datapath,
+            priority=self.black_list_priority,
+            match=match,
+            cookie=0,
+            command=ofp.OFPFC_ADD,
+            idle_timeout=self.idle_timeout,
+            hard_timeout=self.hard_timeout,
+            actions=actions)
+
+        self.flowmods.append(mod)
+        if(datapath.is_active == True):
+            datapath.send_msg(mod)
+
+        
+        #the LAN -> WAN rule
+        # --- create flowmod to control traffic from the prefix to the interwebs
+        match = parser.OFPMatch( dl_type=ether.ETH_TYPE_IP,
+                                 in_port=north_net_port,
+                                 nw_src=nw_src,
+                                 nw_src_mask=nw_src_mask,
+                                 nw_dst=nw_dst,
+                                 nw_dst_mask=nw_dst_mask,
+                                 tp_src=tp_src,
+                                 tp_dst=tp_dst)
+
+        actions = []
+
+        mod = parser.OFPFlowMod(
+            datapath=datapath,
+            priority=self.black_list_priority,
+            match=match,
+            cookie=0,
+            command=ofp.OFPFC_ADD,
+            idle_timeout=self.idle_timeout,
+            hard_timeout=self.hard_timeout,
+            actions=actions)
+        
+        self.flowmods.append(mod)
+        if(datapath.is_active == True):
+            datapath.send_msg(mod)
+            
+    
 
     #def delPrefix(self,sensor,prefix):
     #  self.logger.debug("Del: sensor: "+sensor+" prefix "+str(prefix))
@@ -339,8 +553,19 @@ class SciPass(app_manager.RyuApp):
     #def movePrefix(self,oldSensor,newSensor,prefix):
     #  self.logger.debug("move:  prefix "+str(prefix)+" from "+oldSensor+" to "+newSensor)
 
+     def processGoodFlow(self,obj):
+         return self.api.good_flow(obj)
 
-    def _stats_loop(self):
+     def processBadFlow(self,obj):
+         return self.api.bad_flow(obj)
+
+     def getBadFlows(self,obj):
+         return self.api.get_bad_flows()
+
+     def getGoodFlows(self,obj):
+         return self.api.get_good_flows()
+
+     def _stats_loop(self):
         while 1:
           #--- send stats request
           for dp in self.datapaths.values():
@@ -349,7 +574,7 @@ class SciPass(app_manager.RyuApp):
           #--- sleep
           hub.sleep(self.statsInterval)
 
-    def _balance_loop(self):
+     def _balance_loop(self):
       while 1:
         if( self.bal):
           #--- tell the system to rebalance
@@ -358,7 +583,7 @@ class SciPass(app_manager.RyuApp):
         #--- sleep
         hub.sleep(self.balanceInterval)
 
-    def _request_stats(self,datapath):
+     def _request_stats(self,datapath):
         #self.logger.debug('send stats request: %016x', datapath.id)
         ofp    = datapath.ofproto
         parser = datapath.ofproto_parser
@@ -382,11 +607,20 @@ class SciPass(app_manager.RyuApp):
         req = parser.OFPPortStatsRequest(datapath, 0, ofp.OFPP_NONE)
         datapath.send_msg(req)
 
+    #handle the remove flow event so we know what to sync up when we do this
+     @set_ev_cls(ofp_event.EventOFPFlowRemoved, MAIN_DISPATCHER)
+     def _remove_flow_handler(self, ev):
+        msg = ev.msg
+        self.api.remove_flow(msg)
+        for flow in self.flows:
+            if(flow.match == msg.match and flow.actions == msg.actions):
+                self.flows.delete(flow)
+                return
+        self.logger.error("A flow was removed but we didn't know it was there!")
 
-
-    @set_ev_cls(ofp_event.EventOFPStateChange,
-                [MAIN_DISPATCHER, DEAD_DISPATCHER])
-    def _state_change_handler(self, ev):
+     @set_ev_cls(ofp_event.EventOFPStateChange,
+                 [MAIN_DISPATCHER, DEAD_DISPATCHER])
+     def _state_change_handler(self, ev):
         datapath = ev.datapath
         if ev.state == MAIN_DISPATCHER:
             if not datapath.id in self.datapaths:
@@ -401,9 +635,8 @@ class SciPass(app_manager.RyuApp):
                 self.logger.debug('unregister datapath: %016x', datapath.id)
                 del self.datapaths[datapath.id]
 
-
-    @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
-    def _port_status_handler(self, ev):
+     @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
+     def _port_status_handler(self, ev):
         msg        = ev.msg
         reason     = msg.reason
         port_no    = msg.desc.port_no
@@ -422,8 +655,8 @@ class SciPass(app_manager.RyuApp):
             self.logger.info("Illeagal port state %s %s", port_no, reason)
 
 
-    @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
-    def _flow_stats_reply_handler(self, ev):
+     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
+     def _flow_stats_reply_handler(self, ev):
         
         #--- figure out the time since last stats
 	old_time = self.lastStatsTime
@@ -488,8 +721,8 @@ class SciPass(app_manager.RyuApp):
         #self.bal.balance()
         #self.logger.info(self.bal.showStatus())
 
-    @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
-    def _port_stats_reply_handler(self, ev):
+     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
+     def _port_stats_reply_handler(self, ev):
         body = ev.msg.body
 
 	#--- update scipass utilization stats for ports
