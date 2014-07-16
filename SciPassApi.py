@@ -25,16 +25,16 @@ class SciPassApi:
     pp.pprint(obj)
     self._fireWhiteListHandlers(obj)
     results = {}
-    result.success = 1
-    return result
+    results['success'] = 1
+    return results
 
   def bad_flow(self, obj):
     #presumes that we get a nw_src, nw_dst, tcp_src_port, tcp_dst_port
     #we need to do verification here or conversion depending on what we get from the sensors
-    self._fireBlackListHandler(obj)
+    self._fireBlackListHandlers(obj)
     results = {}
-    result.success = 1
-    return result
+    results['success'] = 1
+    return results
 
   def get_bad_flow(self):
     return self.whiteList
