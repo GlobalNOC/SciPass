@@ -57,120 +57,140 @@ class SimpleBalancer:
  		 leastSpecificPrefixLen	= 24,
      		 sensorLoadMinThresh	= .02,
 		 sensorLoadDeltaThresh	= .05):
+          
+      #--- used to limit the number of subnets / forwarding rules we install on the swtich
+      self.maxPrefixes		       = maxPrefixes;
+      self.prefixCount		       = 0;
 
-    #--- used to limit the number of subnets / forwarding rules we install on the swtich
-    self.maxPrefixes		     = maxPrefixes;
-    self.prefixCount		     = 0;
-
-    self.mostSpecificPrefixLen       = mostSpecificPrefixLen
-    self.leastSpecificPrefixLen      = leastSpecificPrefixLen
-
-    self.ignoreSensorLoad	     = ignoreSensorLoad
-    self.sensorLoadMinThreshold      = sensorLoadMinThresh
-    self.sensorLoadDeltaThreshold    = sensorLoadDeltaThresh
+      self.mostSpecificPrefixLen       = mostSpecificPrefixLen
+      self.leastSpecificPrefixLen      = leastSpecificPrefixLen
+  
+      self.ignoreSensorLoad	       = ignoreSensorLoad
+      self.sensorLoadMinThreshold      = sensorLoadMinThresh
+      self.sensorLoadDeltaThreshold    = sensorLoadDeltaThresh
 
 
-    self.ignorePrefixBW              = ignorePrefixBW
-    self.sensorBandwidthMinThreshold = 1
-    self.sensorLoad                  = defaultdict(list)
-    self.sensorStatus                = defaultdict(list)
-    self.sensorPrefixes              = defaultdict(list)
-    
-    #--- prefix bandwidth in GigaBits/sec
-    self.prefixBW		     = defaultdict(float)
-    self.prefixSensor	             = defaultdict(str)
+      self.ignorePrefixBW              = ignorePrefixBW
+      self.sensorBandwidthMinThreshold = 1
+      self.sensorLoad                  = defaultdict(list)
+      self.sensorStatus                = defaultdict(list)
+      self.sensorPrefixes              = defaultdict(list)
+      
+      #--- prefix bandwidth in GigaBits/sec
+      self.prefixBW		       = defaultdict(float)
+      self.prefixSensor	               = defaultdict(str)
 
-    self.addPrefixHandlers = []
-    self.delPrefixHandlers = []
-    self.movePrefixHandlers = []
-
-    return
-
+      self.addPrefixHandlers  = []
+      self.delPrefixHandlers  = []
+      self.movePrefixHandlers = []
+      
+      return
+  
   def __str__(self):
-    """a string representation"""
-    res = "Balancer: \n";
-    res = res + "  Prefixes: "+str(self.sensorPrefixes)+"\n"
-    res = res + "  Load: "+str(self.sensorLoad)+"\n";
-    res = res + "  PrefixBW: "+str(self.prefixBW) +"\n"
-    res = res + "  pre2sensor: "+str(self.prefixSensor)+"\n"
-    return res 
+      """a string representation"""
+      res = "Balancer: \n";
+      res = res + "  Prefixes: "+str(self.sensorPrefixes)+"\n"
+      res = res + "  Load: "+str(self.sensorLoad)+"\n";
+      res = res + "  PrefixBW: "+str(self.prefixBW) +"\n"
+      res = res + "  pre2sensor: "+str(self.prefixSensor)+"\n"
+      return res 
 
   def __repr__(self):
-        return json.dumps(self,default=lambda o: o.__dict__, sort_keys=True, indent=4)
+      return json.dumps(self,default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
   def showStatus(self):
-    """returns text represention in show format of the current status balancing"""
+      """returns text represention in show format of the current status balancing"""
 
-    mode = "Sensor Load and Prefix Bandwidth"
+      mode = "Sensor Load and Prefix Bandwidth"
+      
+      if(self.ignoreSensorLoad > 0):
+          mode = "Prefix Bandwidth"
 
-    if(self.ignoreSensorLoad > 0):
-      mode = "Prefix Bandwidth"
+      if(self.ignoreSensorLoad > 0 and  self.ignorePrefixBW > 0):
+          mode = "IP Space"
 
-    if(self.ignoreSensorLoad > 0 and  self.ignorePrefixBW > 0):
-      mode = "IP Space"
+      status = ""; 
+      totalHosts = 0
+      totalBW    = 0;
 
-    status = ""; 
-    totalHosts = 0
-    totalBW    = 0;
+      status = "Balance Method: "+mode+":\n";
 
-    status = "Balance Method: "+mode+":\n";
-
-    sensorHosts = defaultdict(int)
-    sensorBW    = defaultdict(int)
-    for prefix in self.prefixSensor:
-      totalHosts = totalHosts +  prefix.numhosts
-      totalBW    = totalBW    +  self.prefixBW[prefix]
-      sensor     = self.prefixSensor[prefix]
-      sensorBW[sensor]  = sensorBW[sensor] + self.prefixBW[prefix]
-  
-      lastCount = sensorHosts[sensor]
-      sensorHosts[sensor] = lastCount + prefix.numhosts
-
-    for sensor in self.sensorLoad:
-      sensorHostVal = sensorHosts[sensor] / float(totalHosts)
-      try:
-        sensorBwPer = sensorBW[sensor] / float(totalBW)
-      except ZeroDivisionError:
-        sensorBwPer = 0 
-
-      status = status + "sensor: '"+sensor+"'  bw: %.2f load: %.3f  hosts: %.3f"%(sensorBwPer,self.sensorLoad[sensor],sensorHostVal )+"\n" 
-
+      sensorHosts = defaultdict(int)
+      sensorBW    = defaultdict(int)
       for prefix in self.prefixSensor:
-        if(self.prefixSensor[prefix] == sensor):
-          prefixBW = self.prefixBW[prefix]
-          status = status + " "+str(prefix)+": %.3f "%(prefixBW/1000000.0)+"mbps\n"
+          totalHosts = totalHosts +  prefix.numhosts
+          totalBW    = totalBW    +  self.prefixBW[prefix]
+          sensor     = self.prefixSensor[prefix]
+          sensorBW[sensor]  = sensorBW[sensor] + self.prefixBW[prefix]
+  
+          lastCount = sensorHosts[sensor]
+          sensorHosts[sensor] = lastCount + prefix.numhosts
 
-      status = status + "\n"
+      for sensor in self.sensorLoad:
+          sensorHostVal = sensorHosts[sensor] / float(totalHosts)
+          try:
+              sensorBwPer = sensorBW[sensor] / float(totalBW)
+          except ZeroDivisionError:
+              sensorBwPer = 0 
+              
+      status = status + "sensor: '"+sensor+"'  bw: %.2f load: %.3f  hosts: %.3f"%(sensorBwPer,self.sensorLoad[sensor],sensorHostVal )+"\n"
+    
+      for prefix in self.prefixSensor:
+          if(self.prefixSensor[prefix] == sensor):
+              prefixBW = self.prefixBW[prefix]
+              status = status + " "+str(prefix)+": %.3f "%(prefixBW/1000000.0)+"mbps\n"
 
-    return status
+          status = status + "\n"
+
+      return status
  
 
   def addSensor(self,sensor):
-    """adds sensor, inits to load 0"""
-    self.sensorLoad[sensor] = 0;
+    """adds sensor, inits to load 0, sets status to 1"""
+    if(sensor == None):
+        #self.logger.error("Invalid Sensor!")
+        return 0
+
+    if(self.sensorLoad.has_key(sensor)):
+        #self.logger.error("Sensor %d already exists", int(sensor))
+        return 0
+
+    self.sensorLoad[sensor] = 0
+    self.sensorStatus[sensor] = 1
     return 1
  
   
   def setSensorLoad(self,sensor,load):
     """sets the load value for the sensor, 0-1 float is range"""
-    self.sensorLoad[sensor] = load;
-    return 1
+    if(self.sensorLoad.has_key(sensor) and (load >= 0 and load <= 1)):
+        self.sensorLoad[sensor] = load;
+        return 1
+    else:
+        return 0
 
   def setSensorStatus(self,sensor,status):
     """sets the load value for the sensor, 0-1 int is range"""
-    self.sensorStatus[sensor] = status
- 
-    if(status == 0):
-	print "sensor "+sensor+" status "+status
-      #--- need to react to port down on sensor port by rebalancing
-      #--- this is some thing we should be careful with
-    return 1
+
+    if(self.sensorStatus.has_key(sensor) and (status == 1 or status == 0)):
+        self.sensorStatus[sensor] = status
+        return 1
+    else:
+        print "Error updating sensor"
+        return 0
+
+  def getSensorStatus(self,sensor):
+      if(self.sensorStatus.has_key(sensor)):
+          return self.sensorStatus[sensor]
+      else:
+          return -1
 
   def setPrefixBW(self,prefix,bwTx,bwRx):
     """updates balancers understanding trafic bandwidth associated with each prefix"""
-    #print "update prefixBW: "+str(prefix)+" "+str(bwTx/1000000.0)+" "+str(bwRx/1000000.0)
-    self.prefixBW[prefix] = bwTx+bwRx
-    return 1
+    if(self.prefixBW.has_key(prefix)):
+        self.prefixBW[prefix] = bwTx+bwRx
+        return 1
+    print "Error updating sensor prefix... prefix does not exist"
+    return 0
 
   def registerAddPrefixHandler(self,handler):
     """used to register a handler for add prefix events"""
@@ -183,8 +203,6 @@ class SimpleBalancer:
   def registerMovePrefixHandler(self,handler):
     """used to register a handler for del prefix events"""
     self.movePrefixHandlers.append(handler)
-
-    
 
   def fireAddPrefix(self,sensor,prefix):
     """When called will fire each of the registered add prefix handlers"""
@@ -217,6 +235,8 @@ class SimpleBalancer:
 
   def delSensorPrefix(self,sensor,targetPrefix):
     """looks for prefix and removes it if its associated with the sensor"""
+    if(not self.sensorLoad.has_key(sensor)):
+        return 0
     prefixList = self.sensorPrefixes[sensor]
     x = 0;
     for prefix in prefixList:
@@ -234,6 +254,10 @@ class SimpleBalancer:
 
   def addSensorPrefix(self,sensor,targetPrefix,bw=0):
     """adds a prefix to the sensor"""
+
+    if(not self.sensorLoad.has_key(sensor)):
+        return 0
+
     if(self.prefixCount >= self.maxPrefixes):
         raise MaxPrefixesError()
 
@@ -256,6 +280,8 @@ class SimpleBalancer:
 
   def moveSensorPrefix(self,oldSensor,newSensor,targetPrefix):
     """used to move a prefix from one sensor to another"""
+    if(not self.sensorLoad.has_key(oldSensor) or not self.sensorLoad.has_key(newSensor)):
+        return 0
     prefixList = self.sensorPrefixes[oldSensor]
     x = 0;
     for prefix in prefixList:
@@ -265,8 +291,9 @@ class SimpleBalancer:
         self.sensorPrefixes[newSensor].append(prefix)
         self.prefixSensor[targetPrefix] = newSensor
         self.fireMovePrefix(oldSensor,newSensor,targetPrefix)
+        return 1
       x = x+1 
-    return 0;
+    return 0
 
 
   def splitSensorPrefix(self,sensor,candidatePrefix):
