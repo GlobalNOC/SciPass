@@ -18,6 +18,7 @@ import time
 import ipaddr
 import pprint
 import json
+import logging
 from collections import defaultdict
 
 
@@ -56,8 +57,13 @@ class SimpleBalancer:
   		 mostSpecificPrefixLen	= 29,
  		 leastSpecificPrefixLen	= 24,
      		 sensorLoadMinThresh	= .02,
-		 sensorLoadDeltaThresh	= .05):
+		 sensorLoadDeltaThresh	= .05,
+                 logger                 = None):
           
+      if(logger == None):
+          self.logger = logging.getLogger(__name__)
+      else:
+          self.logger = logger
       #--- used to limit the number of subnets / forwarding rules we install on the swtich
       self.maxPrefixes		       = maxPrefixes;
       self.prefixCount		       = 0;
@@ -175,7 +181,7 @@ class SimpleBalancer:
         self.sensorStatus[sensor] = status
         return 1
     else:
-        print "Error updating sensor"
+        self.logger.error( "Error updating sensor")
         return 0
 
   def getSensorStatus(self,sensor):
@@ -189,7 +195,7 @@ class SimpleBalancer:
     if(self.prefixBW.has_key(prefix)):
         self.prefixBW[prefix] = bwTx+bwRx
         return 1
-    print "Error updating sensor prefix... prefix does not exist"
+    self.logger.error( "Error updating sensor prefix... prefix does not exist")
     return 0
 
   def registerAddPrefixHandler(self,handler):
@@ -297,30 +303,30 @@ class SimpleBalancer:
 
 
   def splitSensorPrefix(self,sensor,candidatePrefix):
-    """used to split a prefix that is on a sensor"""
-    try:
-      subnets = self.splitPrefix(candidatePrefix)
-      bw = self.prefixBW[candidatePrefix]
-      print "split prefix "+str(candidatePrefix) +" bw "+str(bw)
-      #--- update the bandwidth we are guessing is going to each prefix to smooth things, before real data is avail
-      self.prefixBW[candidatePrefix] = 0
+      """used to split a prefix that is on a sensor"""
+      try:
+          subnets = self.splitPrefix(candidatePrefix)
+          bw = self.prefixBW[candidatePrefix]
+          self.logger.info( "split prefix "+str(candidatePrefix) +" bw "+str(bw))
+          #--- update the bandwidth we are guessing is going to each prefix to smooth things, before real data is avail
+          self.prefixBW[candidatePrefix] = 0
+          
+          #--- first, add the more specific rules
+          for prefix in subnets:
+              #--- set a guess that each of the 2 subnets gets half of the traffic
+              try:
+                  prefixBw = bw / 2.0
+              except ZeroDivisionError:
+                  prefixBW = 0
+                  self.logger.debug( "  -- "+str(prefix)+" bw "+str(prefixBw) )
+                  self.addSensorPrefix(sensor,prefix,prefixBw)
 
-      #--- first, add the more specific rules
-      for prefix in subnets:
-        #--- set a guess that each of the 2 subnets gets half of the traffic
-        try:
-          prefixBw = bw / 2.0
-        except ZeroDivisionError:
-          prefixBW = 0
-        #print "  -- "+str(prefix)+" bw "+str(prefixBw)
-        self.addSensorPrefix(sensor,prefix,prefixBw)
-
-      #--- now remove the less specific and now redundant rule
-      self.delSensorPrefix(sensor,candidatePrefix)
-      return 1
-    except MaxPrefixlenError as e:
-      print "max prefix len limit:  "+str(candidatePrefix)
-      return 0
+                  #--- now remove the less specific and now redundant rule
+                  self.delSensorPrefix(sensor,candidatePrefix)
+                  return 1
+      except MaxPrefixlenError as e:
+          self.logger.error( "max prefix len limit:  "+str(candidatePrefix) )
+          return 0
 
 
 
@@ -362,7 +368,10 @@ class SimpleBalancer:
 
   def getPrefixSensor(self,targetPrefix):
     """returns the sensor the prefix is currently assigned to"""
-    return self.prefixSensor[targetPrefix]
+    if(self.prefixSensor.has_key(targetPrefix)):
+        return self.prefixSensor[targetPrefix]
+    else:
+        return None
 
   def getLargestPrefix(self,sensor):
     """returns the largest prefix assigned to the sensor"""
@@ -381,7 +390,7 @@ class SimpleBalancer:
     totalBW		= 0; 
     percentTotal	= 0;
 
-    #print"getEstLoad: "+sensor+" "+str(targetPrefix)
+    self.logger.debug("getEstLoad: "+sensor+" "+str(targetPrefix))
     for prefix in self.sensorPrefixes[sensor]:
       totalHosts = totalHosts +  prefix.numhosts
       totalBW    = totalBW    +  self.prefixBW[prefix]
@@ -419,7 +428,7 @@ class SimpleBalancer:
     for sensor in self.sensorPrefixes.keys():
       for prefix in self.sensorPrefixes[sensor]:
         totalSpace = totalSpace + prefix.numhosts
-        #print "sensor "+sensor+" prefix "+str(prefix)+" space = "+str(prefix.numhosts)
+        self.logger.debug( "sensor "+sensor+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
         sensorSpace[sensor] = sensorSpace[sensor] + prefix.numhosts
 
     for sensor in self.sensorLoad.keys():
@@ -478,9 +487,9 @@ class SimpleBalancer:
 
     #---
    
-    #print("max sensor = '"+maxSensor+"' load "+str(maxLoad))
+    self.logger.debug("max sensor = '"+maxSensor+"' load "+str(maxLoad))
     #print("min sensor = '"+minSensor+"' load "+str(minLoad))
-    print("load delta = "+str(loadDelta)+" max "+maxSensor+" min "+minSensor)
+    self.logger.debug("load delta = "+str(loadDelta)+" max "+maxSensor+" min "+minSensor)
 
     if( maxLoad >= self.sensorLoadMinThreshold ):
       if(loadDelta >= self.sensorLoadDeltaThreshold):
@@ -508,10 +517,10 @@ class SimpleBalancer:
             #--- success
             break
       else:
-        print("below load Delta Threshold")
+          self.logger.warn("below load Delta Threshold")
 
     else:
-      print("below sensorLoadMinThreshold") 
+      self.logger.warn("below sensorLoadMinThreshold") 
  
 
   def balance(self):
@@ -547,9 +556,9 @@ class SimpleBalancer:
 
       loadDelta = maxLoad - minLoad;
 
-    print("max sensor = '"+maxSensor+"' load "+str(maxLoad))
-    print("min sensor = '"+minSensor+"' load "+str(minLoad))
-    print("load delta = "+str(loadDelta))
+    self.logger.debug("max sensor = '"+maxSensor+"' load "+str(maxLoad))
+    self.logger.debug("min sensor = '"+minSensor+"' load "+str(minLoad))
+    self.logger.debug("load delta = "+str(loadDelta))
     if(self.ignoreSensorLoad > 0 or maxLoad >= self.sensorLoadMinThreshold ):
       if(loadDelta >= self.sensorLoadDeltaThreshold):
         #-- a sensor is above balance threshold and the delta is large enough to consider balancing
@@ -558,7 +567,7 @@ class SimpleBalancer:
         candidatePrefix = self.getLargestPrefix(maxSensor)
 
         if(candidatePrefix == None):
-          print "sensor "+maxSensor+" has no prefixes but claimes to have highest load?"
+          self.logger.error( "sensor "+maxSensor+" has no prefixes but claimes to have highest load?")
           return 0;
 
         estPreLoad = self.getEstLoad(maxSensor,candidatePrefix)
@@ -581,13 +590,13 @@ class SimpleBalancer:
 
             self.delSensorPrefix(maxSensor,candidatePrefix)
           except MaxPrefixlenError as e:
-            print "at max prefix length limit"
+            self.logger.warn( "at max prefix length limit" )
            
       else:
-        print("below load Delta Threshold")
+        self.logger.warn("below load Delta Threshold")
 
     else:
-      print("below sensorLoadMinThreshold")
+      self.logger.warn("below sensorLoadMinThreshold")
   
       
 

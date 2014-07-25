@@ -1,7 +1,7 @@
 import pprint
 import ipaddr
 import unittest
-from SimpleBalancer import SimpleBalancer
+from SimpleBalancer import SimpleBalancer,MaxPrefixlenError
 
 class TestInit(unittest.TestCase):
 
@@ -185,32 +185,57 @@ class TestPrefix(unittest.TestCase):
         net = ipaddr.IPv4Network("10.0.0.0/10")
         res = self.balancer.addSensorPrefix(1,net,0)
         self.assertTrue(res == 1)
-        self.assertTrue(self.handler_fired == 1)
-        self.assertTrue(self.sensor == 1)
-        self.assertTrue(self.prefix == net)
-        #clear them out, make sure we see the del
-        self.handler = 0
-        self.sensor = None
-        self.prefix = None
-        #do the move
-        res = self.balancer.moveSensorPrefix(1,2,net)
+        res = self.balancer.setPrefixBW(net,500,500)
         self.assertTrue(res == 1)
-        self.assertTrue(self.handler_fired == 1)
-        self.assertTrue(self.sensor == 2)
-        self.assertTrue(self.prefix == net)
-        self.assertTrue(self.old_sensor == 1)
-        self.handler = 0
-        self.sensor = None
-        self.prefix = None
-        self.old_prefix = None
-        #try again but with a non-existent sensor
-        res = self.balancer.moveSensorPrefix(1,3,net)
-        self.assertTrue(res == 0)
-        self.assertTrue(self.handler_fired == 0)
-        self.assertTrue(self.sensor == None)
-        self.assertTrue(self.prefix == None)
-        self.assertTrue(self.old_sensor == None)
-        
+        res = self.balancer.splitSensorPrefix(1,net)
+        self.assertTrue(res == 1)
+        prefixBW = self.balancer.getPrefixes()
+        self.assertTrue(len(prefixBW) == 2)
+        newnet = ipaddr.IPv4Network("10.0.0.0/11")
+        newnet2 = ipaddr.IPv4Network("10.32.0.0/11")
+        self.assertTrue(prefixBW[newnet] == 500.0)
+        self.assertTrue(prefixBW[newnet2] == 500.0)
+
+    def test_split_prefix(self):
+        net = ipaddr.IPv4Network("10.0.0.0/11")
+        res = self.balancer.splitPrefix(net)
+        self.assertTrue(len(res) == 2)
+        self.assertTrue(res[0] == ipaddr.IPv4Network("10.0.0.0/12"))
+        self.assertTrue(res[1] == ipaddr.IPv4Network("10.16.0.0/12"))
+
+        net = ipaddr.IPv4Network("10.0.0.0/29")
+        self.assertRaises(MaxPrefixlenError, lambda: list(self.balancer.splitPrefix(net)))
+
+    def test_get_prefix_sensor(self):
+        net = ipaddr.IPv4Network("10.0.0.0/10")
+        res = self.balancer.addSensorPrefix(1,net,0)
+        self.assertTrue(res == 1)
+        sensor = self.balancer.getPrefixSensor(net)
+        self.assertTrue(sensor == 1)
+        net2 = ipaddr.IPv4Network("10.230.0.0/10")
+        sensor = self.balancer.getPrefixSensor(net2)
+        pp = pprint.PrettyPrinter(indent=4)
+        pp.pprint(sensor)
+        self.assertTrue(sensor == None)
+
+    def test_get_largest_prefix(self):
+        net = ipaddr.IPv4Network("10.220.0.0/12")
+        res = self.balancer.addSensorPrefix(1,net,0)
+        self.assertTrue(res == 1)
+        net2 = ipaddr.IPv4Network("10.0.0.0/10")
+        res = self.balancer.addSensorPrefix(1,net2,0)
+        self.assertTrue(res == 1)
+        largest = self.balancer.getLargestPrefix(1)
+        self.assertTrue(largest == net2)
+        largest = self.balancer.getLargestPrefix(2)
+        self.assertTrue(largest == None)
+        largest = self.balancer.getLargestPrefix(5)
+        self.assertTrue(largest == None)
+
+class TestBalance(unittest.TestCase):
+
+    def test_get_est_load(self):
+        self.assertTrue(True)
 
 SimpleBalancerSuite = unittest.TestSuite()
 SimpleBalancerSuite.addTest(TestInit('test_no_ops'))
@@ -225,5 +250,7 @@ SimpleBalancerSuite.addTest(TestPrefix('test_del_sensor_prefix'))
 SimpleBalancerSuite.addTest(TestPrefix('test_move_sensor_prefix'))
 SimpleBalancerSuite.addTest(TestPrefix('test_set_prefix_bw'))
 SimpleBalancerSuite.addTest(TestPrefix('test_split_sensor_prefix'))
-
+SimpleBalancerSuite.addTest(TestPrefix('test_split_prefix'))
+SimpleBalancerSuite.addTest(TestPrefix('test_get_prefix_sensor'))
+SimpleBalancerSuite.addTest(TestPrefix('test_get_largest_prefix'))
 unittest.TextTestRunner(verbosity=2).run(SimpleBalancerSuite)

@@ -14,13 +14,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import logging
 import time
 import ipaddr
 import pprint
 
 class SciPassApi:
   """SciPass API for signaling when a flow is known good or bad"""
-  def __init__(  self ):
+  def __init__(  self , *_args, **_kwargs):
+    logger = kwargs['logger']
+    if(logger == None):
+      self.logger = logging.getLogger(__name__)
+    else:
+      self.logger = logger
+    self.logger = kwargs['logger']
     self.whiteListHandlers = []
     self.blackListHandlers = []
     self.whiteList = []

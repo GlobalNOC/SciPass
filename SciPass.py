@@ -157,7 +157,7 @@ class SciPass(app_manager.RyuApp):
 
         print "DPID  is "+self.CONF.DataPathID
      
-        api = SciPassApi()
+        api = SciPassApi(logger = self.logger)
 
         api.registerWhiteListHandler(self.addWhiteList)
         api.registerBlackListHandler(self.addBlackList)
@@ -181,7 +181,9 @@ class SciPass(app_manager.RyuApp):
                         ignoreSensorLoad        = 1,
                         ignorePrefixBW          = 0,
                         sensorLoadMinThresh     = self.CONF.SensorLoadMinThresh,
-                        sensorLoadDeltaThresh   = self.CONF.SensorLoadDeltaThresh)
+                        sensorLoadDeltaThresh   = self.CONF.SensorLoadDeltaThresh,
+                        logger                  = self.logger
+                        )
 
         bal.registerAddPrefixHandler(self.addPrefix)
         bal.registerDelPrefixHandler(self.delPrefix)
