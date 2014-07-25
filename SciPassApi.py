@@ -24,6 +24,7 @@ class SciPassApi:
   def __init__(  self , *_args, **_kwargs):
     logger = kwargs['logger']
     if(logger == None):
+      logging.basicConfig()
       self.logger = logging.getLogger(__name__)
     else:
       self.logger = logger
