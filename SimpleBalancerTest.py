@@ -235,7 +235,45 @@ class TestPrefix(unittest.TestCase):
 class TestBalance(unittest.TestCase):
 
     def test_get_est_load(self):
-        self.assertTrue(True)
+        self.balancer = SimpleBalancer()
+        res = self.balancer.addSensor(1)
+        self.assertTrue(res == 1)
+        res = self.balancer.addSensor(2)
+        self.assertTrue(res == 1)
+        net = ipaddr.IPv4Network("10.220.0.0/12")
+        res = self.balancer.addSensorPrefix(1,net,0)
+        self.assertTrue(res == 1)
+        net2 = ipaddr.IPv4Network("10.0.0.0/10")
+        res = self.balancer.addSensorPrefix(1,net2,0)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net,500,500)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net2,500,500)
+        self.assertTrue(res == 1)
+        net3 = ipaddr.IPv4Network("10.0.0.0/8")
+        percentTotal = self.balancer.getEstLoad(1,net3)
+        self.assertTrue(percentTotal == 3.2)
+
+    def test_balance_by_ip(self):
+        self.balancer = SimpleBalancer()
+        res = self.balancer.addSensor(1)
+        self.assertTrue(res == 1)
+        res = self.balancer.addSensor(2)
+        self.assertTrue(res == 1)
+        et = ipaddr.IPv4Network("10.220.0.0/12")
+        res = self.balancer.addSensorPrefix(1,net,0)
+        self.assertTrue(res == 1)
+        net2 = ipaddr.IPv4Network("10.0.0.0/10")
+        res = self.balancer.addSensorPrefix(1,net2,0)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net,5000000,5000000)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net2,500,500)
+        self.assertTrue(res == 1)
+        self.balancer.balanceByIp( )
+        
+
+    
 
 SimpleBalancerSuite = unittest.TestSuite()
 SimpleBalancerSuite.addTest(TestInit('test_no_ops'))
@@ -253,4 +291,6 @@ SimpleBalancerSuite.addTest(TestPrefix('test_split_sensor_prefix'))
 SimpleBalancerSuite.addTest(TestPrefix('test_split_prefix'))
 SimpleBalancerSuite.addTest(TestPrefix('test_get_prefix_sensor'))
 SimpleBalancerSuite.addTest(TestPrefix('test_get_largest_prefix'))
+SimpleBalancerSuite.addTest(TestBalance('test_get_est_load'))
+
 unittest.TextTestRunner(verbosity=2).run(SimpleBalancerSuite)

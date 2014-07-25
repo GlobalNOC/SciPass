@@ -394,7 +394,7 @@ class SimpleBalancer:
     totalBW		= 0; 
     percentTotal	= 0;
 
-    self.logger.debug("getEstLoad: "+sensor+" "+str(targetPrefix))
+    self.logger.debug("getEstLoad: "+str(sensor)+" "+str(targetPrefix))
     for prefix in self.sensorPrefixes[sensor]:
       totalHosts = totalHosts +  prefix.numhosts
       totalBW    = totalBW    +  self.prefixBW[prefix]
