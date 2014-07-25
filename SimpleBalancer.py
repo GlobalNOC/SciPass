@@ -61,6 +61,7 @@ class SimpleBalancer:
                  logger                 = None):
           
       if(logger == None):
+          logging.basicConfig()
           self.logger = logging.getLogger(__name__)
       else:
           self.logger = logger
@@ -188,6 +189,7 @@ class SimpleBalancer:
       if(self.sensorStatus.has_key(sensor)):
           return self.sensorStatus[sensor]
       else:
+          self.logger.error("Sensor: " + str(sensor) + " does not exist")
           return -1
 
   def setPrefixBW(self,prefix,bwTx,bwRx):
@@ -195,7 +197,7 @@ class SimpleBalancer:
     if(self.prefixBW.has_key(prefix)):
         self.prefixBW[prefix] = bwTx+bwRx
         return 1
-    self.logger.error( "Error updating sensor prefix... prefix does not exist")
+    self.logger.error( "Error updating prefixBW... prefix does not exist")
     return 0
 
   def registerAddPrefixHandler(self,handler):
@@ -262,6 +264,7 @@ class SimpleBalancer:
     """adds a prefix to the sensor"""
 
     if(not self.sensorLoad.has_key(sensor)):
+        self.logger.error("No sensor: " + str(sensor) + " could be found")
         return 0
 
     if(self.prefixCount >= self.maxPrefixes):
@@ -307,7 +310,7 @@ class SimpleBalancer:
       try:
           subnets = self.splitPrefix(candidatePrefix)
           bw = self.prefixBW[candidatePrefix]
-          self.logger.info( "split prefix "+str(candidatePrefix) +" bw "+str(bw))
+          self.logger.error( "split prefix "+str(candidatePrefix) +" bw "+str(bw))
           #--- update the bandwidth we are guessing is going to each prefix to smooth things, before real data is avail
           self.prefixBW[candidatePrefix] = 0
           
@@ -318,12 +321,13 @@ class SimpleBalancer:
                   prefixBw = bw / 2.0
               except ZeroDivisionError:
                   prefixBW = 0
-                  self.logger.debug( "  -- "+str(prefix)+" bw "+str(prefixBw) )
-                  self.addSensorPrefix(sensor,prefix,prefixBw)
+              
+              self.logger.debug( "  -- "+str(prefix)+" bw "+str(prefixBw) )
+              self.addSensorPrefix(sensor,prefix,prefixBw)
 
-                  #--- now remove the less specific and now redundant rule
-                  self.delSensorPrefix(sensor,candidatePrefix)
-                  return 1
+              #--- now remove the less specific and now redundant rule
+          self.delSensorPrefix(sensor,candidatePrefix)
+          return 1
       except MaxPrefixlenError as e:
           self.logger.error( "max prefix len limit:  "+str(candidatePrefix) )
           return 0
