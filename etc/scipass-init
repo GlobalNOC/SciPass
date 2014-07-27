@@ -1,0 +1,38 @@
+#!/bin/sh
+# chkconfig: 123456 90 10
+# TTS Server for Speech Synthesis
+#
+
+options="--config-file /etc/SciPass/SciPass.cfg --verbose --use-syslog"
+
+CMD="ryu-manager /usr/share/SciPass/SciPass.py $options"
+ 
+start() {
+    $CMD 2>&1 &
+    echo "SciPass Started"
+}
+ 
+stop() {
+    pid=`ps -ef | grep 'SciPass.py' | awk '{ print $2 }'`
+    echo $pid
+    kill $pid
+    sleep 2
+    echo "SciPass Stopped"
+}
+ 
+case "$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop   
+    ;;
+  restart)
+    stop
+    start
+    ;;
+  *)
+    echo "Usage: /etc/init.d/scipass {start|stop|restart}"
+    exit 1
+esac
+exit 0
