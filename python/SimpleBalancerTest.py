@@ -1,6 +1,7 @@
 import pprint
 import ipaddr
 import unittest
+import xmlrunner
 from SimpleBalancer import SimpleBalancer,MaxPrefixlenError
 
 class TestInit(unittest.TestCase):
@@ -273,8 +274,6 @@ class TestBalance(unittest.TestCase):
         self.balancer.balanceByIp( )
         
 
-    
-
 SimpleBalancerSuite = unittest.TestSuite()
 SimpleBalancerSuite.addTest(TestInit('test_no_ops'))
 SimpleBalancerSuite.addTest(TestInit('test_all_ops'))
@@ -292,5 +291,5 @@ SimpleBalancerSuite.addTest(TestPrefix('test_split_prefix'))
 SimpleBalancerSuite.addTest(TestPrefix('test_get_prefix_sensor'))
 SimpleBalancerSuite.addTest(TestPrefix('test_get_largest_prefix'))
 SimpleBalancerSuite.addTest(TestBalance('test_get_est_load'))
-
-unittest.TextTestRunner(verbosity=2).run(SimpleBalancerSuite)
+#unittest.TextTestRunner(verbosity=2).run(SimpleBalancerSuite)
+unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
