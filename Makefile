@@ -9,6 +9,9 @@ clean:
 	rm -rf dist/$(NAME)-$(VERSION)
 	rm -rf dist
 
+test:
+	cd python; coverage run SimpleBalancerTest.py; coverage report -m; coverage html;
+
 dist:
 	rm -rf dist/$(NAME)-$(VERSION)
 	mkdir -p dist/$(NAME)-$(VERSION)
