@@ -1,0 +1,25 @@
+<SciPass>
+
+   <switch dpid="foo">
+    <domain name="R&E" mode="SciDMZ" admin_status="active" >
+      <port of_port_id="9" type="lan" name="foo89 description="lan int" />
+        <prefix type="v4">10.0.17.0/24</prefix>
+        <prefix type="v4">10.0.18.0/24</prefix>
+        <prefix type="v6">2001:4860:4862::0/64</prefix>
+      </port>
+
+     <!-- this is my main wan port -->
+     <port of_port_id="8" type="wan" name="foo8" description="wan int" />
+
+     <port of_port_id="10" type="fw_lan" name="foo10" description="fw lan" />
+     <port of_port_id="11" type="fw_wan" name="foo11" description="fw_wan" />
+
+     <sensor_port of_port_id="20" bw="10G" sensor_id="sensor1" admin_status="active" description="some host"/>
+     <sensor_port of_port_id="21" bw="10G" sensor_id="sensor2" admin_status="active" description="some host"/>
+     <sensor_port of_port_id="22" bw="10G" sensor_id="sensor3" admin_status="disabled" description="some host" />
+     <sensor_port of_port_id="23" bw="10G" sensor_id="sensor4" admin_status="spare" description="some host" />
+
+   </domain>
+  </switch>
+
+</SciPass>
