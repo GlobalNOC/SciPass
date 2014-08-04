@@ -1,8 +1,8 @@
 <SciPass>
 
    <switch dpid="foo">
-    <domain name="R&E" mode="SciDMZ" admin_status="active" >
-      <port of_port_id="9" type="lan" name="foo89 description="lan int" />
+    <domain name="R&amp;E" mode="SciDMZ" admin_status="active" >
+      <port of_port_id="9" type="lan" name="foo89" description="lan int">
         <prefix type="v4">10.0.17.0/24</prefix>
         <prefix type="v4">10.0.18.0/24</prefix>
         <prefix type="v6">2001:4860:4862::0/64</prefix>

@@ -79,6 +79,7 @@ class SimpleBalancer:
 
       self.ignorePrefixBW              = ignorePrefixBW
       self.sensorBandwidthMinThreshold = 1
+      self.sensors                     = defaultdict(list)
       self.sensorLoad                  = defaultdict(list)
       self.sensorStatus                = defaultdict(list)
       self.sensorPrefixes              = defaultdict(list)
@@ -155,15 +156,17 @@ class SimpleBalancer:
   def addSensor(self,sensor):
     """adds sensor, inits to load 0, sets status to 1"""
     if(sensor == None):
-        #self.logger.error("Invalid Sensor!")
+        self.logger.error("No Sensor Specified")
         return 0
 
-    if(self.sensorLoad.has_key(sensor)):
-        #self.logger.error("Sensor %d already exists", int(sensor))
+    if(self.sensors.has_key(sensor['sensor_id'])):
+        self.logger.error("Sensor %s already exists", sensor['sensor_id'])
         return 0
 
-    self.sensorLoad[sensor] = 0
-    self.sensorStatus[sensor] = 1
+    self.sensors[sensor['sensor_id']] = sensor
+    self.sensorLoad[sensor['sensor_id']] = 0
+    self.sensorStatus[sensor['sensor_id']] = 1
+
     return 1
  
   
@@ -432,7 +435,7 @@ class SimpleBalancer:
     for sensor in self.sensorPrefixes.keys():
       for prefix in self.sensorPrefixes[sensor]:
         totalSpace = totalSpace + prefix.numhosts
-        self.logger.debug( "sensor "+sensor+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
+        self.logger.debug( "sensor "+str(sensor)+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
         sensorSpace[sensor] = sensorSpace[sensor] + prefix.numhosts
 
     for sensor in self.sensorLoad.keys():
@@ -491,9 +494,9 @@ class SimpleBalancer:
 
     #---
    
-    self.logger.debug("max sensor = '"+maxSensor+"' load "+str(maxLoad))
+    self.logger.debug("max sensor = '"+str(maxSensor)+"' load "+str(maxLoad))
     #print("min sensor = '"+minSensor+"' load "+str(minLoad))
-    self.logger.debug("load delta = "+str(loadDelta)+" max "+maxSensor+" min "+minSensor)
+    self.logger.debug("load delta = "+str(loadDelta)+" max "+str(maxSensor)+" min "+str(minSensor))
 
     if( maxLoad >= self.sensorLoadMinThreshold ):
       if(loadDelta >= self.sensorLoadDeltaThreshold):
@@ -528,79 +531,76 @@ class SimpleBalancer:
  
 
   def balance(self):
-    """evaluate sensor load and come up with better balance if possible"""
-    """multistep process, spread across time, considers sensor with min and max load"""
-    minLoad         = 100
-    minSensor	    = ""
+      """evaluate sensor load and come up with better balance if possible"""
+      """multistep process, spread across time, considers sensor with min and max load"""
+      minLoad         = 100
+      minSensor	    = ""
+      
+      maxLoad         = 0    
+      maxSensor       = ""
+      
+      if(self.ignoreSensorLoad and self.ignorePrefixBW):
+          return self.balanceByIP()
 
-    maxLoad         = 0    
-    maxSensor       = ""
+      if(self.ignoreSensorLoad):
+          return self.balanceByNetBytes()
 
-    if(self.ignoreSensorLoad and self.ignorePrefixBW):
-      return self.balanceByIP()
-
-    if(self.ignoreSensorLoad):
-      return self.balanceByNetBytes()
-
-    prefixBW = self.prefixBW
+      prefixBW = self.prefixBW
 
     #--- find the current loads and figure out max, min and range
-    if(self.ignoreSensorLoad == 0):
+      if(self.ignoreSensorLoad == 0):
       #--- calc load by looking at sensor load
-      for sensor in self.sensorLoad.keys():
-        load = self.sensorLoad[sensor]
-      
-        if(load > maxLoad):
-          maxLoad = load
-	  maxSensor = sensor
+          for sensor in self.sensorLoad.keys():
+              load = self.sensorLoad[sensor]
+              
+              if(load > maxLoad):
+                  maxLoad = load
+                  maxSensor = sensor
+                  
+              if(load < minLoad):
+                  minLoad = load
+                  minSensor = sensor;
 
-        if(load < minLoad):
-          minLoad = load
-          minSensor = sensor;
+          loadDelta = maxLoad - minLoad;
 
-      loadDelta = maxLoad - minLoad;
-
-    self.logger.debug("max sensor = '"+maxSensor+"' load "+str(maxLoad))
-    self.logger.debug("min sensor = '"+minSensor+"' load "+str(minLoad))
-    self.logger.debug("load delta = "+str(loadDelta))
-    if(self.ignoreSensorLoad > 0 or maxLoad >= self.sensorLoadMinThreshold ):
-      if(loadDelta >= self.sensorLoadDeltaThreshold):
+          self.logger.debug("max sensor = '"+str(maxSensor)+"' load "+str(maxLoad))
+          self.logger.debug("min sensor = '"+str(minSensor)+"' load "+str(minLoad))
+          self.logger.debug("load delta = "+str(loadDelta))
+          if(self.ignoreSensorLoad > 0 or maxLoad >= self.sensorLoadMinThreshold ):
+              if(loadDelta >= self.sensorLoadDeltaThreshold):
         #-- a sensor is above balance threshold and the delta is large enough to consider balancing
 
         #--- get the prefix with largest esitmated load from maxSensor
-        candidatePrefix = self.getLargestPrefix(maxSensor)
+                  candidatePrefix = self.getLargestPrefix(maxSensor)
 
-        if(candidatePrefix == None):
-          self.logger.error( "sensor "+maxSensor+" has no prefixes but claimes to have highest load?")
-          return 0;
+                  if(candidatePrefix == None):
+                      self.logger.error( "sensor "+maxSensor+" has no prefixes but claimes to have highest load?")
+                      return 0;
 
-        estPreLoad = self.getEstLoad(maxSensor,candidatePrefix)
-        estNewSensorLoad = estPreLoad+minLoad;
-        #print("prefix: "+str(candidatePrefix)+"' est prefix load "+str(estPreLoad)+" est new sensor load "+str(estNewSensorLoad));
+                  estPreLoad = self.getEstLoad(maxSensor,candidatePrefix)
+                  estNewSensorLoad = estPreLoad+minLoad;
+
         #--- check if it will fit on minSensor and if the new sensor will have less load than max sensor 
-        if(estPreLoad <  (1 - minLoad) and estNewSensorLoad < maxLoad):
+                  if(estPreLoad <  (1 - minLoad) and estNewSensorLoad < maxLoad):
           #--- if it will fit, move it to minsensor
-          self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
+                      self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
 
-        else:
+                  else:
           #--- will not fit, split, then leave on original sensor and retry later after
  	  #--- better statistics are gathered 
           #print("-- need to split candidate and try again later after load measures");
 
- 	  try:
-            subnets = self.splitPrefix(candidatePrefix);
-            for prefix in subnets:
-              self.addSensorPrefix(maxSensor,prefix)
-
-            self.delSensorPrefix(maxSensor,candidatePrefix)
-          except MaxPrefixlenError as e:
-            self.logger.warn( "at max prefix length limit" )
+                      try:
+                          subnets = self.splitPrefix(candidatePrefix);
+                          for prefix in subnets:
+                              self.addSensorPrefix(maxSensor,prefix)
+                              
+                          self.delSensorPrefix(maxSensor,candidatePrefix)
+                      except MaxPrefixlenError as e:
+                          self.logger.warn( "at max prefix length limit" )
            
-      else:
-        self.logger.warn("below load Delta Threshold")
+              else:
+                  self.logger.warn("below load Delta Threshold")
 
-    else:
-      self.logger.warn("below sensorLoadMinThreshold")
-  
-      
-
+          else:
+              self.logger.warn("below sensorLoadMinThreshold")

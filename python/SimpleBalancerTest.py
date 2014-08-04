@@ -27,12 +27,12 @@ class TestSensorMods(unittest.TestCase):
 
     def test_add_sensor(self):
         #add the first sensor
-        res = self.balancer.addSensor(1)
+        res = self.balancer.addSensor({"sensor_id": 1})
         self.assertTrue(res == 1)
         #add a second sensor
-        res = self.balancer.addSensor(2)
+        res = self.balancer.addSensor({"sensor_id": 2})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor(1)
+        res = self.balancer.addSensor({"sensor_id": 1})
         self.assertFalse(res == 1)
         res = self.balancer.addSensor(None)
         self.assertFalse(res == 1)
@@ -41,7 +41,7 @@ class TestSensorMods(unittest.TestCase):
         self.assertTrue(load[2] == 0)
 
     def test_set_sensor_load(self):
-        res = self.balancer.addSensor(1)
+        res = self.balancer.addSensor({"sensor_id": 1})
         self.assertTrue(res == 1)
         res = self.balancer.setSensorLoad(1,.1)
         self.assertTrue(res == 1)
@@ -53,7 +53,7 @@ class TestSensorMods(unittest.TestCase):
         self.assertTrue(res == 0)
 
     def test_set_sensor_status(self):
-        res = self.balancer.addSensor(1)
+        res = self.balancer.addSensor({"sensor_id": 1})
         self.assertTrue(res == 1)
         res = self.balancer.setSensorStatus(1,0)
         self.assertTrue(res == 1)
@@ -86,9 +86,9 @@ class TestPrefix(unittest.TestCase):
 
     def setUp(self):
         self.balancer = SimpleBalancer()
-        res = self.balancer.addSensor(1)
+        res = self.balancer.addSensor({"sensor_id": 1})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor(2)
+        res = self.balancer.addSensor({"sensor_id": 2})
         self.assertTrue(res == 1)
         self.handler_fired = 0
         self.sensor = None
@@ -237,9 +237,9 @@ class TestBalance(unittest.TestCase):
 
     def test_get_est_load(self):
         self.balancer = SimpleBalancer()
-        res = self.balancer.addSensor(1)
+        res = self.balancer.addSensor({"sensor_id": 1})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor(2)
+        res = self.balancer.addSensor({"sensor_id": 2})
         self.assertTrue(res == 1)
         net = ipaddr.IPv4Network("10.220.0.0/12")
         res = self.balancer.addSensorPrefix(1,net,0)
@@ -257,11 +257,11 @@ class TestBalance(unittest.TestCase):
 
     def test_balance_by_ip(self):
         self.balancer = SimpleBalancer()
-        res = self.balancer.addSensor(1)
+        res = self.balancer.addSensor({"sensor_id": 1})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor(2)
+        res = self.balancer.addSensor({"sensor_id": 2})
         self.assertTrue(res == 1)
-        et = ipaddr.IPv4Network("10.220.0.0/12")
+        net = ipaddr.IPv4Network("10.220.0.0/12")
         res = self.balancer.addSensorPrefix(1,net,0)
         self.assertTrue(res == 1)
         net2 = ipaddr.IPv4Network("10.0.0.0/10")
@@ -271,8 +271,55 @@ class TestBalance(unittest.TestCase):
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net2,500,500)
         self.assertTrue(res == 1)
-        self.balancer.balanceByIp( )
-        
+        self.balancer.balanceByIP( )
+        #todo:
+        #make sure we do shit
+
+    def test_balance_by_net(self):
+        self.balancer = SimpleBalancer()
+        res = self.balancer.addSensor({"sensor_id": 1})
+        self.assertTrue(res == 1)
+        res = self.balancer.addSensor({"sensor_id": 2})
+        self.assertTrue(res == 1)
+        net = ipaddr.IPv4Network("10.220.0.0/12")
+        res = self.balancer.addSensorPrefix(1,net,0)
+        self.assertTrue(res == 1)
+        net2 = ipaddr.IPv4Network("10.0.0.0/10")
+        res = self.balancer.addSensorPrefix(1,net2,0)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net,5000000,5000000)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net2,500,500)
+        self.assertTrue(res == 1)
+        self.balancer.balanceByNetBytes( )
+
+    def test_balance_by_load(self):
+        self.balancer = SimpleBalancer( ignoreSensorLoad = 0,
+                                        ignorePrefixBW = 0)
+        res = self.balancer.addSensor({"sensor_id": 1})
+        self.assertTrue(res == 1)
+        res = self.balancer.addSensor({"sensor_id": 2})
+        self.assertTrue(res == 1)
+        net = ipaddr.IPv4Network("10.220.0.0/12")
+        res = self.balancer.addSensorPrefix(1,net,0)
+        self.assertTrue(res == 1)
+        net2 = ipaddr.IPv4Network("10.0.0.0/10")
+        res = self.balancer.addSensorPrefix(1,net2,0)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net,5000000,5000000)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net2,500,500)
+        self.assertTrue(res == 1)
+        res = self.balancer.setSensorLoad(1,.9)
+        self.assertTrue(res == 1)
+        res = self.balancer.setSensorLoad(2,.1)
+        self.assertTrue(res == 1)
+        self.balancer.balance( )
+
+    def test_to_string(self):
+        self.balancer = SimpleBalancer()
+        self
+
 
 SimpleBalancerSuite = unittest.TestSuite()
 SimpleBalancerSuite.addTest(TestInit('test_no_ops'))
@@ -291,5 +338,8 @@ SimpleBalancerSuite.addTest(TestPrefix('test_split_prefix'))
 SimpleBalancerSuite.addTest(TestPrefix('test_get_prefix_sensor'))
 SimpleBalancerSuite.addTest(TestPrefix('test_get_largest_prefix'))
 SimpleBalancerSuite.addTest(TestBalance('test_get_est_load'))
+SimpleBalancerSuite.addTest(TestBalance('test_balance_by_ip'))
+SimpleBalancerSuite.addTest(TestBalance('test_balance_by_net'))
+SimpleBalancerSuite.addTest(TestBalance('test_balance_by_load'))
 #unittest.TextTestRunner(verbosity=2).run(SimpleBalancerSuite)
 unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
