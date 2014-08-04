@@ -73,8 +73,8 @@ class SimpleBalancer:
       self.leastSpecificPrefixLen      = leastSpecificPrefixLen
   
       self.ignoreSensorLoad	       = ignoreSensorLoad
-      self.sensorLoadMinThreshold      = sensorLoadMinThresh
-      self.sensorLoadDeltaThreshold    = sensorLoadDeltaThresh
+      self.sensorLoadMinThreshold      = float(sensorLoadMinThresh)
+      self.sensorLoadDeltaThreshold    = float(sensorLoadDeltaThresh)
 
 
       self.ignorePrefixBW              = ignorePrefixBW
@@ -153,7 +153,24 @@ class SimpleBalancer:
       return status
  
 
-  def addSensor(self,sensor):
+  def distributePrefixes(self, prefix_array):
+      self.logger.debug("Distrbiuting prefixes")
+      for prefix in prefix_array:
+          self.logger.debug("prefix len: " + str(prefix.prefixlen))
+          self.logger.debug("least speciifc: " + str(self.leastSpecificPrefixLen))
+          if(prefix.prefixlen > self.leastSpecificPrefixLen):
+              self.logger.debug("prefix exceeds the most specific prefix len")
+              #split it in half and try again
+              self.distributePrefixes( self.splitPrefix(prefix))
+          else:
+              self.logger.debug(str(self.sensors.items()[0][1]['sensor_id']))
+              self.addSensorPrefix( self.sensors.items()[0][1]['sensor_id'], prefix, 0)
+              self.balanceByIP()
+              
+          
+              
+
+  def addSensor(self, sensor):
     """adds sensor, inits to load 0, sets status to 1"""
     if(sensor == None):
         self.logger.error("No Sensor Specified")
@@ -351,10 +368,11 @@ class SimpleBalancer:
 
   def splitPrefix(self,prefix):
     """takes a prefix and splits it into 2 subnets that by increasing masklen by 1 bit"""
-    if(prefix._prefixlen <= self.mostSpecificPrefixLen -1):
-      return prefix.Subnet()
+    self.logger.debug("Most Specific: " + self.mostSpecificPrefixLen)
+    if(prefix._prefixlen <= self.mostSpecificPrefixLen - 1):
+        return prefix.Subnet()
     else:
-      raise MaxPrefixlenError(prefix);   
+        raise MaxPrefixlenError(prefix);   
 
   def splitPrefixForSensors(self,prefix,numSensors):
     """splits a prefix into subnets for balancing across, it will go up to the power of 2 value that contains numSensors"""
@@ -432,7 +450,7 @@ class SimpleBalancer:
     maxSensor   = ""
     minSensor   = ""
 
-    for sensor in self.sensorPrefixes.keys():
+    for sensor in self.sensors.keys():
       for prefix in self.sensorPrefixes[sensor]:
         totalSpace = totalSpace + prefix.numhosts
         self.logger.debug( "sensor "+str(sensor)+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
@@ -450,14 +468,16 @@ class SimpleBalancer:
         minSensor = sensor
 
     delta = maxMetric - minMetric
+    self.logger.debug("delta: " + str(delta))
+    self.logger.debug("Sensor load delta threshold: " + str(self.sensorLoadDeltaThreshold))
 
     if(delta >= self.sensorLoadDeltaThreshold):
-
-      #--- get the prefix with largest esitmated load from maxSensor
-      candidatePrefix = self.getLargestPrefix(maxSensor)
-
-      self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
-
+        self.logger.debug("moving prefixes")
+        #--- get the prefix with largest esitmated load from maxSensor
+        candidatePrefix = self.getLargestPrefix(maxSensor)
+        self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
+    else:
+        self.logger.debug("everything is fine")
 
   def balanceByNetBytes(self):
     """Balance by network traffic with no regard to sensor load"""

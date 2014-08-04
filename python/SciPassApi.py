@@ -86,7 +86,7 @@ class SciPassApi:
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = obj,
                                             actions      = actions,
-                                            command      = ofp.OFPFC_ADD,
+                                            command      = "ADD",
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
                                             priority     = priority )
@@ -99,7 +99,7 @@ class SciPassApi:
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = obj,
                                             actions      = actions,
-                                            command      = ofp.OFPFC_ADD,
+                                            command      = "ADD",
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
                                             priority     = priority )
@@ -151,7 +151,7 @@ class SciPassApi:
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = obj,
                                             actions      = actions,
-                                            command      = ofp.OFPFC_ADD,
+                                            command      = "ADD",
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
                                             priority     = priority )
@@ -161,7 +161,7 @@ class SciPassApi:
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = obj,
                                             actions      = actions,
-                                            command      = ofp.OFPFC_ADD,
+                                            command      = "ADD",
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
                                             priority     = priority )
@@ -196,7 +196,7 @@ class SciPassApi:
         status = domain.prop("admin_status")
         max_prefixes = domain.prop("max_prefixes")
         most_specific_len = domain.prop("most_specific_prefix_len")
-        least_specific_len = domain.prop("least_specific_preifx_len")
+        least_specific_len = domain.prop("least_specific_prefix_len")
         idle_timeout = domain.prop("idle_timeout")
         hard_timeout = domain.prop("hard_timeout")
         default_blacklist_priority = domain.prop("blacklist_priority")
@@ -230,17 +230,17 @@ class SciPassApi:
                                                          sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
                                                          leastSpecificPrefixLen = least_specific_len) 
         #register the methods
-        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y : this.addPrefix(dpid = dpid,
+        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y : self.addPrefix(dpid = dpid,
                                                                                             domain_name = name,
                                                                                             sensor_id = x,
                                                                                             prefix = y))
 
-        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y : this.delPrefix(dpid = dpid,
+        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y : self.delPrefix(dpid = dpid,
                                                                                             domain_name = name,
                                                                                             sensor_id = x,
                                                                                             prefix = y))
 
-        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z : this.movePrefix(dpid = dpid,
+        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z : self.movePrefix(dpid = dpid,
                                                                                               domain_name = name,
                                                                                               old_sensor_id = x,
                                                                                               new_sensor_id = y,
@@ -248,14 +248,14 @@ class SciPassApi:
                                                                                               ))
 
         ports = ctxt.xpathEval("port")
-        sensor_ports = ctxt.xpathEval("sensor_ports")
+        sensor_ports = ctxt.xpathEval("sensor_port")
 
         for port in sensor_ports:
-          sensor = {port_id: port.prop("of_port_id"),
-                                bw: port.prop("bw"),
-                    sensor_id: port.prop("sensor_id"),
-                    admin_status: port.prop("admin_status"),
-                    description: port.prop("description")}
+          sensor = {"port_id": port.prop("of_port_id"),
+                    "bw": port.prop("bw"),
+                    "sensor_id": port.prop("sensor_id"),
+                    "admin_status": port.prop("admin_status"),
+                    "description": port.prop("description")}
           config[dpid][name]['sensor_ports'][sensor['sensor_id']] = sensor
           config[dpid][name]['balancer'].addSensor(sensor)
 
@@ -277,38 +277,166 @@ class SciPassApi:
             prefixes_array.append(prefix_obj)
             #TODO
             #todo push the prefixes to sensors
-            config[dpid][name]['ports'][ptype].append({"port_id": port.prop("of_port_id"),
-                                                       "name": port.prop("name"),
-                                                       "description": port.prop("description"),
-                                                       "prefixes": prefixes_array
-                                                       })
+          config[dpid][name]['ports'][ptype].append({"port_id": port.prop("of_port_id"),
+                                                     "name": port.prop("name"),
+                                                     "description": port.prop("description"),
+                                                     "prefixes": prefixes_array
+                                                     })
         
     self.config = config      
     doc.freeDoc()
     ctxt.xpathFreeContext()
 
-  def switchJoined(self, dpid):
+  def switchJoined(self, datapath):
     #check to see if we are suppose to operate on this switch
+    dpid = "%016x" % datapath.id
     if(self.config.has_key(dpid)):
-      #first flush the rules
-      self._flushRules(dpid)
+      self.logger.error("Switch has joined!")
       #now for each domain push the initial flows 
       #and start the balancing process
-      for domain in self.config[dpid]:
-        if(domain['mode'] == "SciDMZ" and len(domain['fw_lan']) > 0 and len(domain['fw_wan']) > 0):
+      for domain_name in self.config[dpid]:
+        domain = self.config[dpid][domain_name]
+        if(domain['mode'] == "SciDMZ"):
           #we have firewals configured
           #setup the rules to them
           self.logger.error("Mode is Science DMZ")
-          
+          #need to install the default rules forwarding everything through the FW
+          #then install the balancing rules for our defined prefixes
+          self._setupSciDMZRules(dpid = dpid,
+                                 domain_name = domain_name)
+
         elif(domain['mode'] == "InlineIDS"):
           #no firewall
           self.logger.error("Mode is Inline IDS")
-          
+          #need to install the default rules forwarding through the switch
+          #then install the balancing rules for our defined prefixes
+          self._setupInlineIDS(dpid = dpid, domain_name = domain['name'])
         elif(domain['mode'] == "Balancer"):
           #just balancer no other forwarding
           self.logger.error("Mode is Balancer")
+          #just install the balance rules, no forwarding
+          self._setupBalancer(dpid = dpid, domain_name = domain['name'])
+          
+  def _setupSciDMZRules(self, dpid = None, domain_name = None):
+    self.logger.debug("SciDMZ rule init")
+    #just in and out port rules for the 
+    #NOTE this presumes many input and 1 output port total and 1 fw lan/wan port for each domain
+
+    #lowest priority
+    priority = 10
+    prefixes = []
+    ports = self.config[dpid][domain_name]['ports']
+
+    if(len(ports['fw_wan']) <= 0 or len(ports['fw_lan']) <= 0):
+      #well crap no fw_wan or fw_lan exist... what are bypassing?
+      self.logger.error("nothing to bypass.. you probably want InlineIDS mode... doing that instead")
+      self._setupInlineIDS(dpid = dpid, domain_name = domain_name)
+      return
+
+    fw_lan_outputs = []
+
+    for in_port in ports['lan']:
+      header = {"phys_port":   int(in_port['port_id'])}
+
+      actions = []
+      #output to FW
+      actions.append({"type": "output",
+                      "port": int(ports['fw_lan'][0]['port_id'])})
+
+      fw_lan_outputs.append({"type": "output",
+                             "port": int(in_port['port_id'])})
+
+      self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                              header       = header,
+                                              actions      = actions,
+                                              command      = "ADD",
+                                              idle_timeout = 0,
+                                              hard_timeout = 0,
+                                              priority     = int(priority / 2))
+
+      for prefix in in_port['prefixes']:
+        prefixes.append(prefix['prefix'])
+        #specific prefix forwarding rules
+        #FW LAN to specific LAN PORT
+        header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
+                  "nw_src": int(prefix['prefix']),
+                  "nw_src_mask": int(prefix['prefix'].prefixlen)}
         
-            
+        actions = []
+        actions.append({"type": "output",
+                        "port": int(in_port['port_id'])})
+        
+        self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                header       = header,
+                                                actions      = actions,
+                                                command      = "ADD",
+                                                idle_timeout = 0,
+                                                hard_timeout = 0,
+                                                priority     = int(priority))
+        
+        #SPECIFIC LAN -> FW LAN port
+        header = {"phys_port": int(in_port['port_id']),
+                  "nw_src": int(prefix['prefix']),
+                  "nw_src_mask": int(prefix['prefix'].prefixlen)}
+
+        actions = []
+        actions.append({"type": "output",
+                        "port": int(ports['fw_lan'][0]['port_id'])})
+
+        self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                header       = header,
+                                                actions      = actions,
+                                                command      = "ADD",
+                                                idle_timeout = 0,
+                                                hard_timeout = 0,
+                                                priority     = int(priority))
+
+    #FW LAN to ALL INPUT PORTS
+    header = {"phys_port": int(ports['fw_lan'][0]['port_id'])}
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = fw_lan_outputs,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority / 3))
+
+    #FW WAN -> WAN
+    header = {"phys_port": int(ports['fw_wan'][0]['port_id'])}
+    actions = []
+    actions.append({"type": "output",
+                    "port": int(ports['wan'][0]['port_id'])})
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = fw_lan_outputs,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority))
+
+    #WAN -> FW WAN
+    header = {"phys_port": int(ports['wan'][0]['port_id'])}
+    actions = []
+    actions.append({"type": "output",
+                        "port": int(ports['fw_wan'][0]['port_id'])})
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = fw_lan_outputs,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority))
+
+    #ok now that we have that done... start balancing!!!
+    self.config[dpid][domain_name]['balancer'].distributePrefixes(prefixes)
+    
+
+  def _setupInlineIDS(self, dpid = None, domain_name = None):
+    self.logger.debug("InLine IDS rule init")
+
+  def _setupBalancer(self, dpid = None, domain_name = None):
+    self.logger.debug("balancer rule init")
+  
   def _resetSwitchForwarding(self,dpid):
     self.resetSwitchForwarding(dpid)
   
@@ -316,135 +444,127 @@ class SciPassApi:
     self.logger.debug("Add Prefix")
     #find the north and south port
 
-    in_port  = 0
-    out_port = 0
-    fw_lan   = 0
-    fw_wan   = 0
+    in_port  = None
+    out_port = None
+    fw_lan   = None
+    fw_wan   = None
     #need to figure out the lan and wan ports
-    for port in self.config[dpid][domain_name]['ports']:
-      if(port['type'] == "lan"):
-        for prefix in port.prefixes:
-          if(prefix.prefix.Contains( obj.nw_src )):
-            in_port = port['of_port_id']
-      if(port['type'] == "wan"):
-        out_port = port['of_port_id']
-      if(port['type'] == "fw_lan"):
-        fw_lan = port['of_port_id']
-      if(port['type'] == "fw_wan"):
-        fw_wan == port['of_port_id']
 
-    if(in_port == 0 or out_port == 0):
+    ports = self.config[dpid][domain_name]['ports']
+
+    for port in ports['lan']:
+      for prefix_obj in port['prefixes']:
+        if(prefix_obj['prefix'].Contains( prefix )):
+          in_port = port
+
+    if(in_port == None):
       self.logger.error("unable to find either an output or an input port")
-    
-    header = {"nw_src":      int(prefix),
-              "nw_src_mask": int(prefix.prefixlen),
-              "phys_port":   int(in_port),
-              "dl_type":     ether.ETH_TYPE_ID}
+      return
+
+    header = {"nw_src":      int(prefix_obj['prefix']),
+              "nw_src_mask": int(prefix_obj['prefix'].prefixlen),
+              "phys_port":   int(in_port['port_id'])}
 
     actions = []
     #output to sensor (basically this is the IDS balance case)
     actions.append({"type": "output",
-                    "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]})
-    if(self.config[dpid][domain_name]['mode'] == "ScienceDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+                    "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]['port_id']})
+    if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
       #append the FW or other destination
-      if(fw_lan == 0):
+      if(len(ports['fw_lan']) == 0):
         actions.append({"type": "output",
-                        "port": out_port})
+                        "port": ports['wan'][0]['port_id']})
       else:
         actions.append({"type": "output",
-                        "port": fw_lan})
+                        "port": ports['fw_lan'][0]['port_id']})
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
                                             actions      = actions,
-                                            command      = ofp.OFPFC_ADD,
-                                            idle_timeout = idle_timeout,
-                                            hard_timeout = hard_timeout,
-                                            priority     = priority )    
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = 500)
 
-    header = {"nw_dst":      int(prefix),
-              "nw_dst_mask": int(prefix.prefixlen),
-              "phys_port":   int(out_port),
-              "dl_type":     ether.ETH_TYPE_ID }
+    header = {"nw_dst":      int(prefix_obj['prefix']),
+              "nw_dst_mask": int(prefix_obj['prefix'].prefixlen),
+              "phys_port":   int(ports['wan'][0]['port_id'])}
     
     actions = []
     #output to sensor (basically this is the IDS balance case)
     actions.append({"type": "output",
-                    "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]})
-    if(self.config[dpid][domain_name]['mode'] == "ScienceDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+                    "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]['port_id']})
+    if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
       #append the FW or other destination
       if(fw_lan == 0):
         actions.append({"type": "output",
-                        "port": in_port})
+                        "port": in_port['port_id']})
       else:
         actions.append({"type": "output",
-                        "port": fw_wan})
+                        "port": ports['fw_wan'][0]['port_id']})
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
                                             actions      = actions,
-                                            command      = ofp.OFPFC_ADD,
-                                            idle_timeout = idle_timeout,
-                                            hard_timeout = hard_timeout,
-                                            priority     = priority )
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = 500)
 
   def delPrefix(self, dpid=None, domain_name=None, sensor_id=None, prefix=None):
     self.logger.debug("Remove Prefix")
 
-    in_port  = 0
-    out_port = 0
-    fw_lan   = 0
-    fw_wan   = 0
+    in_port  = None
+    out_port = None
+    fw_lan   = None
+    fw_wan   = None
 
     #need to figure out the lan and wan ports
-    for port in self.config[dpid][domain_name]['ports']:
-      if(port['type'] == "lan"):
-        for prefix in port.prefixes:
-          if(prefix.prefix.Contains( obj.nw_src )):
-            in_port = port['of_port_id']
-      if(port['type'] == "wan"):
-        out_port = port['of_port_id']
-      if(port['type'] == "fw_lan"):
-        fw_lan = port['of_port_id']
-      if(port['type'] == "fw_wan"):
-        fw_wan == port['of_port_id']
+    ports = self.config[dpid][domain_name]['ports']
+    for port in ports['lan']:
+      for prefix_obj in port['prefixes']:
+        if(prefix_obj['prefix'].Contains( prefix )):
+          in_port = port
 
-    if(in_port == 0 or out_port == 0):
-      self.logger.error("unable to find either an output or an input port")
+    if(in_port == None):
+      self.logger.error("Unable to find an input port for the prefix")
+      return
 
-    header = {"nw_src":      int(prefix),
-              "nw_src_mask": int(prefix.prefixlen),
-              "phys_port":   int(in_port),
-              "dl_type":     ether.ETH_TYPE_ID}
-
+    header = {"nw_src":      int(prefix_obj['prefix']),
+              "nw_src_mask": int(prefix_obj['prefix'].prefixlen),
+              "phys_port":   int(in_port['port_id'])}
+    
     actions = []
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
                                             actions      = actions,
-                                            command      = ofp.OFPFC_DELETE_STRICT,
-                                            idle_timeout = idle_timeout,
-                                            hard_timeout = hard_timeout,
-                                            priority     = priority )
+                                            command      = "DELETE_STRICT",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = 500)
 
-    header = {"nw_dst":      int(prefix),
-              "nw_dst_mask": int(prefix.prefixlen),
-              "phys_port":   int(out_port),
-              "dl_type":     ether.ETH_TYPE_ID }
-
+    header = {"nw_dst":      int(prefix_obj['prefix']),
+              "nw_dst_mask": int(prefix_obj['prefix'].prefixlen),
+              "phys_port":   int(ports['wan'][0]['port_id'])}
+    
     actions = []
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
                                             actions      = actions,
-                                            command      = ofp.OFPFC_DELETE_STRICT,
-                                            idle_timeout = idle_timeout,
-                                            hard_timeout = hard_timeout,
-                                            priority     = priority )
-
+                                            command      = "DELETE_STRICT",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = 500)
+    
   def movePrefix(self, dpid = None, domain_name=None, new_sensor_id=None, old_sensor_id=None, prefix=None):
     self.logger.debug("move prefix")
     #delete and add the prefix
     self.delPrefix(dpid, domain_name, old_sensor_id, prefix)
     self.addPrefix(dpid, domain_name, new_sensor_id, prefix)
+
+  def _flush_rules(self, dpid):
+    self.logger.debug("flush rules")
+    
 
   def remove_flow(self, ev):
     self.logger.debug("remove flow")
@@ -452,8 +572,30 @@ class SciPassApi:
   def port_status(self, ev):
     self.logger.debug("port status handler")
 
-  def update_prefix_bw(dpid, prefix, tx, rx):
-    self.logger.debug("update_prefix_bw")
-    
   def port_stats(self, ev):
     self.logger.debug("port stats handler")
+
+  def fireForwardingStateChangeHandlers( self,
+                                         dpid         = None,
+                                         header       = None,
+                                         actions      = None,
+                                         command      = None,
+                                         idle_timeout = None,
+                                         hard_timeout = None,
+                                         priority     = None):
+    
+    self.logger.debug("fireing forwarding state change handlers")
+    self.logger.debug("Header: " + str(header))
+    self.logger.debug("Actions: " + str(actions))
+    
+    for handler in self.switchForwardingChangeHandlers:
+      handler( dpid = dpid,
+               header = header,
+               actions = actions,
+               command = command,
+               idle_timeout = idle_timeout,
+               hard_timeout = hard_timeout,
+               priority = priority)
+
+  def updatePrefixBW(self,dpid, prefix, tx, rx):
+    self.logger.debug("updating prefix bw")

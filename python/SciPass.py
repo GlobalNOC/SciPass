@@ -112,7 +112,7 @@ class SciPass(app_manager.RyuApp):
         self.ports = defaultdict(dict);
         self.prefix_bytes = defaultdict(lambda: defaultdict(int))
         self.lastStatsTime = None
-        self.flowmods = []
+        self.flowmods = {}
 
         api = SciPassApi(logger = self.logger,
                          config_file = self.CONF.SciPassConfig )
@@ -124,25 +124,84 @@ class SciPass(app_manager.RyuApp):
         wsgi = kwargs['wsgi']
         wsgi.register(SciPassRest, {'api' : self.api})
 
-     def changeSwitchForwardingState(self, dpid=None, header=None, actions=None, command=None, idle_timeout=None, hard_timeout=None, priority=None):
+     def changeSwitchForwardingState(self, dpid=None, header=None, actions=None, command=None, idle_timeout=None, hard_timeout=None, priority=1):
          self.logger.debug("Changing switch forwarding state")
          
-         datapath = self.datapaths.values()[0]
+         if(not self.datapaths.has_key(dpid)):
+             self.logger.error("unable to find switch with dpid " + dpid)
+             return
+         
+         datapath = self.datapaths[dpid]
+
          ofp      = datapath.ofproto
          parser   = datapath.ofproto_parser
-         
-         match = parser.OFPMatch( dl_type     = ether.ETH_TYPE_IP,
-                                  in_port     = header.phys_port,
-                                  nw_src      = header.nw_src,
-                                  nw_src_mask = header.nw_src_mask,
-                                  nw_dst      = header.nw_dst,
-                                  nw_dst_mask = header.nw_dst_mask,
-                                  tp_src      = header.tp_src,
-                                  tp_dst      = header.tp_dst)
+
+         obj = {} 
+         if(header.has_key('dl_type')):
+             obj['dl_type'] = int(header['dl_type'])
+         else:
+             obj['dl_type'] = ether.ETH_TYPE_IP
+
+         if(header.has_key('phys_port')):
+             obj['in_port'] = int(header['phys_port'])
+         else:
+             obj['in_port'] = None
+
+         if(header.has_key('nw_src')):
+             obj['nw_src'] = int(header['nw_src'])
+         else:
+             obj['nw_src'] = None
+             
+         if(header.has_key('nw_src_mask')):
+             obj['nw_src_mask'] = int(header['nw_src_mask'])
+         else:
+             obj['nw_src_mask'] = None
+         if(header.has_key('nw_dst')):
+             obj['nw_dst'] = int(header['nw_dst'])
+         else:
+             obj['nw_dst'] = None
+
+         if(header.has_key('nw_dst_mask')):
+             obj['nw_dst_mask'] = int(header['nw_dst_mask'])
+         else:
+             obj['nw_dst_mask'] = None
+
+         if(header.has_key('tp_src')):
+             obj['tp_src'] = int(header['tp_src'])
+         else:
+             obj['tp_src'] = None
+
+         if(header.has_key('tp_dst')):
+             obj['tp_dst'] = int(header['tp_dst'])
+         else:
+             obj['tp_dst'] = None
+
+         match = parser.OFPMatch( in_port     = obj['in_port'],
+                                  nw_dst      = obj['nw_dst'],
+                                  nw_dst_mask = obj['nw_dst_mask'],
+                                  nw_src      = obj['nw_src'],
+                                  nw_src_mask = obj['nw_src_mask'],
+                                  dl_type     = obj['dl_type'],
+                                  tp_src      = obj['tp_src'],
+                                  tp_dst      = obj['tp_dst'])
+
+         self.logger.debug("Match: " + str(match))
+
          of_actions = []
          for action in actions:
-             if(action.type == "output"):
-                 of_actions.append(parser.OFPActionOutput(action.port,0))
+             if(action['type'] == "output"):
+                 of_actions.append(parser.OFPActionOutput(int(action['port']),0))
+
+         self.logger.debug("Actions: " + str(of_actions))
+         if(command == "ADD"):
+             command = ofp.OFPFC_ADD
+         elif(command == "DELETE_STRICT"):
+             command = ofp.OFPFC_DELETE_STRICT
+         else:
+             command = -1
+
+         self.logger.debug("Sending flow mod with command: " + str(command))
+         self.logger.debug("Datpath: " + str(datapath))
 
          mod = parser.OFPFlowMod( datapath     = datapath,
                                   priority     = priority,
@@ -153,48 +212,55 @@ class SciPass(app_manager.RyuApp):
                                   hard_timeout = hard_timeout,
                                   actions      = of_actions)
 
-         self.flowmods[dpid].append(mod)
+#         self.flowmods[dpid].append(mod)
          if(datapath.is_active == True):
             datapath.send_msg(mod)
 
      def flushRules(self, dpid):
       #--- pushes a mode to remove all flows from switch 
       #--- yep thats a hack, need to think about what multiple switches means for scipass
-      datapath = self.datapaths.values()[0]
-      ofp      = datapath.ofproto
-      parser   = datapath.ofproto_parser
-
+         if(not self.datapaths.has_key(dpid)):
+             self.logger.error("unable to find switch with dpid " + dpid)
+             return
+         
+         datapath = self.datapaths[dpid]
+         ofp      = datapath.ofproto
+         parser   = datapath.ofproto_parser
+         
       # --- create flowmod to control traffic from the prefix to the interwebs
-      match = parser.OFPMatch()
-      mod = parser.OFPFlowMod(datapath,match,0,ofp.OFPFC_DELETE)
+         match = parser.OFPMatch()
+         mod = parser.OFPFlowMod(datapath,match,0,ofp.OFPFC_DELETE)
 
       #--- remove mods in the flowmod cache
-      self.flowmods = [] 
+         self.flowmods[dpid] = []
 
  
       #--- if dp is active then push the rules
-      if(datapath.is_active == True):
-        datapath.send_msg(mod)
+         if(datapath.is_active == True):
+             datapath.send_msg(mod)
       
      def synchRules(self, dpid):
       #--- routine to syncronize the rules to the DP
       #--- currently just pushes, somday should diff
          
       #--- yep thats a hack, need to think about what multiple switches means for scipass
-      datapath = self.datapaths.values()[0]
-      self.logger.debug('synch rules on DP: %016x', datapath.id)
-      if(datapath.is_active == True):
-          for mod in self.flowmods:
-            datapath.send_msg(mod)
+         if(not self.datapaths.has_key(dpid)):
+             self.logger.error("unable to find switch with dpid " + dpid)
+             return
+
+         datapath = self.datapaths[dpid]
+         if(datapath.is_active == True):
+             for mod in self.flowmods:
+                 datapath.send_msg(mod)
 
      def _stats_loop(self):
-        while 1:
+         while 1:
           #--- send stats request
-          for dp in self.datapaths.values():
-              self._request_stats(dp)
-          
-          #--- sleep
-          hub.sleep(self.statsInterval)
+             for dp in self.datapaths.values():
+                 self._request_stats(dp)
+                 
+             #--- sleep
+             hub.sleep(self.statsInterval)
 
      def _balance_loop(self):
       while 1:
@@ -244,10 +310,12 @@ class SciPass(app_manager.RyuApp):
         if ev.state == MAIN_DISPATCHER:
             if not datapath.id in self.datapaths:
                 self.logger.debug('register datapath: %016x', datapath.id)
-                self.datapaths[datapath.id] = datapath
-
+                dpid = "%016x" % datapath.id
+                self.datapaths[dpid] = datapath
+                if(not self.flowmods.has_key(dpid)):
+                    self.flowmods[dpid] = []
 		#--- start the balancing act
-                self.api.switchJoined(datapath.id)
+                self.api.switchJoined(datapath)
 
         elif ev.state == DEAD_DISPATCHER:
             if datapath.id in self.datapaths:
@@ -331,7 +399,7 @@ class SciPass(app_manager.RyuApp):
         for prefix in prefix_bps.keys():
 	  rx = prefix_bps[prefix]["rx"]
           tx = prefix_bps[prefix]["tx"]
-          self.api.updatePrefixBW(dpid, prefix, tx, rx)
+          self.api.updatePrefixBW("%016x" % ev.msg.datapath.id, prefix, tx, rx)
           
      @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
      def _port_stats_reply_handler(self, ev):
