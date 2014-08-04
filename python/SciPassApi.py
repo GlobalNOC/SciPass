@@ -441,7 +441,7 @@ class SciPassApi:
     self.resetSwitchForwarding(dpid)
   
   def addPrefix(self, dpid=None, domain_name=None, sensor_id=None, prefix=None):
-    self.logger.debug("Add Prefix")
+    self.logger.debug("Add Prefix " + str(domain_name) + " " + str(sensor_id) + " " + str(prefix))
     #find the north and south port
 
     in_port  = None
@@ -461,8 +461,8 @@ class SciPassApi:
       self.logger.error("unable to find either an output or an input port")
       return
 
-    header = {"nw_src":      int(prefix_obj['prefix']),
-              "nw_src_mask": int(prefix_obj['prefix'].prefixlen),
+    header = {"nw_src":      int(prefix),
+              "nw_src_mask": int(prefix.prefixlen),
               "phys_port":   int(in_port['port_id'])}
 
     actions = []
@@ -486,8 +486,8 @@ class SciPassApi:
                                             hard_timeout = 0,
                                             priority     = 500)
 
-    header = {"nw_dst":      int(prefix_obj['prefix']),
-              "nw_dst_mask": int(prefix_obj['prefix'].prefixlen),
+    header = {"nw_dst":      int(prefix),
+              "nw_dst_mask": int(prefix.prefixlen),
               "phys_port":   int(ports['wan'][0]['port_id'])}
     
     actions = []
@@ -530,8 +530,8 @@ class SciPassApi:
       self.logger.error("Unable to find an input port for the prefix")
       return
 
-    header = {"nw_src":      int(prefix_obj['prefix']),
-              "nw_src_mask": int(prefix_obj['prefix'].prefixlen),
+    header = {"nw_src":      int(prefix),
+              "nw_src_mask": int(prefix.prefixlen),
               "phys_port":   int(in_port['port_id'])}
     
     actions = []
@@ -543,8 +543,8 @@ class SciPassApi:
                                             hard_timeout = 0,
                                             priority     = 500)
 
-    header = {"nw_dst":      int(prefix_obj['prefix']),
-              "nw_dst_mask": int(prefix_obj['prefix'].prefixlen),
+    header = {"nw_dst":      int(prefix),
+              "nw_dst_mask": int(prefix.prefixlen),
               "phys_port":   int(ports['wan'][0]['port_id'])}
     
     actions = []
