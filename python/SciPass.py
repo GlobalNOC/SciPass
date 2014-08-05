@@ -204,12 +204,12 @@ class SciPass(app_manager.RyuApp):
          self.logger.debug("Datpath: " + str(datapath))
 
          mod = parser.OFPFlowMod( datapath     = datapath,
-                                  priority     = priority,
+                                  priority     = int(priority),
                                   match        = match,
                                   cookie       = 0,
                                   command      = command,
-                                  idle_timeout = idle_timeout,
-                                  hard_timeout = hard_timeout,
+                                  idle_timeout = int(idle_timeout),
+                                  hard_timeout = int(hard_timeout),
                                   actions      = of_actions)
 
 #         self.flowmods[dpid].append(mod)

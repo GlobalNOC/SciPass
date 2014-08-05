@@ -48,61 +48,158 @@ class SciPassApi:
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(obj)
 
-    in_port = 0
-    out_port = 0
-
+    in_port = None
+    out_port = None
+    dpid = None
+    domain = None
+    reverse = False
+    new_prefix = ipaddr.IPv4Network(obj['nw_src'])
+    self.logger.error("New preifx: " + str(new_prefix))
     #need to figure out the lan and wan ports
-    for port in self.config[dpid][domain]['ports']:
-      if(port['type'] == "lan"):
-        for prefix in port.prefixes:
-          if(prefix.prefix.Contains( obj.nw_src )):
-            in_port = port['of_port_id']
-      if(port['type'] == "wan"):
-        out_port = port['of_port_id']
- 
-    if(in_port == 0 or out_port == 0):
+    for datapath_id in self.config:
+      for name in self.config[datapath_id]:
+        for port in self.config[datapath_id][name]['ports']['lan']:
+            for prefix in port['prefixes']:
+              if(prefix['prefix'].Contains( new_prefix )):
+                in_port = port
+                dpid = datapath_id
+                domain = name
+                
+    if(in_port == None):
+      new_prefix = ipaddr.IPv4Network(obj['nw_dst'])
+      #do the same but look for the dst instead of the src
+      for datapath_id in self.config:
+        for name in self.config[datapath_id]:
+          for port in self.config[datapath_id][name]['ports']['lan']:
+            for prefix in port['prefixes']:
+              if(prefix['prefix'].Contains( new_prefix )):
+                in_port = port
+                dpid = datapath_id
+                domain = name
+                reverse = True
+
+    if(in_port == None):
       self.logger.error("unable to find either an output or an input port")
-   
-    obj['phys_port'] = in_port
+      return
 
-    actions = [{"type": output, 
-                "port": out_port}]
+    obj['phys_port'] = in_port['port_id']
 
-    if(obj.idle_timeout == None):
-      idle_timout  = self.config[dpid][name]['default_idle_timeout']
+    actions = [{"type": "output", 
+                "port": self.config[dpid][name]['ports']['wan'][0]['port_id']}]
+
+    idle_timeout = None
+    hard_timeout = None
+    priority     = self.config[dpid][name]['default_whitelist_priority']
+    self.logger.error("Idle Timeout: " + self.config[dpid][name]['idle_timeout'])
+    self.logger.error("Hard Timeout: " + self.config[dpid][name]['hard_timeout'])
+    self.logger.error("Priority: " + priority)
+    
+    header = {}
+    if(not obj.has_key('idle_timeout')):
+      idle_timeout  = self.config[dpid][name]['idle_timeout']
     else:
-      idle_timeout = obj.idle_timeout
+      idle_timeout = obj['idle_timeout']
       
-    if(obj.hard_timeout == None):
-      hard_timeout = self.config[dpid][name]['default_hard_timeout']
+    self.logger.error("Selected Idle Timeout: " + str(idle_timeout))
+    if(not obj.has_key('hard_timeout')):
+      hard_timeout = self.config[dpid][name]['hard_timeout']
     else:
-      hard_timeout = obj.hard_timeout
+      hard_timeout = obj['hard_timeout']
       
-    if(obj.priority == None):
+    if(not obj.has_key('priority')):
       priority = self.config[dpid][name]['default_whitelist_priority']
     else:
-      priority = obj.priority
+      priority = obj['priority']
+
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_src'])
+      else:
+        header['tp_src'] = int(obj['tp_src'])
+
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_dst'])
+      else:
+        header['tp_dst'] = int(obj['tp_dst'])
+
+    header['phys_port'] = in_port['port_id']
+
+    self.logger.debug("Header: " + str(header))
+
+    
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            header       = obj,
+                                            header       = header,
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
-                                            priority     = priority )
+                                            priority     = priority)
+      
     
-    obj['phys_port'] = out_port
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
 
-    actions = [{"type": output,
-                "port": in_port}]
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_src'])
+      else:
+        header['tp_dst'] = int(obj['tp_src'])
+
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_dst'])
+      else:
+        header['tp_src'] = int(obj['tp_dst'])
+
+    header['phys_port'] = self.config[dpid][name]['ports']['wan'][0]['port_id']
+    
+    actions = [{"type": "output",
+                "port": in_port['port_id']}]
     
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            header       = obj,
+                                            header       = header,
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
-                                            priority     = priority )
+                                            priority     = priority)
     
     results = {}
     results['success'] = 1
@@ -115,56 +212,151 @@ class SciPassApi:
     pp = pprint.PrettyPrinter(indent=4)
     pp.pprint(obj)
 
-    in_port = 0
-    out_port = 0
+    in_port = None
+    out_port = None
+    dpid = None
+    domain = None
+    reverse = False
+
+    new_prefix = ipaddr.IPv4Network(obj['nw_src'])
+    self.logger.error("New preifx: " + str(new_prefix))
     #need to figure out the lan and wan ports
-    for port in self.config[dpid][domain]['ports']:
-      if(port['type'] == "lan"):
-        for prefix in port.prefixes:
-          if(prefix.prefix.Contains( obj.nw_src )):
-            in_port = port['of_port_id']
-      if(port['type'] == "wan"):
-        out_port = port['of_port_id']
+    for datapath_id in self.config:
+      for name in self.config[datapath_id]:
+        for port in self.config[datapath_id][name]['ports']['lan']:
+            for prefix in port['prefixes']:
+              if(prefix['prefix'].Contains( new_prefix )):
+                in_port = port
+                dpid = datapath_id
+                domain = name
 
-    if(in_port == 0 or out_port == 0):
+    if(in_port == None):
+      new_prefix = ipaddr.IPv4Network(obj['nw_dst'])
+      #do the same but look for the dst instead of the src                                                             
+      for datapath_id in self.config:
+        for name in self.config[datapath_id]:
+          for port in self.config[datapath_id][name]['ports']['lan']:
+            for prefix in port['prefixes']:
+              if(prefix['prefix'].Contains( new_prefix )):
+                in_port = port
+                dpid = datapath_id
+                domain = name
+                reverse = True
+
+    if(in_port == None):
       self.logger.error("unable to find either an output or an input port")
+      return
 
-    obj['phys_port'] = in_port
+    obj['phys_port'] = in_port['port_id']
 
-    #drop so empty actions
+    #actions = drop
     actions = []
-    if(obj.idle_timeout == None):
-      idle_timout  = self.config[dpid][name]['default_idle_timeout']
-    else:
-      idle_timeout = obj.idle_timeout
 
-    if(obj.hard_timeout == None):
-      hard_timeout = self.config[dpid][name]['default_hard_timeout']
-    else:
-      hard_timeout = obj.hard_timeout
+    idle_timeout = None
+    hard_timeout = None
+    priority     = self.config[dpid][name]['default_blacklist_priority']
 
-    if(obj.priority == None):
-      priority = self.config[dpid][name]['default_blacklist_priority']
+    header = {}
+    if(not obj.has_key('idle_timeout')):
+      idle_timeout  = self.config[dpid][name]['idle_timeout']
     else:
-      priority = obj.priority
+      idle_timeout = obj['idle_timeout']
+
+    self.logger.error("Selected Idle Timeout: " + str(idle_timeout))
+    if(not obj.has_key('hard_timeout')):
+      hard_timeout = self.config[dpid][name]['hard_timeout']
+    else:
+      hard_timeout = obj['hard_timeout']
+
+    if(not obj.has_key('priority')):
+      priority = self.config[dpid][name]['default_whitelist_priority']
+    else:
+      priority = obj['priority']
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_src'])
+      else:
+        header['tp_src'] = int(obj['tp_src'])
+
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_dst'])
+      else:
+        header['tp_dst'] = int(obj['tp_dst'])
+
+    header['phys_port'] = in_port['port_id']
+
+    self.logger.debug("Header: " + str(header))
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            header       = obj,
+                                            header       = header,
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
-                                            priority     = priority )
+                                            priority     = priority)
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_src'])
+      else:
+        header['tp_dst'] = int(obj['tp_src'])
 
-    obj['phys_port'] = out_port
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_dst'])
+      else:
+        header['tp_src'] = int(obj['tp_dst'])
+
+    header['phys_port'] = self.config[dpid][name]['ports']['wan'][0]['port_id']
+
+    #actions = drop
+    actions = []
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            header       = obj,
+                                            header       = header,
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
-                                            priority     = priority )
+                                            priority     = priority)
+
 
     results = {}
     results['success'] = 1
@@ -580,14 +772,16 @@ class SciPassApi:
                                          header       = None,
                                          actions      = None,
                                          command      = None,
-                                         idle_timeout = None,
-                                         hard_timeout = None,
-                                         priority     = None):
+                                         idle_timeout = 0,
+                                         hard_timeout = 0,
+                                         priority     = 1):
     
     self.logger.debug("fireing forwarding state change handlers")
     self.logger.debug("Header: " + str(header))
     self.logger.debug("Actions: " + str(actions))
-    
+    self.logger.debug("Idle Timeout: " + str(idle_timeout))
+    self.logger.debug("Hard Timeout: " + str(hard_timeout))
+    self.logger.debug("Priority: " + str(priority))
     for handler in self.switchForwardingChangeHandlers:
       handler( dpid = dpid,
                header = header,
