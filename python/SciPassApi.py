@@ -24,19 +24,27 @@ from SimpleBalancer import SimpleBalancer
 class SciPassApi:
   """SciPass API for signaling when a flow is known good or bad"""
   def __init__(  self , *_args, **_kwargs):
-    logger = _kwargs['logger']
+    self.logger = None
+    self.configFile = None
+    if(_kwargs.has_key('logger')):
+      self.logger = _kwargs['logger']
 
-    if(logger == None):
+    if(self.logger == None):
       logging.basicConfig()
       self.logger = logging.getLogger(__name__)
+
+
+    if(_kwargs.has_key('config')):
+      self.configFile = _kwargs['config']
     else:
-      self.logger = logger
+      self.configFile = "/etc/SciPass/SciPass.xml"
+
 
     self.whiteList = []
     self.blackList = []
     self.switchForwardingChangeHandlers = []
 
-    self._processConfig("/home/aragusa/SciPass/etc/SciPass.xml")
+    self._processConfig(self.configFile)
     
   def registerForwardingStateChangeHandler(self, handler):
     self.switchForwardingChangeHandlers.append(handler)
