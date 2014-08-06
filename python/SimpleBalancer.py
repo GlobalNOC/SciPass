@@ -368,7 +368,7 @@ class SimpleBalancer:
 
   def splitPrefix(self,prefix):
     """takes a prefix and splits it into 2 subnets that by increasing masklen by 1 bit"""
-    self.logger.debug("Most Specific: " + self.mostSpecificPrefixLen)
+    self.logger.debug("Most Specific: " + str(self.mostSpecificPrefixLen))
     if(prefix._prefixlen <= self.mostSpecificPrefixLen - 1):
         return prefix.Subnet()
     else:
@@ -569,9 +569,9 @@ class SimpleBalancer:
 
       prefixBW = self.prefixBW
 
-    #--- find the current loads and figure out max, min and range
+      #--- find the current loads and figure out max, min and range
       if(self.ignoreSensorLoad == 0):
-      #--- calc load by looking at sensor load
+          #--- calc load by looking at sensor load
           for sensor in self.sensorLoad.keys():
               load = self.sensorLoad[sensor]
               
@@ -588,11 +588,11 @@ class SimpleBalancer:
           self.logger.debug("max sensor = '"+str(maxSensor)+"' load "+str(maxLoad))
           self.logger.debug("min sensor = '"+str(minSensor)+"' load "+str(minLoad))
           self.logger.debug("load delta = "+str(loadDelta))
+
           if(self.ignoreSensorLoad > 0 or maxLoad >= self.sensorLoadMinThreshold ):
               if(loadDelta >= self.sensorLoadDeltaThreshold):
-        #-- a sensor is above balance threshold and the delta is large enough to consider balancing
-
-        #--- get the prefix with largest esitmated load from maxSensor
+                  #-- a sensor is above balance threshold and the delta is large enough to consider balancing
+                  #--- get the prefix with largest esitmated load from maxSensor
                   candidatePrefix = self.getLargestPrefix(maxSensor)
 
                   if(candidatePrefix == None):
@@ -602,16 +602,15 @@ class SimpleBalancer:
                   estPreLoad = self.getEstLoad(maxSensor,candidatePrefix)
                   estNewSensorLoad = estPreLoad+minLoad;
 
-        #--- check if it will fit on minSensor and if the new sensor will have less load than max sensor 
+                  #--- check if it will fit on minSensor and if the new sensor will have less load than max sensor 
                   if(estPreLoad <  (1 - minLoad) and estNewSensorLoad < maxLoad):
-          #--- if it will fit, move it to minsensor
+                      #--- if it will fit, move it to minsensor
                       self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
 
                   else:
-          #--- will not fit, split, then leave on original sensor and retry later after
- 	  #--- better statistics are gathered 
-          #print("-- need to split candidate and try again later after load measures");
-
+                  #--- will not fit, split, then leave on original sensor and retry later after
+                  #--- better statistics are gathered 
+                      self.logger.debug("-- need to split candidate and try again later after load measures");
                       try:
                           subnets = self.splitPrefix(candidatePrefix);
                           for prefix in subnets:
