@@ -263,13 +263,12 @@ class SciPass(app_manager.RyuApp):
              hub.sleep(self.statsInterval)
 
      def _balance_loop(self):
-      while 1:
-        if( self.bal):
-          #--- tell the system to rebalance
-          self.bal.balance()
-          self.logger.info(self.bal.showStatus())
-        #--- sleep
-        hub.sleep(self.balanceInterval)
+         while 1:
+             self.logger.debug("here!!")
+             #--- tell the system to rebalance
+             self.api.run_balancers()
+             #--- sleep
+             hub.sleep(self.balanceInterval)
 
      def _request_stats(self,datapath):
         ofp    = datapath.ofproto

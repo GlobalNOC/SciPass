@@ -467,8 +467,7 @@ class SciPassApi:
                             "prefix_str": prefix.getContent(),
                             "prefix": ipaddr.IPv6Network(prefix.getContent())}
             prefixes_array.append(prefix_obj)
-            #TODO
-            #todo push the prefixes to sensors
+
           config[dpid][name]['ports'][ptype].append({"port_id": port.prop("of_port_id"),
                                                      "name": port.prop("name"),
                                                      "description": port.prop("description"),
@@ -508,6 +507,7 @@ class SciPassApi:
           self.logger.error("Mode is Balancer")
           #just install the balance rules, no forwarding
           self._setupBalancer(dpid = dpid, domain_name = domain['name'])
+        
           
   def _setupSciDMZRules(self, dpid = None, domain_name = None):
     self.logger.debug("SciDMZ rule init")
@@ -793,3 +793,17 @@ class SciPassApi:
 
   def updatePrefixBW(self,dpid, prefix, tx, rx):
     self.logger.debug("updating prefix bw")
+    for domain_name in self.config[dpid]:
+      for port in self.config[dpid][domain_name]['ports']['lan']:
+        for pref in port['prefixes']:
+          if(pref['prefix'].Contains( prefix )):
+            self.logger.debug("Updating prefix " + str(prefix) + " bandwidth for %s %s", dpid, domain_name)
+            self.config[dpid][domain_name]['balancer'].setPrefixBW(prefix, tx, rx)
+            return
+
+  def run_balancers(self):
+    for dpid in self.config:
+      for domain_name in self.config[dpid]:
+        self.logger.info("Balancing: %s %s", dpid, domain_name)
+        self.config[dpid][domain_name]['balancer'].balance()
+        
