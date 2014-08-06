@@ -23,7 +23,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} -d -p %{buildroot}/etc/SciPass/
 %{__install} -d -p %{buildroot}/etc/init.d
 %{__install} python/*.py %{buildroot}/%{python_sitelib}/SciPass/
-%{__install} etc/SciPass.conf %{buildroot}/etc/SciPass/
+%{__install} etc/SciPass.xml %{buildroot}/etc/SciPass/
 %{__install} etc/scipass-init %{buildroot}/etc/init.d/scipass
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -32,7 +32,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,-)
 /etc/init.d/scipass
-/etc/SciPass/SciPass.conf
+/etc/SciPass/SciPass.xml
 %{python_sitelib}/SciPass/*
 
 %doc

@@ -457,8 +457,10 @@ class SimpleBalancer:
         sensorSpace[sensor] = sensorSpace[sensor] + prefix.numhosts
 
     for sensor in self.sensorLoad.keys():
-      x =sensorSpace[sensor] / float(totalSpace)
-
+      try:
+        x = sensorSpace[sensor] / float(totalSpace)
+      except ZeroDivisionError:
+          x = 0
       if(x > maxMetric):
         maxMetric   = x 
         maxSensor = sensor
