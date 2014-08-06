@@ -10,7 +10,7 @@ clean:
 	rm -rf dist
 
 test:
-	cd python; coverage run SimpleBalancerTest.py; coverage report -m; coverage html;
+	cd python; coverage run SciPassTest.py; coverage report -m; coverage xml; coverage html;
 
 dist:
 	rm -rf dist/$(NAME)-$(VERSION)
