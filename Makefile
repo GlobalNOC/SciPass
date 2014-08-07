@@ -10,7 +10,7 @@ clean:
 	rm -rf dist
 
 test:
-	cd python; coverage run SciPassTest.py; coverage report -m; coverage xml; coverage html;
+	cd python; coverage run --source=./ --omit=*Test.py,SciPass.py SciPassTest.py; coverage report -m; coverage xml;coverage annotate; coverage html;
 
 dist:
 	rm -rf dist/$(NAME)-$(VERSION)
