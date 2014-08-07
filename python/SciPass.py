@@ -137,8 +137,12 @@ class SciPass(app_manager.RyuApp):
          parser   = datapath.ofproto_parser
 
          obj = {} 
+
          if(header.has_key('dl_type')):
-             obj['dl_type'] = int(header['dl_type'])
+             if(header['dl_type'] == None):
+                 obj['dl_type'] = None
+             else:
+                 obj['dl_type'] = int(header['dl_type'])
          else:
              obj['dl_type'] = ether.ETH_TYPE_IP
 
@@ -176,15 +180,25 @@ class SciPass(app_manager.RyuApp):
          else:
              obj['tp_dst'] = None
 
-         match = parser.OFPMatch( in_port     = obj['in_port'],
-                                  nw_dst      = obj['nw_dst'],
-                                  nw_dst_mask = obj['nw_dst_mask'],
-                                  nw_src      = obj['nw_src'],
-                                  nw_src_mask = obj['nw_src_mask'],
-                                  dl_type     = obj['dl_type'],
-                                  tp_src      = obj['tp_src'],
-                                  tp_dst      = obj['tp_dst'])
+         if(obj['dl_type'] == None):
+             match = parser.OFPMatch( in_port     = obj['in_port'],
+                                      nw_dst      = obj['nw_dst'],
+                                      nw_dst_mask = obj['nw_dst_mask'],
+                                      nw_src      = obj['nw_src'],
+                                      nw_src_mask = obj['nw_src_mask'],
+                                      tp_src      = obj['tp_src'],
+                                      tp_dst      = obj['tp_dst'])
+         else:
 
+             match = parser.OFPMatch( in_port     = obj['in_port'],
+                                      nw_dst      = obj['nw_dst'],
+                                      nw_dst_mask = obj['nw_dst_mask'],
+                                      nw_src      = obj['nw_src'],
+                                      nw_src_mask = obj['nw_src_mask'],
+                                      dl_type     = obj['dl_type'],
+                                      tp_src      = obj['tp_src'],
+                                      tp_dst      = obj['tp_dst'])
+             
          self.logger.debug("Match: " + str(match))
 
          of_actions = []
@@ -217,8 +231,6 @@ class SciPass(app_manager.RyuApp):
             datapath.send_msg(mod)
 
      def flushRules(self, dpid):
-      #--- pushes a mode to remove all flows from switch 
-      #--- yep thats a hack, need to think about what multiple switches means for scipass
          if(not self.datapaths.has_key(dpid)):
              self.logger.error("unable to find switch with dpid " + dpid)
              return
@@ -227,15 +239,15 @@ class SciPass(app_manager.RyuApp):
          ofp      = datapath.ofproto
          parser   = datapath.ofproto_parser
          
-      # --- create flowmod to control traffic from the prefix to the interwebs
+         # --- create flowmod to control traffic from the prefix to the interwebs
          match = parser.OFPMatch()
          mod = parser.OFPFlowMod(datapath,match,0,ofp.OFPFC_DELETE)
 
-      #--- remove mods in the flowmod cache
+         #--- remove mods in the flowmod cache
          self.flowmods[dpid] = []
 
  
-      #--- if dp is active then push the rules
+         #--- if dp is active then push the rules
          if(datapath.is_active == True):
              datapath.send_msg(mod)
       
@@ -313,6 +325,7 @@ class SciPass(app_manager.RyuApp):
                 self.datapaths[dpid] = datapath
                 if(not self.flowmods.has_key(dpid)):
                     self.flowmods[dpid] = []
+                self.flushRules("%016x" % datapath.id)
 		#--- start the balancing act
                 self.api.switchJoined(datapath)
 

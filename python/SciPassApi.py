@@ -493,6 +493,7 @@ class SciPassApi:
         for port in ports:
           ctxt.setContextNode(port)
           ptype = port.prop("type")
+          vlan_tag = port.prop("vlan_tag")
           prefixes = ctxt.xpathEval("prefix")
           prefixes_array = []
           for prefix in prefixes:
@@ -510,7 +511,8 @@ class SciPassApi:
           config[dpid][name]['ports'][ptype].append({"port_id": port.prop("of_port_id"),
                                                      "name": port.prop("name"),
                                                      "description": port.prop("description"),
-                                                     "prefixes": prefixes_array
+                                                     "prefixes": prefixes_array,
+                                                     "vlan_tag": vlan_tag
                                                      })
         
     self.config = config      
@@ -567,7 +569,8 @@ class SciPassApi:
     fw_lan_outputs = []
 
     for in_port in ports['lan']:
-      header = {"phys_port":   int(in_port['port_id'])}
+      header = {"phys_port":   int(in_port['port_id']),
+                'dl_type': None}
 
       actions = []
       #output to FW
@@ -623,7 +626,8 @@ class SciPassApi:
                                                 priority     = int(priority))
 
     #FW LAN to ALL INPUT PORTS
-    header = {"phys_port": int(ports['fw_lan'][0]['port_id'])}
+    header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
+              'dl_type': None}
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
                                             actions      = fw_lan_outputs,
@@ -633,26 +637,30 @@ class SciPassApi:
                                             priority     = int(priority / 3))
 
     #FW WAN -> WAN
-    header = {"phys_port": int(ports['fw_wan'][0]['port_id'])}
+    header = {"phys_port": int(ports['fw_wan'][0]['port_id']),
+              'dl_type': None}
     actions = []
     actions.append({"type": "output",
                     "port": int(ports['wan'][0]['port_id'])})
+    self.logger.error("FW WAN -> WAN: ")
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
-                                            actions      = fw_lan_outputs,
+                                            actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = 0,
                                             hard_timeout = 0,
                                             priority     = int(priority))
 
     #WAN -> FW WAN
-    header = {"phys_port": int(ports['wan'][0]['port_id'])}
+    header = {"phys_port": int(ports['wan'][0]['port_id']),
+              'dl_type': None}
     actions = []
     actions.append({"type": "output",
-                        "port": int(ports['fw_wan'][0]['port_id'])})
+                    "port": int(ports['fw_wan'][0]['port_id'])})
+    self.logger.error("WAN -> FW WAN")
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
-                                            actions      = fw_lan_outputs,
+                                            actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = 0,
                                             hard_timeout = 0,
