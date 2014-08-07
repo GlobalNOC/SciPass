@@ -53,16 +53,13 @@ class SciPassApi:
     #turn this into a 
     #presumes that we get a nw_src, nw_dst, tcp_src_port, tcp_dst_port
     #we need to do verification here or conversion depending on what we get from the sensors
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(obj)
-
     in_port = None
     out_port = None
     dpid = None
     domain = None
     reverse = False
     new_prefix = ipaddr.IPv4Network(obj['nw_src'])
-    self.logger.error("New preifx: " + str(new_prefix))
+
     #need to figure out the lan and wan ports
     for datapath_id in self.config:
       for name in self.config[datapath_id]:
@@ -98,9 +95,9 @@ class SciPassApi:
     idle_timeout = None
     hard_timeout = None
     priority     = self.config[dpid][name]['default_whitelist_priority']
-    self.logger.error("Idle Timeout: " + self.config[dpid][name]['idle_timeout'])
-    self.logger.error("Hard Timeout: " + self.config[dpid][name]['hard_timeout'])
-    self.logger.error("Priority: " + priority)
+    self.logger.debug("Idle Timeout: " + self.config[dpid][name]['idle_timeout'])
+    self.logger.debug("Hard Timeout: " + self.config[dpid][name]['hard_timeout'])
+    self.logger.debug("Priority: " + priority)
     
     header = {}
     if(not obj.has_key('idle_timeout')):
@@ -108,7 +105,7 @@ class SciPassApi:
     else:
       idle_timeout = obj['idle_timeout']
       
-    self.logger.error("Selected Idle Timeout: " + str(idle_timeout))
+    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
     if(not obj.has_key('hard_timeout')):
       hard_timeout = self.config[dpid][name]['hard_timeout']
     else:
@@ -128,6 +125,7 @@ class SciPassApi:
         prefix = ipaddr.IPv4Network(obj['nw_src'])
         header['nw_src'] = int(prefix)
         header['nw_src_mask'] = int(prefix.prefixlen)
+
     if(obj.has_key('nw_dst')):
       if(reverse):
         prefix = ipaddr.IPv4Network(obj['nw_dst'])
@@ -164,7 +162,24 @@ class SciPassApi:
                                             hard_timeout = hard_timeout,
                                             priority     = priority)
       
-    
+
+    header = {}
+    if(not obj.has_key('idle_timeout')):
+      idle_timeout  = self.config[dpid][name]['idle_timeout']
+    else:
+      idle_timeout = obj['idle_timeout']
+
+    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
+    if(not obj.has_key('hard_timeout')):
+      hard_timeout = self.config[dpid][name]['hard_timeout']
+    else:
+      hard_timeout = obj['hard_timeout']
+
+    if(not obj.has_key('priority')):
+      priority = self.config[dpid][name]['default_whitelist_priority']
+    else:
+      priority = obj['priority']
+
     if(obj.has_key('nw_src')):
       if(reverse):
         prefix = ipaddr.IPv4Network(obj['nw_src'])
@@ -217,9 +232,6 @@ class SciPassApi:
     #turn this into a
     #presumes that we get a nw_src, nw_dst, tcp_src_port, tcp_dst_port
     #we need to do verification here or conversion depending on what we get from the sensors
-    pp = pprint.PrettyPrinter(indent=4)
-    pp.pprint(obj)
-
     in_port = None
     out_port = None
     dpid = None
@@ -227,7 +239,7 @@ class SciPassApi:
     reverse = False
 
     new_prefix = ipaddr.IPv4Network(obj['nw_src'])
-    self.logger.error("New preifx: " + str(new_prefix))
+    self.logger.debug("New preifx: " + str(new_prefix))
     #need to figure out the lan and wan ports
     for datapath_id in self.config:
       for name in self.config[datapath_id]:
@@ -252,7 +264,7 @@ class SciPassApi:
                 reverse = True
 
     if(in_port == None):
-      self.logger.error("unable to find either an output or an input port")
+      self.logger.debug("unable to find either an output or an input port")
       return
 
     obj['phys_port'] = in_port['port_id']
@@ -270,7 +282,7 @@ class SciPassApi:
     else:
       idle_timeout = obj['idle_timeout']
 
-    self.logger.error("Selected Idle Timeout: " + str(idle_timeout))
+    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
     if(not obj.has_key('hard_timeout')):
       hard_timeout = self.config[dpid][name]['hard_timeout']
     else:
@@ -280,6 +292,7 @@ class SciPassApi:
       priority = self.config[dpid][name]['default_whitelist_priority']
     else:
       priority = obj['priority']
+
     if(obj.has_key('nw_src')):
       if(reverse):
         prefix = ipaddr.IPv4Network(obj['nw_src'])
@@ -322,6 +335,24 @@ class SciPassApi:
                                             idle_timeout = idle_timeout,
                                             hard_timeout = hard_timeout,
                                             priority     = priority)
+
+    header = {}
+    if(not obj.has_key('idle_timeout')):
+      idle_timeout  = self.config[dpid][name]['idle_timeout']
+    else:
+      idle_timeout = obj['idle_timeout']
+
+    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
+    if(not obj.has_key('hard_timeout')):
+      hard_timeout = self.config[dpid][name]['hard_timeout']
+    else:
+      hard_timeout = obj['hard_timeout']
+
+    if(not obj.has_key('priority')):
+      priority = self.config[dpid][name]['default_whitelist_priority']
+    else:
+      priority = obj['priority']
+
     if(obj.has_key('nw_src')):
       if(reverse):
         prefix = ipaddr.IPv4Network(obj['nw_src'])
@@ -377,7 +408,7 @@ class SciPassApi:
     return self.blackList
 
   def _processConfig(self, xmlFile):
-    self.logger.error("Processing Config file")
+    self.logger.debug("Processing Config file")
     doc = libxml2.parseFile(xmlFile)
     ctxt = doc.xpathNewContext()
     #parse the xml file
@@ -386,7 +417,7 @@ class SciPassApi:
     for switch in switches:
       ctxt.setContextNode(switch)
       dpid = switch.prop("dpid")
-      self.logger.error("Switch DPID: " + str(dpid))
+      self.logger.debug("Switch DPID: " + str(dpid))
       config[dpid] = {}
       domains = ctxt.xpathEval("domain")
       for domain in domains:
@@ -403,7 +434,7 @@ class SciPassApi:
         default_whitelist_priority = domain.prop("whitelist_priority")
         sensorLoadMinThreshold = domain.prop("sensor_min_load_threshold")
         sensorLoadDeltaThreshhold = domain.prop("sensor_load_delta_threshold")
-        self.logger.error("Adding Domain: name: %s, mode: %s, status: %s", name, mode, status)
+        self.logger.debug("Adding Domain: name: %s, mode: %s, status: %s", name, mode, status)
         config[dpid][name] = {}
         config[dpid][name]['mode'] = mode
         config[dpid][name]['status'] = status
@@ -490,7 +521,7 @@ class SciPassApi:
     #check to see if we are suppose to operate on this switch
     dpid = "%016x" % datapath.id
     if(self.config.has_key(dpid)):
-      self.logger.error("Switch has joined!")
+      self.logger.info("Switch has joined!")
       #now for each domain push the initial flows 
       #and start the balancing process
       for domain_name in self.config[dpid]:
@@ -498,7 +529,7 @@ class SciPassApi:
         if(domain['mode'] == "SciDMZ"):
           #we have firewals configured
           #setup the rules to them
-          self.logger.error("Mode is Science DMZ")
+          self.logger.info("Mode is Science DMZ")
           #need to install the default rules forwarding everything through the FW
           #then install the balancing rules for our defined prefixes
           self._setupSciDMZRules(dpid = dpid,
@@ -506,13 +537,13 @@ class SciPassApi:
 
         elif(domain['mode'] == "InlineIDS"):
           #no firewall
-          self.logger.error("Mode is Inline IDS")
+          self.logger.info("Mode is Inline IDS")
           #need to install the default rules forwarding through the switch
           #then install the balancing rules for our defined prefixes
           self._setupInlineIDS(dpid = dpid, domain_name = domain['name'])
         elif(domain['mode'] == "Balancer"):
           #just balancer no other forwarding
-          self.logger.error("Mode is Balancer")
+          self.logger.info("Mode is Balancer")
           #just install the balance rules, no forwarding
           self._setupBalancer(dpid = dpid, domain_name = domain['name'])
         
@@ -529,7 +560,7 @@ class SciPassApi:
 
     if(len(ports['fw_wan']) <= 0 or len(ports['fw_lan']) <= 0):
       #well crap no fw_wan or fw_lan exist... what are bypassing?
-      self.logger.error("nothing to bypass.. you probably want InlineIDS mode... doing that instead")
+      self.logger.warn("nothing to bypass.. you probably want InlineIDS mode... doing that instead")
       self._setupInlineIDS(dpid = dpid, domain_name = domain_name)
       return
 
@@ -559,8 +590,8 @@ class SciPassApi:
         #specific prefix forwarding rules
         #FW LAN to specific LAN PORT
         header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
-                  "nw_src": int(prefix['prefix']),
-                  "nw_src_mask": int(prefix['prefix'].prefixlen)}
+                  "nw_dst": int(prefix['prefix']),
+                  "nw_dst_mask": int(prefix['prefix'].prefixlen)}
         
         actions = []
         actions.append({"type": "output",
@@ -815,3 +846,6 @@ class SciPassApi:
         self.logger.info("Balancing: %s %s", dpid, domain_name)
         self.config[dpid][domain_name]['balancer'].balance()
         
+
+  def getBalancer(self, dpid, domain_name):
+    return self.config[dpid][domain_name]['balancer']

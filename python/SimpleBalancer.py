@@ -387,6 +387,9 @@ class SimpleBalancer:
   def getSensorLoad(self):
     return self.sensorLoad
 
+  def getPrefixBW(self, prefix):
+      return self.prefixBW[prefix]
+
   def getPrefixes(self):
     """returns the set of prefixes and their current load"""
     return self.prefixBW
