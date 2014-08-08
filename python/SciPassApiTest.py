@@ -81,7 +81,7 @@ class TestInit(unittest.TestCase):
         flow = flows[5]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': 5}])
         self.assertEquals(flow['command'],"ADD")
-        self.assertEquals(flow['header'], {'phys_port': 2})
+        self.assertEquals(flow['header'], {'phys_port': 2, 'dl_type': None})
         self.assertEquals(flow['priority'], 5)
         flow = flows[6]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': 2}])
@@ -106,17 +106,17 @@ class TestInit(unittest.TestCase):
         flow = flows[10]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': 1}, {'type': 'output', 'port': 2}])
         self.assertEquals(flow['command'],"ADD")
-        self.assertEquals(flow['header'], {'phys_port': 5})
+        self.assertEquals(flow['header'], {'phys_port': 5, 'dl_type': None})
         self.assertEquals(flow['priority'], 3)
         flow = flows[11]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': 1}, {'type': 'output', 'port': 2}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': 10}])
         self.assertEquals(flow['command'],"ADD")
-        self.assertEquals(flow['header'], {'phys_port': 6})
+        self.assertEquals(flow['header'], {'phys_port': 6, 'dl_type': None})
         self.assertEquals(flow['priority'], 10)
         flow = flows[12]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': 1}, {'type': 'output', 'port': 2}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': 6}])
         self.assertEquals(flow['command'],"ADD")
-        self.assertEquals(flow['header'], {'phys_port': 10})
+        self.assertEquals(flow['header'], {'phys_port': 10, 'dl_type': None})
         self.assertEquals(flow['priority'], 10)
         flow = flows[13]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': '20'}, {'type': 'output', 'port': '5'}])
