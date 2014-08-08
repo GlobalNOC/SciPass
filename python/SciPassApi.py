@@ -434,6 +434,8 @@ class SciPassApi:
         default_whitelist_priority = domain.prop("whitelist_priority")
         sensorLoadMinThreshold = domain.prop("sensor_min_load_threshold")
         sensorLoadDeltaThreshhold = domain.prop("sensor_load_delta_threshold")
+        ignore_sensor_load = domain.prop("ignore_sensor_load")
+        ignore_prefix_bw = domain.prop("ignore_prefix_bw")
         self.logger.debug("Adding Domain: name: %s, mode: %s, status: %s", name, mode, status)
         config[dpid][name] = {}
         config[dpid][name]['mode'] = mode
@@ -447,6 +449,16 @@ class SciPassApi:
         config[dpid][name]['default_whitelist_priority'] = default_whitelist_priority
         config[dpid][name]['sensor_load_min_threshold'] = sensorLoadMinThreshold
         config[dpid][name]['sensor_load_delta_threshold'] = sensorLoadDeltaThreshhold
+        if(ignore_prefix_bw == "true"):
+          config[dpid][name]['ignore_prefix_bw'] = 1
+        else:
+          config[dpid][name]['ignore_prefix_bw'] = 0
+
+        if(ignore_sensor_load == "true"):
+          config[dpid][name]['ignore_sensor_load'] = 1
+        else:
+          config[dpid][name]['ignore_sensor_load'] = 0
+
         config[dpid][name]['sensor_ports'] = {}
         config[dpid][name]['ports'] = {}
         config[dpid][name]['ports']['lan'] = []
@@ -456,10 +468,13 @@ class SciPassApi:
         #create a simple balancer
         config[dpid][name]['balancer'] = SimpleBalancer( logger = self.logger,
                                                          maxPrefixes = max_prefixes,
+                                                         ignoreSensorLoad = config[dpid][name]['ignore_sensor_load'],
+                                                         ignorePrefixBW = config[dpid][name]['ignore_prefix_bw'],
                                                          mostSpecificPrefixLen = most_specific_len,
                                                          sensorLoadMinThresh = sensorLoadMinThreshold,
                                                          sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
-                                                         leastSpecificPrefixLen = least_specific_len) 
+                                                         leastSpecificPrefixLen = least_specific_len
+                                                         ) 
         #register the methods
         config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y : self.addPrefix(dpid = dpid,
                                                                                             domain_name = name,
@@ -672,13 +687,46 @@ class SciPassApi:
 
   def _setupInlineIDS(self, dpid = None, domain_name = None):
     self.logger.debug("InLine IDS rule init")
+    #no firewall
+    #basically distribute prefixes and setup master forwarding
+
+    ports = self.config[dpid][domain_name]['ports']
+
+    #LAN to WAN
+    header = {"phys_port": int(ports['lan'][0]['port_id']),
+              'dl_type': None}
+    actions = []
+    actions.append({'type':'output',
+                    'port':int(ports['wan'][0]['port_id'])})
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority / 3))
+
+    #WAN -> LAN
+    header = {"phys_port": int(ports['wan'][0]['port_id']),
+              'dl_type': None}
+    actions = []
+    actions.append({"type": "output",
+                    "port": int(ports['lan'][0]['port_id'])})
+    self.logger.error("FW WAN -> WAN: ")
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority / 3))
+
+    #ok now that we have that done... start balancing!!!
+    self.config[dpid][domain_name]['balancer'].distributePrefixes(prefixes)
 
   def _setupBalancer(self, dpid = None, domain_name = None):
     self.logger.debug("balancer rule init")
-  
-  def _resetSwitchForwarding(self,dpid):
-    self.resetSwitchForwarding(dpid)
-  
+
   def addPrefix(self, dpid=None, domain_name=None, sensor_id=None, prefix=None):
     self.logger.debug("Add Prefix " + str(domain_name) + " " + str(sensor_id) + " " + str(prefix))
     #find the north and south port
@@ -800,10 +848,6 @@ class SciPassApi:
     #delete and add the prefix
     self.delPrefix(dpid, domain_name, old_sensor_id, prefix)
     self.addPrefix(dpid, domain_name, new_sensor_id, prefix)
-
-  def _flush_rules(self, dpid):
-    self.logger.debug("flush rules")
-    
 
   def remove_flow(self, ev):
     self.logger.debug("remove flow")
