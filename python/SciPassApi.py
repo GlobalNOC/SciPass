@@ -65,6 +65,7 @@ class SciPassApi:
       for name in self.config[datapath_id]:
         for port in self.config[datapath_id][name]['ports']['lan']:
             for prefix in port['prefixes']:
+              self.logger.error("Comparing" + str(new_prefix) + " " + str(prefix['prefix']))
               if(prefix['prefix'].Contains( new_prefix )):
                 in_port = port
                 dpid = datapath_id
@@ -557,12 +558,12 @@ class SciPassApi:
           self.logger.info("Mode is Inline IDS")
           #need to install the default rules forwarding through the switch
           #then install the balancing rules for our defined prefixes
-          self._setupInlineIDS(dpid = dpid, domain_name = domain['name'])
+          self._setupInlineIDS(dpid = dpid, domain_name = domain_name)
         elif(domain['mode'] == "Balancer"):
           #just balancer no other forwarding
           self.logger.info("Mode is Balancer")
           #just install the balance rules, no forwarding
-          self._setupBalancer(dpid = dpid, domain_name = domain['name'])
+          self._setupBalancer(dpid = dpid, domain_name = domain_name)
         
           
   def _setupSciDMZRules(self, dpid = None, domain_name = None):
@@ -689,8 +690,14 @@ class SciPassApi:
     self.logger.debug("InLine IDS rule init")
     #no firewall
     #basically distribute prefixes and setup master forwarding
-
+    priority = 10
+    prefixes = []
     ports = self.config[dpid][domain_name]['ports']
+
+    in_port = ports['lan'][0]
+
+    for prefix in in_port['prefixes']:
+      prefixes.append(prefix['prefix'])
 
     #LAN to WAN
     header = {"phys_port": int(ports['lan'][0]['port_id']),
@@ -758,12 +765,12 @@ class SciPassApi:
                     "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]['port_id']})
     if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
       #append the FW or other destination
-      if(len(ports['fw_lan']) == 0):
-        actions.append({"type": "output",
-                        "port": ports['wan'][0]['port_id']})
-      else:
+      if(ports.has_key('fw_lan') and len(ports['fw_lan']) > 0):
         actions.append({"type": "output",
                         "port": ports['fw_lan'][0]['port_id']})
+      else:
+        actions.append({"type": "output",
+                        "port": ports['wan'][0]['port_id']})
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
@@ -782,13 +789,14 @@ class SciPassApi:
     actions.append({"type": "output",
                     "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]['port_id']})
     if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+
       #append the FW or other destination
-      if(fw_lan == 0):
-        actions.append({"type": "output",
-                        "port": in_port['port_id']})
-      else:
+      if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
         actions.append({"type": "output",
                         "port": ports['fw_wan'][0]['port_id']})
+      else:
+        actions.append({"type": "output",
+                        "port": in_port['port_id']})
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
