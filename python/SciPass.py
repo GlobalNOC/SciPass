@@ -96,10 +96,8 @@ class SciPass:
                 "port": self.config[dpid][name]['ports']['wan'][0]['port_id']}]
 
     idle_timeout = None
-    hard_timeout = None
     priority     = self.config[dpid][name]['default_whitelist_priority']
     self.logger.debug("Idle Timeout: " + self.config[dpid][name]['idle_timeout'])
-    self.logger.debug("Hard Timeout: " + self.config[dpid][name]['hard_timeout'])
     self.logger.debug("Priority: " + priority)
     
     header = {}
@@ -109,11 +107,7 @@ class SciPass:
       idle_timeout = obj['idle_timeout']
       
     self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
-    if(not obj.has_key('hard_timeout')):
-      hard_timeout = self.config[dpid][name]['hard_timeout']
-    else:
-      hard_timeout = obj['hard_timeout']
-      
+
     if(not obj.has_key('priority')):
       priority = self.config[dpid][name]['default_whitelist_priority']
     else:
@@ -162,7 +156,7 @@ class SciPass:
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = idle_timeout,
-                                            hard_timeout = hard_timeout,
+                                            hard_timeout = 0,
                                             priority     = priority)
       
 
@@ -173,10 +167,6 @@ class SciPass:
       idle_timeout = obj['idle_timeout']
 
     self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
-    if(not obj.has_key('hard_timeout')):
-      hard_timeout = self.config[dpid][name]['hard_timeout']
-    else:
-      hard_timeout = obj['hard_timeout']
 
     if(not obj.has_key('priority')):
       priority = self.config[dpid][name]['default_whitelist_priority']
@@ -224,7 +214,7 @@ class SciPass:
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = idle_timeout,
-                                            hard_timeout = hard_timeout,
+                                            hard_timeout = 0,
                                             priority     = priority)
     
     results = {}
@@ -286,10 +276,6 @@ class SciPass:
       idle_timeout = obj['idle_timeout']
 
     self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
-    if(not obj.has_key('hard_timeout')):
-      hard_timeout = self.config[dpid][name]['hard_timeout']
-    else:
-      hard_timeout = obj['hard_timeout']
 
     if(not obj.has_key('priority')):
       priority = self.config[dpid][name]['default_whitelist_priority']
@@ -336,7 +322,6 @@ class SciPass:
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = idle_timeout,
-                                            hard_timeout = hard_timeout,
                                             priority     = priority)
 
     header = {}
@@ -346,10 +331,6 @@ class SciPass:
       idle_timeout = obj['idle_timeout']
 
     self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
-    if(not obj.has_key('hard_timeout')):
-      hard_timeout = self.config[dpid][name]['hard_timeout']
-    else:
-      hard_timeout = obj['hard_timeout']
 
     if(not obj.has_key('priority')):
       priority = self.config[dpid][name]['default_whitelist_priority']
@@ -396,7 +377,7 @@ class SciPass:
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = idle_timeout,
-                                            hard_timeout = hard_timeout,
+                                            hard_timeout = 0,
                                             priority     = priority)
 
 
@@ -921,6 +902,15 @@ class SciPass:
             self.logger.debug("Updating prefix " + str(prefix) + " bandwidth for %s %s", dpid, domain_name)
             self.config[dpid][domain_name]['balancer'].setPrefixBW(prefix, tx, rx)
             return
+
+  def setSensorLoad(self, sensor, load):
+    self.logger.debug("updating sensor %s with load %d", sensor, load)
+    for dpid in self.config:
+      for domain in self.config['dpid']:
+        if(self.config[dpid][domain]['balancer'].getSensorStatus(sensor) != -1):
+          self.config[dpid][domain]['balancer'].setSensorStatus(sensor,load)
+          return {success: 1}
+    return {success: 0, msg: "Unable to find sensor with id: " + sensor}
 
   def run_balancers(self):
     for dpid in self.config:

@@ -86,6 +86,15 @@ class SciPassRest(ControllerBase):
         result = self.api.get_bad_flows()
         return Response(content_type='application/json',body=json.dumps(result))
 
+    @route('scipass', '/scipass/sensor/load', methods=['GET'])
+    def update_sensor_load(self, req):
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing update_sensor_status signal %s", req.body)
+            return Response(status=400)
+        result = self.api.setSensorStatus(obj['sensor_id'],obj['load'])
+        return Response(content_type='application/json',body=json.dumps(result))
 
 class Ryu(app_manager.RyuApp):
     
