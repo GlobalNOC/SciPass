@@ -15,419 +15,959 @@
 # limitations under the License.
 
 import logging
-import struct
 import time
-
-from ryu import cfg
-from operator import attrgetter
-from ryu.base import app_manager
-from ryu.controller import ofp_event
-from ryu.controller.handler import MAIN_DISPATCHER, DEAD_DISPATCHER
-from ryu.controller.handler import set_ev_cls
-from ryu.ofproto import ether
-from ryu.lib import hub
-from ryu.app.wsgi import ControllerBase, WSGIApplication, route
-from webob import Response
-import json
-
-import socket
-import ipaddr 
-
-from collections import defaultdict
+import ipaddr
+import pprint
+import libxml2
 from SimpleBalancer import SimpleBalancer
-from SciPassApi import SciPassApi
 
-"""
- Forwarding rule Priorities
-   BlackList  
-   WhiteList
-   Balancer 
-   Default
+class SciPass:
+  """SciPass API for signaling when a flow is known good or bad"""
+  def __init__(  self , *_args, **_kwargs):
+    self.logger = None
+    self.configFile = None
+    if(_kwargs.has_key('logger')):
+      self.logger = _kwargs['logger']
 
-"""
-
-
-class SciPassRest(ControllerBase):
-    def __init__(self, req, link, data, **config):
-        super(SciPassRest, self).__init__(req, link, data, **config)
-        self.api = data['api']
-
-    #POST /scipass/flows/good_flow
-    @route('scipass', '/scipass/flows/good_flow', methods=['PUT'])
-    def good_flow(self, req):
-        try:
-            obj = eval(req.body)
-        except SyntaxError:
-            self.logger.error("Syntax Error processing good_flow signal %s", req.body)
-            return Response(status=400)
-
-        result = self.api.good_flow(obj)
-        return Response(content_type='application/json',body=json.dumps(result))
-
-    #POST /scipass/flows/bad_flow
-    @route('scipass', '/scipass/flows/bad_flow', methods=['PUT'])
-    def bad_flow(self, req):
-        try:
-            obj = eval(req.body)
-        except SyntaxError:
-            self.logger.error("Syntax Error processing bad_flow signal %s", req.body)
-            return Response(status=400)
-        result = self.api.bad_flow(obj)
-        return Response(content_type='application/json',body=json.dumps(result))
-
-    #GET /scipass/flows/get_good_flows
-    @route('scipass', '/scipass/flows/get_good_flows', methods=['GET'])
-    def get_good_flows(self, req):
-        result = self.api.get_good_flows()
-        return Response(content_type='application/json',body=json.dumps(result))
-
-    #GET /scipass/flows/get_bad_flows
-    @route('scipass', '/scipass/flows/get_bad_flows', methods=['GET'])
-    def get_bad_flows(self, req):
-        result = self.api.get_bad_flows()
-        return Response(content_type='application/json',body=json.dumps(result))
+    if(self.logger == None):
+      logging.basicConfig()
+      self.logger = logging.getLogger(__name__)
 
 
-class SciPass(app_manager.RyuApp):
+    if(_kwargs.has_key('config')):
+      self.configFile = _kwargs['config']
+    else:
+      self.configFile = "/etc/SciPass/SciPass.xml"
 
-     _CONTEXTS = { 'wsgi': WSGIApplication }
 
-     def __init__(self, *args, **kwargs):
-        super(SciPass,self).__init__(*args,**kwargs)
-        #--- register for configuration options
-        self.CONF.register_opts([
-          cfg.StrOpt('SciPassConfig',default='/etc/SciPass/SciPass.xml',
-                     help='where to find the SciPass config file'),
-        ])
+    self.whiteList = []
+    self.blackList = []
+    self.idleTimeouts = []
+    self.hardTimeouts = []
+    self.switchForwardingChangeHandlers = []
 
-        self.datapaths = {}
-        self.isactive = 1
-        self.statsInterval = 5
-        self.balanceInterval = 15 
-        self.bal = None
+    self._processConfig(self.configFile)
+    
+  def registerForwardingStateChangeHandler(self, handler):
+    self.switchForwardingChangeHandlers.append(handler)
 
-        self.stats_thread = hub.spawn(self._stats_loop)
-        self.balance_thread = hub.spawn(self._balance_loop)
+  def good_flow(self, obj):
+    #turn this into a 
+    #presumes that we get a nw_src, nw_dst, tcp_src_port, tcp_dst_port
+    #we need to do verification here or conversion depending on what we get from the sensors
+    in_port = None
+    out_port = None
+    dpid = None
+    domain = None
+    reverse = False
+    new_prefix = ipaddr.IPv4Network(obj['nw_src'])
 
-        self.ports = defaultdict(dict);
-        self.prefix_bytes = defaultdict(lambda: defaultdict(int))
-        self.lastStatsTime = None
-        self.flowmods = {}
+    #need to figure out the lan and wan ports
+    for datapath_id in self.config:
+      for name in self.config[datapath_id]:
+        for port in self.config[datapath_id][name]['ports']['lan']:
+            for prefix in port['prefixes']:
+              self.logger.error("Comparing" + str(new_prefix) + " " + str(prefix['prefix']))
+              if(prefix['prefix'].Contains( new_prefix )):
+                in_port = port
+                dpid = datapath_id
+                domain = name
+                
+    if(in_port == None):
+      new_prefix = ipaddr.IPv4Network(obj['nw_dst'])
+      #do the same but look for the dst instead of the src
+      for datapath_id in self.config:
+        for name in self.config[datapath_id]:
+          for port in self.config[datapath_id][name]['ports']['lan']:
+            for prefix in port['prefixes']:
+              if(prefix['prefix'].Contains( new_prefix )):
+                in_port = port
+                dpid = datapath_id
+                domain = name
+                reverse = True
 
-        api = SciPassApi(logger = self.logger,
-                         config_file = self.CONF.SciPassConfig )
+    if(in_port == None):
+      self.logger.error("unable to find either an output or an input port")
+      return
 
-        api.registerForwardingStateChangeHandler(self.changeSwitchForwardingState)
+    obj['phys_port'] = in_port['port_id']
 
-        self.api = api
+    actions = [{"type": "output", 
+                "port": self.config[dpid][name]['ports']['wan'][0]['port_id']}]
 
-        wsgi = kwargs['wsgi']
-        wsgi.register(SciPassRest, {'api' : self.api})
-
-     def changeSwitchForwardingState(self, dpid=None, header=None, actions=None, command=None, idle_timeout=None, hard_timeout=None, priority=1):
-         self.logger.debug("Changing switch forwarding state")
-         
-         if(not self.datapaths.has_key(dpid)):
-             self.logger.error("unable to find switch with dpid " + dpid)
-             return
-         
-         datapath = self.datapaths[dpid]
-
-         ofp      = datapath.ofproto
-         parser   = datapath.ofproto_parser
-
-         obj = {} 
-
-         if(header.has_key('dl_type')):
-             if(header['dl_type'] == None):
-                 obj['dl_type'] = None
-             else:
-                 obj['dl_type'] = int(header['dl_type'])
-         else:
-             obj['dl_type'] = ether.ETH_TYPE_IP
-
-         if(header.has_key('phys_port')):
-             obj['in_port'] = int(header['phys_port'])
-         else:
-             obj['in_port'] = None
-
-         if(header.has_key('nw_src')):
-             obj['nw_src'] = int(header['nw_src'])
-         else:
-             obj['nw_src'] = None
-             
-         if(header.has_key('nw_src_mask')):
-             obj['nw_src_mask'] = int(header['nw_src_mask'])
-         else:
-             obj['nw_src_mask'] = None
-         if(header.has_key('nw_dst')):
-             obj['nw_dst'] = int(header['nw_dst'])
-         else:
-             obj['nw_dst'] = None
-
-         if(header.has_key('nw_dst_mask')):
-             obj['nw_dst_mask'] = int(header['nw_dst_mask'])
-         else:
-             obj['nw_dst_mask'] = None
-
-         if(header.has_key('tp_src')):
-             obj['tp_src'] = int(header['tp_src'])
-         else:
-             obj['tp_src'] = None
-
-         if(header.has_key('tp_dst')):
-             obj['tp_dst'] = int(header['tp_dst'])
-         else:
-             obj['tp_dst'] = None
-
-         if(obj['dl_type'] == None):
-             match = parser.OFPMatch( in_port     = obj['in_port'],
-                                      nw_dst      = obj['nw_dst'],
-                                      nw_dst_mask = obj['nw_dst_mask'],
-                                      nw_src      = obj['nw_src'],
-                                      nw_src_mask = obj['nw_src_mask'],
-                                      tp_src      = obj['tp_src'],
-                                      tp_dst      = obj['tp_dst'])
-         else:
-
-             match = parser.OFPMatch( in_port     = obj['in_port'],
-                                      nw_dst      = obj['nw_dst'],
-                                      nw_dst_mask = obj['nw_dst_mask'],
-                                      nw_src      = obj['nw_src'],
-                                      nw_src_mask = obj['nw_src_mask'],
-                                      dl_type     = obj['dl_type'],
-                                      tp_src      = obj['tp_src'],
-                                      tp_dst      = obj['tp_dst'])
-             
-         self.logger.debug("Match: " + str(match))
-
-         of_actions = []
-         for action in actions:
-             if(action['type'] == "output"):
-                 of_actions.append(parser.OFPActionOutput(int(action['port']),0))
-
-         self.logger.debug("Actions: " + str(of_actions))
-         if(command == "ADD"):
-             command = ofp.OFPFC_ADD
-         elif(command == "DELETE_STRICT"):
-             command = ofp.OFPFC_DELETE_STRICT
-         else:
-             command = -1
-
-         self.logger.debug("Sending flow mod with command: " + str(command))
-         self.logger.debug("Datpath: " + str(datapath))
-
-         mod = parser.OFPFlowMod( datapath     = datapath,
-                                  priority     = int(priority),
-                                  match        = match,
-                                  cookie       = 0,
-                                  command      = command,
-                                  idle_timeout = int(idle_timeout),
-                                  hard_timeout = int(hard_timeout),
-                                  actions      = of_actions)
-
-#         self.flowmods[dpid].append(mod)
-         if(datapath.is_active == True):
-            datapath.send_msg(mod)
-
-     def flushRules(self, dpid):
-         if(not self.datapaths.has_key(dpid)):
-             self.logger.error("unable to find switch with dpid " + dpid)
-             return
-         
-         datapath = self.datapaths[dpid]
-         ofp      = datapath.ofproto
-         parser   = datapath.ofproto_parser
-         
-         # --- create flowmod to control traffic from the prefix to the interwebs
-         match = parser.OFPMatch()
-         mod = parser.OFPFlowMod(datapath,match,0,ofp.OFPFC_DELETE)
-
-         #--- remove mods in the flowmod cache
-         self.flowmods[dpid] = []
-
- 
-         #--- if dp is active then push the rules
-         if(datapath.is_active == True):
-             datapath.send_msg(mod)
+    idle_timeout = None
+    hard_timeout = None
+    priority     = self.config[dpid][name]['default_whitelist_priority']
+    self.logger.debug("Idle Timeout: " + self.config[dpid][name]['idle_timeout'])
+    self.logger.debug("Hard Timeout: " + self.config[dpid][name]['hard_timeout'])
+    self.logger.debug("Priority: " + priority)
+    
+    header = {}
+    if(not obj.has_key('idle_timeout')):
+      idle_timeout  = self.config[dpid][name]['idle_timeout']
+    else:
+      idle_timeout = obj['idle_timeout']
       
-     def synchRules(self, dpid):
-      #--- routine to syncronize the rules to the DP
-      #--- currently just pushes, somday should diff
-         
-      #--- yep thats a hack, need to think about what multiple switches means for scipass
-         if(not self.datapaths.has_key(dpid)):
-             self.logger.error("unable to find switch with dpid " + dpid)
-             return
+    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
+    if(not obj.has_key('hard_timeout')):
+      hard_timeout = self.config[dpid][name]['hard_timeout']
+    else:
+      hard_timeout = obj['hard_timeout']
+      
+    if(not obj.has_key('priority')):
+      priority = self.config[dpid][name]['default_whitelist_priority']
+    else:
+      priority = obj['priority']
 
-         datapath = self.datapaths[dpid]
-         if(datapath.is_active == True):
-             for mod in self.flowmods:
-                 datapath.send_msg(mod)
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
 
-     def _stats_loop(self):
-         while 1:
-          #--- send stats request
-             for dp in self.datapaths.values():
-                 self._request_stats(dp)
-                 
-             #--- sleep
-             hub.sleep(self.statsInterval)
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
 
-     def _balance_loop(self):
-         while 1:
-             self.logger.debug("here!!")
-             #--- tell the system to rebalance
-             self.api.run_balancers()
-             #--- sleep
-             hub.sleep(self.balanceInterval)
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_src'])
+      else:
+        header['tp_src'] = int(obj['tp_src'])
 
-     def _request_stats(self,datapath):
-        ofp    = datapath.ofproto
-        parser = datapath.ofproto_parser
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_dst'])
+      else:
+        header['tp_dst'] = int(obj['tp_dst'])
 
-        cookie = cookie_mask = 0
-        match  = parser.OFPMatch()
-        req    = parser.OFPFlowStatsRequest(	datapath, 
-						0,
-						match,
-        					#ofp.OFPTT_ALL,
-						0xff,
-        					ofp.OFPP_NONE)
-						#0xffffffff,
-        					#cookie, 
-						#cookie_mask,
-        					#match)
-        datapath.send_msg(req)
+    header['phys_port'] = in_port['port_id']
 
-        req = parser.OFPPortStatsRequest(datapath, 0, ofp.OFPP_NONE)
-        datapath.send_msg(req)
+    self.logger.debug("Header: " + str(header))
 
-     #handle the remove flow event so we know what to sync up when we do this
-     @set_ev_cls(ofp_event.EventOFPFlowRemoved, MAIN_DISPATCHER)
-     def _remove_flow_handler(self, ev):
-        msg = ev.msg
-        self.api.remove_flow(msg)
-        for flow in self.flows:
-            if(flow.match == msg.match and flow.actions == msg.actions):
-                self.flows.delete(flow)
-                return
-        self.logger.error("A flow was removed but we didn't know it was there!")
+    
 
-     @set_ev_cls(ofp_event.EventOFPStateChange,
-                 [MAIN_DISPATCHER, DEAD_DISPATCHER])
-     def _state_change_handler(self, ev):
-        datapath = ev.datapath
-        if ev.state == MAIN_DISPATCHER:
-            if not datapath.id in self.datapaths:
-                self.logger.debug('register datapath: %016x', datapath.id)
-                dpid = "%016x" % datapath.id
-                self.datapaths[dpid] = datapath
-                if(not self.flowmods.has_key(dpid)):
-                    self.flowmods[dpid] = []
-                self.flushRules("%016x" % datapath.id)
-		#--- start the balancing act
-                self.api.switchJoined(datapath)
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = idle_timeout,
+                                            hard_timeout = hard_timeout,
+                                            priority     = priority)
+      
 
-        elif ev.state == DEAD_DISPATCHER:
-            if datapath.id in self.datapaths:
-                self.logger.debug('unregister datapath: %016x', datapath.id)
-                del self.datapaths[datapath.id]
+    header = {}
+    if(not obj.has_key('idle_timeout')):
+      idle_timeout  = self.config[dpid][name]['idle_timeout']
+    else:
+      idle_timeout = obj['idle_timeout']
 
-     @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
-     def _port_status_handler(self, ev):
-        msg        = ev.msg
-        reason     = msg.reason
-        port_no    = msg.desc.port_no
-        link_state = msg.desc.state
+    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
+    if(not obj.has_key('hard_timeout')):
+      hard_timeout = self.config[dpid][name]['hard_timeout']
+    else:
+      hard_timeout = obj['hard_timeout']
 
-        ofproto = msg.datapath.ofproto
-        if reason == ofproto.OFPPR_ADD:
-            self.logger.info("port added %s", port_no)
-        elif reason == ofproto.OFPPR_DELETE:
-            self.logger.info("port deleted %s", port_no)
-        elif reason == ofproto.OFPPR_MODIFY:
-            self.logger.info("port modified %s state %s", port_no,link_state)
-            #--- need to check the state to see if port is down
-            
+    if(not obj.has_key('priority')):
+      priority = self.config[dpid][name]['default_whitelist_priority']
+    else:
+      priority = obj['priority']
+
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_src'])
+      else:
+        header['tp_dst'] = int(obj['tp_src'])
+
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_dst'])
+      else:
+        header['tp_src'] = int(obj['tp_dst'])
+
+    header['phys_port'] = self.config[dpid][name]['ports']['wan'][0]['port_id']
+    
+    actions = [{"type": "output",
+                "port": in_port['port_id']}]
+    
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = idle_timeout,
+                                            hard_timeout = hard_timeout,
+                                            priority     = priority)
+    
+    results = {}
+    results['success'] = 1
+    return results
+
+  def bad_flow(self, obj):
+    #turn this into a
+    #presumes that we get a nw_src, nw_dst, tcp_src_port, tcp_dst_port
+    #we need to do verification here or conversion depending on what we get from the sensors
+    in_port = None
+    out_port = None
+    dpid = None
+    domain = None
+    reverse = False
+
+    new_prefix = ipaddr.IPv4Network(obj['nw_src'])
+    self.logger.debug("New preifx: " + str(new_prefix))
+    #need to figure out the lan and wan ports
+    for datapath_id in self.config:
+      for name in self.config[datapath_id]:
+        for port in self.config[datapath_id][name]['ports']['lan']:
+            for prefix in port['prefixes']:
+              if(prefix['prefix'].Contains( new_prefix )):
+                in_port = port
+                dpid = datapath_id
+                domain = name
+
+    if(in_port == None):
+      new_prefix = ipaddr.IPv4Network(obj['nw_dst'])
+      #do the same but look for the dst instead of the src                                                             
+      for datapath_id in self.config:
+        for name in self.config[datapath_id]:
+          for port in self.config[datapath_id][name]['ports']['lan']:
+            for prefix in port['prefixes']:
+              if(prefix['prefix'].Contains( new_prefix )):
+                in_port = port
+                dpid = datapath_id
+                domain = name
+                reverse = True
+
+    if(in_port == None):
+      self.logger.debug("unable to find either an output or an input port")
+      return
+
+    obj['phys_port'] = in_port['port_id']
+
+    #actions = drop
+    actions = []
+
+    idle_timeout = None
+    hard_timeout = None
+    priority     = self.config[dpid][name]['default_blacklist_priority']
+
+    header = {}
+    if(not obj.has_key('idle_timeout')):
+      idle_timeout  = self.config[dpid][name]['idle_timeout']
+    else:
+      idle_timeout = obj['idle_timeout']
+
+    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
+    if(not obj.has_key('hard_timeout')):
+      hard_timeout = self.config[dpid][name]['hard_timeout']
+    else:
+      hard_timeout = obj['hard_timeout']
+
+    if(not obj.has_key('priority')):
+      priority = self.config[dpid][name]['default_whitelist_priority']
+    else:
+      priority = obj['priority']
+
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_src'])
+      else:
+        header['tp_src'] = int(obj['tp_src'])
+
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_dst'])
+      else:
+        header['tp_dst'] = int(obj['tp_dst'])
+
+    header['phys_port'] = in_port['port_id']
+
+    self.logger.debug("Header: " + str(header))
+
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = idle_timeout,
+                                            hard_timeout = hard_timeout,
+                                            priority     = priority)
+
+    header = {}
+    if(not obj.has_key('idle_timeout')):
+      idle_timeout  = self.config[dpid][name]['idle_timeout']
+    else:
+      idle_timeout = obj['idle_timeout']
+
+    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
+    if(not obj.has_key('hard_timeout')):
+      hard_timeout = self.config[dpid][name]['hard_timeout']
+    else:
+      hard_timeout = obj['hard_timeout']
+
+    if(not obj.has_key('priority')):
+      priority = self.config[dpid][name]['default_whitelist_priority']
+    else:
+      priority = obj['priority']
+
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_src'])
+      else:
+        header['tp_dst'] = int(obj['tp_src'])
+
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_dst'])
+      else:
+        header['tp_src'] = int(obj['tp_dst'])
+
+    header['phys_port'] = self.config[dpid][name]['ports']['wan'][0]['port_id']
+
+    #actions = drop
+    actions = []
+
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = idle_timeout,
+                                            hard_timeout = hard_timeout,
+                                            priority     = priority)
+
+
+    results = {}
+    results['success'] = 1
+    return results
+
+  def get_bad_flow(self):
+    return self.whiteList
+
+  def get_good_flow(self):
+    return self.blackList
+
+  def _processConfig(self, xmlFile):
+    self.logger.debug("Processing Config file")
+    doc = libxml2.parseFile(xmlFile)
+    ctxt = doc.xpathNewContext()
+    #parse the xml file
+    switches = ctxt.xpathEval("//SciPass/switch")
+    config = {}
+    for switch in switches:
+      ctxt.setContextNode(switch)
+      dpid = switch.prop("dpid")
+      self.logger.debug("Switch DPID: " + str(dpid))
+      config[dpid] = {}
+      domains = ctxt.xpathEval("domain")
+      for domain in domains:
+        ctxt.setContextNode(domain)
+        name = domain.prop("name")
+        mode = domain.prop("mode")
+        status = domain.prop("admin_status")
+        max_prefixes = domain.prop("max_prefixes")
+        most_specific_len = domain.prop("most_specific_prefix_len")
+        least_specific_len = domain.prop("least_specific_prefix_len")
+        idle_timeout = domain.prop("idle_timeout")
+        hard_timeout = domain.prop("hard_timeout")
+        default_blacklist_priority = domain.prop("blacklist_priority")
+        default_whitelist_priority = domain.prop("whitelist_priority")
+        sensorLoadMinThreshold = domain.prop("sensor_min_load_threshold")
+        sensorLoadDeltaThreshhold = domain.prop("sensor_load_delta_threshold")
+        ignore_sensor_load = domain.prop("ignore_sensor_load")
+        ignore_prefix_bw = domain.prop("ignore_prefix_bw")
+        self.logger.debug("Adding Domain: name: %s, mode: %s, status: %s", name, mode, status)
+        config[dpid][name] = {}
+        config[dpid][name]['mode'] = mode
+        config[dpid][name]['status'] = status
+        config[dpid][name]['max_prefixes'] = max_prefixes
+        config[dpid][name]['most_specific_prefix_len'] = most_specific_len
+        config[dpid][name]['least_specific_prefix_len'] = least_specific_len
+        config[dpid][name]['idle_timeout'] = idle_timeout
+        config[dpid][name]['hard_timeout'] = hard_timeout
+        config[dpid][name]['default_blacklist_priority'] = default_blacklist_priority
+        config[dpid][name]['default_whitelist_priority'] = default_whitelist_priority
+        config[dpid][name]['sensor_load_min_threshold'] = sensorLoadMinThreshold
+        config[dpid][name]['sensor_load_delta_threshold'] = sensorLoadDeltaThreshhold
+        if(ignore_prefix_bw == "true"):
+          config[dpid][name]['ignore_prefix_bw'] = 1
         else:
-            self.logger.info("Illeagal port state %s %s", port_no, reason)
+          config[dpid][name]['ignore_prefix_bw'] = 0
 
+        if(ignore_sensor_load == "true"):
+          config[dpid][name]['ignore_sensor_load'] = 1
+        else:
+          config[dpid][name]['ignore_sensor_load'] = 0
 
-     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
-     def _flow_stats_reply_handler(self, ev):
+        config[dpid][name]['sensor_ports'] = {}
+        config[dpid][name]['ports'] = {}
+        config[dpid][name]['ports']['lan'] = []
+        config[dpid][name]['ports']['wan'] = []
+        config[dpid][name]['ports']['fw_lan'] = []
+        config[dpid][name]['ports']['fw_wan'] = []
+        #create a simple balancer
+        config[dpid][name]['balancer'] = SimpleBalancer( logger = self.logger,
+                                                         maxPrefixes = max_prefixes,
+                                                         ignoreSensorLoad = config[dpid][name]['ignore_sensor_load'],
+                                                         ignorePrefixBW = config[dpid][name]['ignore_prefix_bw'],
+                                                         mostSpecificPrefixLen = most_specific_len,
+                                                         sensorLoadMinThresh = sensorLoadMinThreshold,
+                                                         sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
+                                                         leastSpecificPrefixLen = least_specific_len
+                                                         ) 
+        #register the methods
+        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y : self.addPrefix(dpid = dpid,
+                                                                                            domain_name = name,
+                                                                                            sensor_id = x,
+                                                                                            prefix = y))
+
+        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y : self.delPrefix(dpid = dpid,
+                                                                                            domain_name = name,
+                                                                                            sensor_id = x,
+                                                                                            prefix = y))
+
+        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z : self.movePrefix(dpid = dpid,
+                                                                                              domain_name = name,
+                                                                                              old_sensor_id = x,
+                                                                                              new_sensor_id = y,
+                                                                                              prefix = z
+                                                                                              ))
+
+        ports = ctxt.xpathEval("port")
+        sensor_ports = ctxt.xpathEval("sensor_port")
+
+        for port in sensor_ports:
+          sensor = {"port_id": port.prop("of_port_id"),
+                    "bw": port.prop("bw"),
+                    "sensor_id": port.prop("sensor_id"),
+                    "admin_status": port.prop("admin_status"),
+                    "description": port.prop("description")}
+          config[dpid][name]['sensor_ports'][sensor['sensor_id']] = sensor
+          config[dpid][name]['balancer'].addSensor(sensor)
+
+        for port in ports:
+          ctxt.setContextNode(port)
+          ptype = port.prop("type")
+          vlan_tag = port.prop("vlan_tag")
+          prefixes = ctxt.xpathEval("prefix")
+          prefixes_array = []
+          for prefix in prefixes:
+            prefix_obj = {}
+            if(prefix.prop("type") == "v4" or prefix.prop("type") == "ipv4"):
+              prefix_obj = {"type": prefix.prop("type"),
+                            "prefix_str": prefix.getContent(),
+                            "prefix": ipaddr.IPv4Network(prefix.getContent())}
+            else:
+              prefix_obj = {"type": prefix.prop("type"),
+                            "prefix_str": prefix.getContent(),
+                            "prefix": ipaddr.IPv6Network(prefix.getContent())}
+            prefixes_array.append(prefix_obj)
+
+          config[dpid][name]['ports'][ptype].append({"port_id": port.prop("of_port_id"),
+                                                     "name": port.prop("name"),
+                                                     "description": port.prop("description"),
+                                                     "prefixes": prefixes_array,
+                                                     "vlan_tag": vlan_tag
+                                                     })
         
-        #--- figure out the time since last stats
-	old_time = self.lastStatsTime
-        self.lastStatsTime = int(time.time()) 
-	stats_et = None
-        if(old_time != None):
-	  stats_et = self.lastStatsTime - old_time 
+    self.config = config      
+    doc.freeDoc()
+    ctxt.xpathFreeContext()
+
+  def switchJoined(self, datapath):
+    #check to see if we are suppose to operate on this switch
+    dpid = "%016x" % datapath.id
+    if(self.config.has_key(dpid)):
+      self.logger.info("Switch has joined!")
+      #now for each domain push the initial flows 
+      #and start the balancing process
+      for domain_name in self.config[dpid]:
+        domain = self.config[dpid][domain_name]
+        if(domain['mode'] == "SciDMZ"):
+          #we have firewals configured
+          #setup the rules to them
+          self.logger.info("Mode is Science DMZ")
+          #need to install the default rules forwarding everything through the FW
+          #then install the balancing rules for our defined prefixes
+          self._setupSciDMZRules(dpid = dpid,
+                                 domain_name = domain_name)
+
+        elif(domain['mode'] == "InlineIDS"):
+          #no firewall
+          self.logger.info("Mode is Inline IDS")
+          #need to install the default rules forwarding through the switch
+          #then install the balancing rules for our defined prefixes
+          self._setupInlineIDS(dpid = dpid, domain_name = domain_name)
+        elif(domain['mode'] == "Balancer"):
+          #just balancer no other forwarding
+          self.logger.info("Mode is Balancer")
+          #just install the balance rules, no forwarding
+          self._setupBalancer(dpid = dpid, domain_name = domain_name)
         
-        body = ev.msg.body
-
-        ofproto = ev.msg.datapath.ofproto
-
-	prefix_bps = defaultdict(lambda: defaultdict(int))
-        #--- update scipass utilization stats for forwarding rules
-        for stat in body:
-          dur_sec = stat.duration_sec
-	  in_port = stat.match.in_port
-          src_mask = 32 - ((stat.match.wildcards & ofproto.OFPFW_NW_SRC_MASK) >> ofproto.OFPFW_NW_SRC_SHIFT)
-          dst_mask = 32 - ((stat.match.wildcards & ofproto.OFPFW_NW_DST_MASK) >> ofproto.OFPFW_NW_DST_SHIFT)
-
-          if(src_mask > 0):
-            #--- this is traffic TX from target prefix
-            id   = ipaddr.IPv4Address(stat.match.nw_src)
-            prefix = ipaddr.IPv4Network(str(id)+"/"+str(src_mask))  
-            dir  = "tx"
-
-          elif(dst_mask > 0):
-            #--- this is traffic RX from target prefix
-            id   = ipaddr.IPv4Address(stat.match.nw_dst)
-            prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
-            dir = "rx"
-          else:
-            #--- no mask, lets skip
-            continue
-
-          raw_bytes = stat.byte_count
-          old_bytes = self.prefix_bytes[prefix][dir]
-          self.prefix_bytes[prefix][dir] = raw_bytes
-          bytes = raw_bytes - old_bytes
-          et = stats_et 
-          if(et == None or dur_sec < et):
-            et = dur_sec
-
-          try:
-            rate = bytes / float(et)
-          except ZeroDivisionError:
-            rate = 0
-
-          prefix_bps[prefix][dir] = rate
- 
-
-        #--- update the balancer
-        for prefix in prefix_bps.keys():
-	  rx = prefix_bps[prefix]["rx"]
-          tx = prefix_bps[prefix]["tx"]
-          self.api.updatePrefixBW("%016x" % ev.msg.datapath.id, prefix, tx, rx)
           
-     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
-     def _port_stats_reply_handler(self, ev):
-        body = ev.msg.body
+  def _setupSciDMZRules(self, dpid = None, domain_name = None):
+    self.logger.debug("SciDMZ rule init")
+    #just in and out port rules for the 
+    #NOTE this presumes many input and 1 output port total and 1 fw lan/wan port for each domain
 
-	#--- update scipass utilization stats for ports
+    #lowest priority
+    priority = 10
+    prefixes = []
+    ports = self.config[dpid][domain_name]['ports']
 
-        #self.logger.info('datapath         port     '
-        #                 'rx-pkts  rx-bytes rx-error '
-        #                 'tx-pkts  tx-bytes tx-error')
-        #self.logger.info('---------------- -------- '
-        #                 '-------- -------- -------- '
-        #                 '-------- -------- --------')
-        #for stat in sorted(body, key=attrgetter('port_no')):
-        #    self.logger.info('%016x %8x %8d %8d %8d %8d %8d %8d', 
-        #                     ev.msg.datapath.id, stat.port_no,
-        #                     stat.rx_packets, stat.rx_bytes, stat.rx_errors,
-        #                     stat.tx_packets, stat.tx_bytes, stat.tx_errors)
+    if(len(ports['fw_wan']) <= 0 or len(ports['fw_lan']) <= 0):
+      #well crap no fw_wan or fw_lan exist... what are bypassing?
+      self.logger.warn("nothing to bypass.. you probably want InlineIDS mode... doing that instead")
+      self._setupInlineIDS(dpid = dpid, domain_name = domain_name)
+      return
 
+    fw_lan_outputs = []
+
+    for in_port in ports['lan']:
+      header = {"phys_port":   int(in_port['port_id']),
+                'dl_type': None}
+
+      actions = []
+      #output to FW
+      actions.append({"type": "output",
+                      "port": int(ports['fw_lan'][0]['port_id'])})
+
+      fw_lan_outputs.append({"type": "output",
+                             "port": int(in_port['port_id'])})
+
+      self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                              header       = header,
+                                              actions      = actions,
+                                              command      = "ADD",
+                                              idle_timeout = 0,
+                                              hard_timeout = 0,
+                                              priority     = int(priority / 2))
+
+      for prefix in in_port['prefixes']:
+        prefixes.append(prefix['prefix'])
+        #specific prefix forwarding rules
+        #FW LAN to specific LAN PORT
+        header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
+                  "nw_dst": int(prefix['prefix']),
+                  "nw_dst_mask": int(prefix['prefix'].prefixlen)}
+        
+        actions = []
+        actions.append({"type": "output",
+                        "port": int(in_port['port_id'])})
+        
+        self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                header       = header,
+                                                actions      = actions,
+                                                command      = "ADD",
+                                                idle_timeout = 0,
+                                                hard_timeout = 0,
+                                                priority     = int(priority))
+        
+        #SPECIFIC LAN -> FW LAN port
+        header = {"phys_port": int(in_port['port_id']),
+                  "nw_src": int(prefix['prefix']),
+                  "nw_src_mask": int(prefix['prefix'].prefixlen)}
+
+        actions = []
+        actions.append({"type": "output",
+                        "port": int(ports['fw_lan'][0]['port_id'])})
+
+        self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                header       = header,
+                                                actions      = actions,
+                                                command      = "ADD",
+                                                idle_timeout = 0,
+                                                hard_timeout = 0,
+                                                priority     = int(priority))
+
+    #FW LAN to ALL INPUT PORTS
+    header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
+              'dl_type': None}
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = fw_lan_outputs,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority / 3))
+
+    #FW WAN -> WAN
+    header = {"phys_port": int(ports['fw_wan'][0]['port_id']),
+              'dl_type': None}
+    actions = []
+    actions.append({"type": "output",
+                    "port": int(ports['wan'][0]['port_id'])})
+    self.logger.error("FW WAN -> WAN: ")
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority))
+
+    #WAN -> FW WAN
+    header = {"phys_port": int(ports['wan'][0]['port_id']),
+              'dl_type': None}
+    actions = []
+    actions.append({"type": "output",
+                    "port": int(ports['fw_wan'][0]['port_id'])})
+    self.logger.error("WAN -> FW WAN")
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority))
+
+    #ok now that we have that done... start balancing!!!
+    self.config[dpid][domain_name]['balancer'].distributePrefixes(prefixes)
+    
+
+  def _setupInlineIDS(self, dpid = None, domain_name = None):
+    self.logger.debug("InLine IDS rule init")
+    #no firewall
+    #basically distribute prefixes and setup master forwarding
+    priority = 10
+    prefixes = []
+    ports = self.config[dpid][domain_name]['ports']
+
+    in_port = ports['lan'][0]
+
+    for prefix in in_port['prefixes']:
+      prefixes.append(prefix['prefix'])
+
+    #LAN to WAN
+    header = {"phys_port": int(ports['lan'][0]['port_id']),
+              'dl_type': None}
+    actions = []
+    actions.append({'type':'output',
+                    'port':int(ports['wan'][0]['port_id'])})
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority / 3))
+
+    #WAN -> LAN
+    header = {"phys_port": int(ports['wan'][0]['port_id']),
+              'dl_type': None}
+    actions = []
+    actions.append({"type": "output",
+                    "port": int(ports['lan'][0]['port_id'])})
+    self.logger.error("FW WAN -> WAN: ")
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = int(priority / 3))
+
+    #ok now that we have that done... start balancing!!!
+    self.config[dpid][domain_name]['balancer'].distributePrefixes(prefixes)
+
+  def _setupBalancer(self, dpid = None, domain_name = None):
+    self.logger.debug("balancer rule init")
+
+  def addPrefix(self, dpid=None, domain_name=None, sensor_id=None, prefix=None):
+    self.logger.debug("Add Prefix " + str(domain_name) + " " + str(sensor_id) + " " + str(prefix))
+    #find the north and south port
+
+    in_port  = None
+    out_port = None
+    fw_lan   = None
+    fw_wan   = None
+    #need to figure out the lan and wan ports
+
+    ports = self.config[dpid][domain_name]['ports']
+
+    for port in ports['lan']:
+      for prefix_obj in port['prefixes']:
+        if(prefix_obj['prefix'].Contains( prefix )):
+          in_port = port
+
+    if(in_port == None):
+      self.logger.error("unable to find either an output or an input port")
+      return
+
+    header = {"nw_src":      int(prefix),
+              "nw_src_mask": int(prefix.prefixlen),
+              "phys_port":   int(in_port['port_id'])}
+
+    actions = []
+    #output to sensor (basically this is the IDS balance case)
+    actions.append({"type": "output",
+                    "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]['port_id']})
+    if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+      #append the FW or other destination
+      if(ports.has_key('fw_lan') and len(ports['fw_lan']) > 0):
+        actions.append({"type": "output",
+                        "port": ports['fw_lan'][0]['port_id']})
+      else:
+        actions.append({"type": "output",
+                        "port": ports['wan'][0]['port_id']})
+
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = 500)
+
+    header = {"nw_dst":      int(prefix),
+              "nw_dst_mask": int(prefix.prefixlen),
+              "phys_port":   int(ports['wan'][0]['port_id'])}
+    
+    actions = []
+    #output to sensor (basically this is the IDS balance case)
+    actions.append({"type": "output",
+                    "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]['port_id']})
+    if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+
+      #append the FW or other destination
+      if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
+        actions.append({"type": "output",
+                        "port": ports['fw_wan'][0]['port_id']})
+      else:
+        actions.append({"type": "output",
+                        "port": in_port['port_id']})
+
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "ADD",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = 500)
+
+  def delPrefix(self, dpid=None, domain_name=None, sensor_id=None, prefix=None):
+    self.logger.debug("Remove Prefix")
+
+    in_port  = None
+    out_port = None
+    fw_lan   = None
+    fw_wan   = None
+
+    #need to figure out the lan and wan ports
+    ports = self.config[dpid][domain_name]['ports']
+    for port in ports['lan']:
+      for prefix_obj in port['prefixes']:
+        if(prefix_obj['prefix'].Contains( prefix )):
+          in_port = port
+
+    if(in_port == None):
+      self.logger.error("Unable to find an input port for the prefix")
+      return
+
+    header = {"nw_src":      int(prefix),
+              "nw_src_mask": int(prefix.prefixlen),
+              "phys_port":   int(in_port['port_id'])}
+    
+    actions = []
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "DELETE_STRICT",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = 500)
+
+    header = {"nw_dst":      int(prefix),
+              "nw_dst_mask": int(prefix.prefixlen),
+              "phys_port":   int(ports['wan'][0]['port_id'])}
+    
+    actions = []
+    self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            header       = header,
+                                            actions      = actions,
+                                            command      = "DELETE_STRICT",
+                                            idle_timeout = 0,
+                                            hard_timeout = 0,
+                                            priority     = 500)
+    
+  def movePrefix(self, dpid = None, domain_name=None, new_sensor_id=None, old_sensor_id=None, prefix=None):
+    self.logger.debug("move prefix")
+    #delete and add the prefix
+    self.delPrefix(dpid, domain_name, old_sensor_id, prefix)
+    self.addPrefix(dpid, domain_name, new_sensor_id, prefix)
+
+  def remove_flow(self, ev):
+    self.logger.debug("remove flow")
+    
+  def port_status(self, ev):
+    self.logger.debug("port status handler")
+
+  def port_stats(self, ev):
+    self.logger.debug("port stats handler")
+
+  def fireForwardingStateChangeHandlers( self,
+                                         dpid         = None,
+                                         header       = None,
+                                         actions      = None,
+                                         command      = None,
+                                         idle_timeout = 0,
+                                         hard_timeout = 0,
+                                         priority     = 1):
+    
+    self.logger.debug("fireing forwarding state change handlers")
+    self.logger.debug("Header: " + str(header))
+    self.logger.debug("Actions: " + str(actions))
+    self.logger.debug("Idle Timeout: " + str(idle_timeout))
+    self.logger.debug("Hard Timeout: " + str(hard_timeout))
+    self.logger.debug("Priority: " + str(priority))
+    now = time.localtime()
+    if(idle_timeout):
+      timeout = now + idle_timeout 
+      this.idleTimeouts.append({timeout: timeout,
+                                dpid: dpid,
+                                idle_timeout: idle_timeout,
+                                bytes: 0,
+                                match: match,
+                                actions: actions,
+                                priority: priority,
+                                command: command})
+    if(hard_timeout):
+      timeout = now + hard_timeout
+      this.hardTimeouts.append({timeout: timeout,
+                                dpid: dpid,
+                                match: match,
+                                actions: actions,
+                                priority: priority,
+                                command: command})
+
+    for handler in self.switchForwardingChangeHandlers:
+      handler( dpid = dpid,
+               header = header,
+               actions = actions,
+               command = command,
+               idle_timeout = idle_timeout,
+               hard_timeout = hard_timeout,
+               priority = priority)
+
+  def updatePrefixBW(self,dpid, prefix, tx, rx):
+    self.logger.debug("updating prefix bw")
+    for domain_name in self.config[dpid]:
+      for port in self.config[dpid][domain_name]['ports']['lan']:
+        for pref in port['prefixes']:
+          if(pref['prefix'].Contains( prefix )):
+            self.logger.debug("Updating prefix " + str(prefix) + " bandwidth for %s %s", dpid, domain_name)
+            self.config[dpid][domain_name]['balancer'].setPrefixBW(prefix, tx, rx)
+            return
+
+  def run_balancers(self):
+    for dpid in self.config:
+      for domain_name in self.config[dpid]:
+        self.logger.info("Balancing: %s %s", dpid, domain_name)
+        self.config[dpid][domain_name]['balancer'].balance()
+        
+
+  def getBalancer(self, dpid, domain_name):
+    return self.config[dpid][domain_name]['balancer']
+
+  def TimeoutFlows(self, dpid, flows):
+    self.logger.error("Looking for flows to timeout")
+    now = time.localtime()
+
+    for flow in self.hardTimeouts:
+      if(flow['dpid'] == dpid):
+        if(flow['timeout'] <= now):
+          self.logger.debug("Timing out flow")
+          #remove the flow
+          self.fireForwardingStateChangeHandlers( dpid         = flow['dpid'],
+                                                  header       = flow['header'],
+                                                  actions      = flow['actions'],
+                                                  command      = "DELETE_STRICT",
+                                                  priority     = flow['priority'])
+        
+        self.hardTimeouts.remove(flow)
+
+    for flow in flows:
+      for idle in self.idleTimeouts:
+        if(dpid == idle['dpid']):
+          if(flow.match == idle['match']):
+            if(idle['bytes'] == flow.bytes):
+              #hasn't been updated since last time...
+              self.logger.debug("Flow has not been updated")
+            else:
+              self.logger.debug("Flow has been updated")
+              idle['timeout'] += time.localtime() + idle['idle_timeout']
+        
+    for flow in self.idleTimeouts:
+      if(flow['dpid'] == dpid):
+        if(flow['timeout'] <= now):
+          self.logger.error("")
+          #remove the flow
+          self.fireForwardingStateChangeHandlers( dpid         = flow['dpid'],
+                                                  header       = flow['header'],
+                                                  actions      = flow['actions'],
+                                                  command      = "DELETE_STRICT",
+                                                  priority     = flow['priority'])
+          self.idleTimeouts.remove(flow)
