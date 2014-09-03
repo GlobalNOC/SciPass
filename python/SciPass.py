@@ -90,7 +90,7 @@ class SciPass:
       self.logger.error("unable to find either an output or an input port")
       return
 
-    obj['phys_port'] = in_port['port_id']
+    obj['phys_port'] = int(in_port['port_id'])
 
     actions = [{"type": "output", 
                 "port": self.config[dpid][name]['ports']['wan'][0]['port_id']}]
@@ -145,7 +145,7 @@ class SciPass:
       else:
         header['tp_dst'] = int(obj['tp_dst'])
 
-    header['phys_port'] = in_port['port_id']
+    header['phys_port'] = int(in_port['port_id'])
 
     self.logger.debug("Header: " + str(header))
 
@@ -204,7 +204,7 @@ class SciPass:
       else:
         header['tp_src'] = int(obj['tp_dst'])
 
-    header['phys_port'] = self.config[dpid][name]['ports']['wan'][0]['port_id']
+    header['phys_port'] = int(self.config[dpid][name]['ports']['wan'][0]['port_id'])
     
     actions = [{"type": "output",
                 "port": in_port['port_id']}]
@@ -260,7 +260,7 @@ class SciPass:
       self.logger.debug("unable to find either an output or an input port")
       return
 
-    obj['phys_port'] = in_port['port_id']
+    obj['phys_port'] = int(in_port['port_id'])
 
     #actions = drop
     actions = []
@@ -313,7 +313,7 @@ class SciPass:
       else:
         header['tp_dst'] = int(obj['tp_dst'])
 
-    header['phys_port'] = in_port['port_id']
+    header['phys_port'] = int(in_port['port_id'])
 
     self.logger.debug("Header: " + str(header))
 
@@ -367,7 +367,7 @@ class SciPass:
       else:
         header['tp_src'] = int(obj['tp_dst'])
 
-    header['phys_port'] = self.config[dpid][name]['ports']['wan'][0]['port_id']
+    header['phys_port'] = int(self.config[dpid][name]['ports']['wan'][0]['port_id'])
 
     #actions = drop
     actions = []
@@ -864,25 +864,25 @@ class SciPass:
     self.logger.debug("Idle Timeout: " + str(idle_timeout))
     self.logger.debug("Hard Timeout: " + str(hard_timeout))
     self.logger.debug("Priority: " + str(priority))
-    now = time.localtime()
+    now = time.time()
     if(idle_timeout):
-      timeout = now + idle_timeout 
-      this.idleTimeouts.append({timeout: timeout,
-                                dpid: dpid,
-                                idle_timeout: idle_timeout,
-                                bytes: 0,
-                                match: match,
-                                actions: actions,
-                                priority: priority,
-                                command: command})
+      timeout = now + int(idle_timeout) 
+      self.idleTimeouts.append({'timeout': timeout,
+                                'dpid': dpid,
+                                'idle_timeout': int(idle_timeout),
+                                'pkt_count': 0,
+                                'header': header,
+                                'actions': actions,
+                                'priority': priority,
+                                'command': command})
     if(hard_timeout):
-      timeout = now + hard_timeout
-      this.hardTimeouts.append({timeout: timeout,
-                                dpid: dpid,
-                                match: match,
-                                actions: actions,
-                                priority: priority,
-                                command: command})
+      timeout = now + int(hard_timeout)
+      self.hardTimeouts.append({'timeout': timeout,
+                                'dpid': dpid,
+                                'header': header,
+                                'actions': actions,
+                                'priority': priority,
+                                'command': command})
 
     for handler in self.switchForwardingChangeHandlers:
       handler( dpid = dpid,
@@ -922,14 +922,14 @@ class SciPass:
   def getBalancer(self, dpid, domain_name):
     return self.config[dpid][domain_name]['balancer']
 
+
   def TimeoutFlows(self, dpid, flows):
     self.logger.error("Looking for flows to timeout")
-    now = time.localtime()
-
+    now = time.time()
     for flow in self.hardTimeouts:
       if(flow['dpid'] == dpid):
         if(flow['timeout'] <= now):
-          self.logger.debug("Timing out flow")
+          self.logger.info("Timing out flow due to Hard Timeout")
           #remove the flow
           self.fireForwardingStateChangeHandlers( dpid         = flow['dpid'],
                                                   header       = flow['header'],
@@ -939,21 +939,30 @@ class SciPass:
         
         self.hardTimeouts.remove(flow)
 
+    #need to improve this! its a O(n^2)
     for flow in flows:
       for idle in self.idleTimeouts:
         if(dpid == idle['dpid']):
-          if(flow.match == idle['match']):
-            if(idle['bytes'] == flow.bytes):
+          #need to compare the flow match to the header
+          #self.logger.error(str(flow['match']))
+          #self.logger.error(str(idle['header']))
+          if(cmp(flow['match'], idle['header']) == 0):
+            #compare the dicts and they are the same
+            #so update the flow count and the expires time
+            if(idle['pkt_count'] == flow['packet_count']):
               #hasn't been updated since last time...
               self.logger.debug("Flow has not been updated")
             else:
               self.logger.debug("Flow has been updated")
-              idle['timeout'] += time.localtime() + idle['idle_timeout']
-        
+              idle['timeout'] = time.time() + idle['idle_timeout']
+              self.logger.debug("New Timeout: " + str(idle['timeout']))
+              idle['pkt_count'] = flow['packet_count']
+    
     for flow in self.idleTimeouts:
       if(flow['dpid'] == dpid):
+        self.logger.debug("Flows current timeout: " + str(flow['timeout']) + " now " + str(now))
         if(flow['timeout'] <= now):
-          self.logger.error("")
+          self.logger.info("removing the flow due to idle timeout")
           #remove the flow
           self.fireForwardingStateChangeHandlers( dpid         = flow['dpid'],
                                                   header       = flow['header'],

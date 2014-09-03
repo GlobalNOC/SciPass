@@ -25,6 +25,7 @@ from ryu.controller import ofp_event
 from ryu.controller.handler import MAIN_DISPATCHER, DEAD_DISPATCHER
 from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ether
+from ryu.ofproto import ofproto_v1_0
 from ryu.lib import hub
 from ryu.app.wsgi import ControllerBase, WSGIApplication, route
 from webob import Response
@@ -376,10 +377,10 @@ class Ryu(app_manager.RyuApp):
         body = ev.msg.body
 
         ofproto = ev.msg.datapath.ofproto
-
+        flows = []
 	prefix_bps = defaultdict(lambda: defaultdict(int))
         #--- update scipass utilization stats for forwarding rules
-        self.api.TimeoutFlows(ev.msg.datapath.id, body)
+
         for stat in body:
           dur_sec = stat.duration_sec
 	  in_port = stat.match.in_port
@@ -415,13 +416,64 @@ class Ryu(app_manager.RyuApp):
             rate = 0
 
           prefix_bps[prefix][dir] = rate
- 
+          
+          match = stat.match.__dict__
+          wildcards = stat.match.wildcards
+          del match['dl_dst']
+          del match['dl_src']
+          del match['dl_type']
+          del match['wildcards']
+
+          if(match['dl_vlan_pcp'] == 0):
+              del match['dl_vlan_pcp']
+              
+          if(match['dl_vlan'] == 0):
+              del match['dl_vlan']
+
+          if(match['nw_proto'] == 0):
+              del match['nw_proto']
+              
+          if(match['nw_tos'] == 0):
+              del match['nw_tos']
+
+          if(match['nw_src'] == 0):
+              del match['nw_src']
+              
+          if(match['nw_dst'] == 0):
+              del match['nw_dst']
+
+          if(match['tp_src'] == 0):
+              del match['tp_src']
+
+          if(match['tp_dst'] == 0):
+              del match['tp_dst']
+
+          if(match['in_port'] == 0):
+              del match['in_port']
+          else:
+              match['phys_port'] = int(match['in_port'])
+              del match['in_port']
+              
+          mask = 32 - ((wildcards & ofproto_v1_0.OFPFW_NW_SRC_MASK)
+                       >> ofproto_v1_0.OFPFW_NW_SRC_SHIFT)
+          match['nw_src_mask'] = mask
+
+          mask = 32 - ((wildcards & ofproto_v1_0.OFPFW_NW_DST_MASK)
+                       >> ofproto_v1_0.OFPFW_NW_DST_SHIFT)
+          match['nw_dst_mask'] = mask
+
+          flows.append({'match': match,
+                        'wildcards': wildcards,
+                        'packet_count': stat.packet_count
+                        })
 
         #--- update the balancer
         for prefix in prefix_bps.keys():
 	  rx = prefix_bps[prefix]["rx"]
           tx = prefix_bps[prefix]["tx"]
           self.api.updatePrefixBW("%016x" % ev.msg.datapath.id, prefix, tx, rx)
+
+        self.api.TimeoutFlows("%016x" % ev.msg.datapath.id, flows)
           
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
