@@ -915,7 +915,7 @@ class SciPass:
   def run_balancers(self):
     for dpid in self.config:
       for domain_name in self.config[dpid]:
-        self.logger.info("Balancing: %s %s", dpid, domain_name)
+        self.logger.debug("Balancing: %s %s", dpid, domain_name)
         self.config[dpid][domain_name]['balancer'].balance()
         
 
@@ -924,7 +924,7 @@ class SciPass:
 
 
   def TimeoutFlows(self, dpid, flows):
-    self.logger.error("Looking for flows to timeout")
+    self.logger.debug("Looking for flows to timeout")
     now = time.time()
     for flow in self.hardTimeouts:
       if(flow['dpid'] == dpid):
