@@ -98,7 +98,7 @@ class SciPassRest(ControllerBase):
         return Response(content_type='application/json',body=json.dumps(result))
 
 class Ryu(app_manager.RyuApp):
-    
+    OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
     _CONTEXTS = { 'wsgi': WSGIApplication }
     
     def __init__(self, *args, **kwargs):
@@ -139,6 +139,7 @@ class Ryu(app_manager.RyuApp):
         
         if(not self.datapaths.has_key(dpid)):
             self.logger.error("unable to find switch with dpid " + dpid)
+            self.logger.error(self.datapaths)
             return
         
         datapath = self.datapaths[dpid]
