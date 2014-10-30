@@ -20,6 +20,7 @@ use FindBin;
 use Data::Dumper;
 use Template;
 use GRNOC::WebService::Client;
+use Switch;
 
 #use Text::Table;
 our $VERSION = "1.0.0";
@@ -52,8 +53,6 @@ sub _init {
     my $self = shift;
 
     $self->{'config'} = GRNOC::Config->new( config_file => '/etc/SciPass/SciPass.xml');
-#    my $base_url = $self->{'config'}->get('/config/base_url');
-#    my $port     = $self->{'config'}->get('/config/port');
     my $base_url              = 'http://localhost';
     my $port                  = '8080';
     $self->{history}       = [];
@@ -120,7 +119,7 @@ sub expand_commands {
                 $matching_parts++;
                 $partial_matches->{$i}->{ $command_parts[$i] } = 1;
 		
-                print "$command_parts[$i] matches $input_parts[$i]\n";
+                #print "$command_parts[$i] matches $input_parts[$i]\n";
             }
 
         }
@@ -306,7 +305,7 @@ sub build_command_list {
 			       "show switch [% sw_name %] flows",
 			       "show switch [% sw_name %] domains", 
 			       "show switch [% sw_name %] domain [% domain_name %] status",
-			       "show switch [% sw_name %] domain [% domain_name %] flow",
+			       "show switch [% sw_name %] domain [% domain_name %] flows",
 			       "show switch [% sw_name %] domain [% domain_name %] sensors",
 			       "show switch [% sw_name %] domain [% domain_name %] sensor [% sensor_id %] status",
 			       "show good flows", "show bad flows", "help", "?", "quit", "exit" ];
@@ -315,20 +314,33 @@ sub build_command_list {
     
     foreach my $command (@$possible_commands){
 	foreach my $switch (@{$self->{'config'}->get('/SciPass/switch')}) {
+	    $self->{'switches'}->{$switch->{'dpid'}} = {name => $switch->{'name'}, dpid => $switch->{'dpid'}};
+	    
+	    $self->{'switch_names'}->{$switch->{'name'}}->{'dpid'} = $switch->{'dpid'};
 	    if(ref($switch->{'domain'}) ne 'ARRAY'){
 		my @domain = keys (%{$switch->{'domain'}});
 		$switch->{'domain'}->{$domain[0]}->{'name'} = $domain[0];
 		$switch->{'domain'} = [ $switch->{'domain'}->{$domain[0]} ];
 	    }
 	    foreach my $domain ( @{ $switch->{'domain'} }){
-		my $vars;
-		$vars->{'sw_name'} = $switch->{'name'};
-		$vars->{'domain_name'} = $domain->{'name'};
-		
-		my $new_command;
-		$tt->process(\$command, $vars, \$new_command) || die $tt->error() . "\n";
-		push(@{$self->{'possible_commands'}}, $new_command);
-		
+		push(@{$self->{'switches'}->{$switch->{'dpid'}}->{'domains'}},$domain);
+
+		foreach my $sensor (keys (% {$domain->{'sensor_port'} })){
+		    
+		    my $vars;
+		    $vars->{'sw_name'} = $switch->{'name'};
+		    $vars->{'domain_name'} = $domain->{'name'};
+		    $vars->{'sensor_id'} = $domain->{'sensor_port'}->{$sensor}->{'sensor_id'};
+		    
+		    my $new_command;
+		    $tt->process(\$command, $vars, \$new_command) || die $tt->error() . "\n";
+		    push(@{$self->{'possible_commands'}}, $new_command);
+		    
+		    $new_command = "";
+		    $vars->{'sw_name'} = $switch->{'dpid'};
+		    $tt->process(\$command, $vars, \$new_command) || die $tt->error() . "\n";
+		    push(@{$self->{'possible_commands'}}, $new_command);
+		}
 	    }
 	}
     }
@@ -415,8 +427,6 @@ END
         $ws->set_url("$base_url:$port/scipass/switches");
         my $status_obj = $ws->foo();
 
-	warn "Show Switches: " . Data::Dumper::Dumper($status_obj) . "\n";
-
         unless ( grep { defined $_ } @$status_obj ) {
             print "No switches found connected SciPass\n";
         }
@@ -424,64 +434,185 @@ END
             if ( $dpid && $switch->{'dpid'} != $dpid ) {
                 next;
             }
-            my ($address) = $switch->{'inetAddress'} =~ /\/(\S+):\d+/;
+            my ($address) = $switch->{'address'};
+	    if(!defined($self->{'switches'}->{$switch->{'dpid'}})){
+		print "UNCONFIGURED FOR SCIPASS\n";
+	    }else{
+		print "Name: " . $self->{'switches'}->{$switch->{'dpid'}}->{'name'} . "\n";
+		$self->{'switches'}->{$switch->{'dpid'}}->{'status'} = 'active';
+	    }
 	    print "DPID:\t$switch->{'dpid'}\n";
             print "IP:\t$address\n";
-            print "Vendor:\t" . $switch->{'descriptionStatistics'}->{'manufacturerDescription'} . "\n";
-            print "Device:\t" . $switch->{'descriptionStatistics'}->{'hardwareDescription'} . "\n";
-            print "Software Version:\t" . $switch->{'descriptionStatistics'}->{'softwareDescription'} . "\n";
+	    print "STATUS: Connected\n";
             print "Ports:\n";
             print "Name\tPort Number\tStatus\n\n";
 
-            #my $port_table=Text::Table->new("Port Name","Port Number", "Status");
             foreach my $port ( @{ $switch->{'ports'} } ) {
-
-                my $port_num = $self->_unsign_int( $port->{'portNumber'} );
-
+                my $port_num = $port->{'port_no'};
                 print "$port->{'name'}\t$port_num\tUP\n";
-
             }
             print "\n\n";
         }
+	
+	foreach my $dpid (keys (%{ $self->{'switches'}})){
+	    next if ((defined($self->{'switches'}->{$dpid}->{'status'})) && ($self->{'switches'}->{$dpid}->{'status'} eq 'active'));
+	    print "NAME:\t" . $self->{'switches'}->{$dpid}->{'name'} . "\n";
+	    print "DPID:\t$dpid\n";
+	    print "IP:\tNOT CONNECTED\n";
+	    print "STATUS:\tNOT CONNECTED\n";
+	    print "\n\n";
+	}
+
 
     }elsif ( $input =~ /^show switch (\S+) flows$/ ) {
+	
+	my $switch_dpid = $1;
+	if(defined($self->{'switch_names'}->{$switch_dpid})){
+	    $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+	}
 
-	$ws->set_url("$base_url:$port/scipass/switch/$1/flows");
+	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/flows");
 	my $res = $ws->foo();
-	print Data::Dumper::Dumper($res);
+	if(!defined($res)){
+	    print "No Flows configured for switch $1\n";
+	    return;
+	}
+
+	foreach my $flow (@$res){
+	    print "Flow:\n";
+	    print $self->flow_to_human($flow) . "\n\n";
+	}
 
     }elsif ( $input =~ /^show switch (\S+) domains/ ) {
-	
-	$ws->set_url("$base_url:$port/scipass/switch/$1/domains");
+
+	my $switch_dpid = $1;
+
+        if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+        }
+
+	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domains");
 	my $res = $ws->foo();
-	print Data::Dumper::Dumper($res);
+	if(!defined($res)){
+            print "No Domains configured for switch $1\n";
+            return;
+        }
+
+	foreach my $domain (@$res){
+            print "Domain: " . $domain . "\n";
+        }
 
     }elsif ( $input =~ /^show switch (\S+) domain (\S+) status/ ) {
+	my $switch_dpid = $1;
+        if(defined($self->{'switch_names'}->{$switch_dpid})){
+	    $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+	}
 
-	$ws->set_url("$base_url:$port/scipass/switch/$1/domains");
+	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domain/$2/status");
 	my $res = $ws->foo();
 	print Data::Dumper::Dumper($res);
 
     }elsif( $input =~ /^show switch (\S+) domain (\S+) flows/){
 
-	$ws->set_url("$base_url:$port/scipass/switch/$1/domain/$2/flows");
+	my $switch_dpid = $1;
+	if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+	}
+
+	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domain/$2/flows");
 	my $res = $ws->foo();
-	print Data::Dumper::Dumper($res);
+
+	if(!defined($res)){
+	    print "Unable to fetch flows!\n\n";
+	    return;
+	}
+
+	foreach my $flow (@$res){
+	    print "Flow:\n";
+	    print $self->flow_to_human($flow) . "\n\n";
+	}
+
 
     }elsif( $input =~ /^show switch (\S+) domain (\S+) sensors/){
-	
-	$ws->set_url("$base_url:$port/scipass/switch/$1/domain/$2/sensors");
+	my $switch_dpid = $1;
+	if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+	}
+	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domain/$2/sensors");
 	my $res = $ws->foo();
-	print Data::Dumper::Dumper($res);
+
+	if(!defined($res)){
+	    print "Unable to find any sensors!!\n";
+	    return;
+	}
+	
+	warn Data::Dumper::Dumper($res);
+
+	foreach my $sensor (@$res){
+	    print "Sensor: " . $sensor . "\n";
+	}
 
     }elsif( $input =~ /^show switch (\S+) domain (\S+) sensor (\S+) status/){
-
-	$ws->set_url("$base_url:$port/scipass/switch/$1/domain/$2/sensor/$3/status");
+	my $switch_dpid = $1;
+	if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+	}
+	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domain/$2/sensor/$3/status");
 	my $res = $ws->foo();
 	print Data::Dumper::Dumper($res);
     }
     
     return;    #$insert_text;
+}
+
+sub flow_to_human{
+    my $self = shift;
+    my $flow = shift;
+    my $str = "";
+    $str .= "DPID:\t" . $flow->{'dpid'} . "\n";
+    $str .= "Match:\n";
+    foreach my $key (keys (%{$flow->{'header'}})){
+	my $of_match_name;
+	switch($key){
+	    case 'phys_port'{
+		$of_match_name = 'IN PORT';
+	    }case 'dl_vlan'{
+		$of_match_name = 'VLAN';
+	    }case 'dl_type'{
+		$of_match_name = "Ether Type";
+	    }case 'nw_src'{
+		$of_match_name = "Source IP";
+	    }case 'nw_src_mask'{
+		$of_match_name = "Source IP Mask";
+	    }case 'nw_dst'{
+		$of_match_name = "Destination IP";
+	    }case 'nw_dst_mask'{
+		$of_match_name = "Destination IP Mask";
+	    }case 'tp_src'{
+		$of_match_name = "Source Port";
+	    }case 'tp_dst'{
+		$of_match_name = "Destination Port";
+	    }
+	}
+	$str .= "  " . $of_match_name . ":" . $flow->{'header'}->{$key} . "\n";
+    }
+
+    $str .= "Actions:\n";
+    
+    if($#{$flow->{'actions'}} == -1){
+	$str .= "  DROP";
+    }
+
+    foreach my $action (@{$flow->{'actions'}}){
+	switch($action->{'type'}){
+	    case 'output'{
+		$str .= "  OUTPUT: " . $action->{'port'} . "\n";
+	    }case 'set_vlan_vid'{
+		$str .= "  SET VLAN ID: " . $action->{'vlan_vid'} . "\n";
+	    }
+	}
+    }
+    return $str;
 }
 
 sub terminal_loop {

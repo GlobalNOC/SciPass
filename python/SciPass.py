@@ -153,6 +153,7 @@ class SciPass:
     
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -211,6 +212,7 @@ class SciPass:
                 "port": in_port['port_id']}]
     
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -319,6 +321,7 @@ class SciPass:
     self.logger.debug("Header: " + str(header))
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -374,6 +377,7 @@ class SciPass:
     actions = []
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -460,6 +464,7 @@ class SciPass:
                                                          sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
                                                          leastSpecificPrefixLen = least_specific_len
                                                          ) 
+        config[dpid][name]['flows'] = []
         #register the methods
         config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y : self.addPrefix(dpid = dpid,
                                                                                             domain_name = name,
@@ -582,6 +587,7 @@ class SciPass:
                              "port": int(in_port['port_id'])})
 
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                              domain     = domain_name,
                                               header       = header,
                                               actions      = actions,
                                               command      = "ADD",
@@ -602,6 +608,7 @@ class SciPass:
                         "port": int(in_port['port_id'])})
         
         self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                domain     = domain_name,
                                                 header       = header,
                                                 actions      = actions,
                                                 command      = "ADD",
@@ -619,6 +626,7 @@ class SciPass:
                         "port": int(ports['fw_lan'][0]['port_id'])})
 
         self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                domain       = domain_name,
                                                 header       = header,
                                                 actions      = actions,
                                                 command      = "ADD",
@@ -630,6 +638,7 @@ class SciPass:
     header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
               'dl_type': None}
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain_name,
                                             header       = header,
                                             actions      = fw_lan_outputs,
                                             command      = "ADD",
@@ -645,6 +654,7 @@ class SciPass:
                     "port": int(ports['wan'][0]['port_id'])})
     self.logger.error("FW WAN -> WAN: ")
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain_name,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -660,6 +670,7 @@ class SciPass:
                     "port": int(ports['fw_wan'][0]['port_id'])})
     self.logger.error("WAN -> FW WAN")
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain_name,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -692,6 +703,7 @@ class SciPass:
                     'port':int(ports['wan'][0]['port_id'])})
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             header       = header,
+                                            domain       = domain_name,
                                             actions      = actions,
                                             command      = "ADD",
                                             idle_timeout = 0,
@@ -706,6 +718,7 @@ class SciPass:
                     "port": int(ports['lan'][0]['port_id'])})
     self.logger.error("FW WAN -> WAN: ")
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain_name,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -758,6 +771,7 @@ class SciPass:
                         "port": ports['wan'][0]['port_id']})
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain_name,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -784,6 +798,7 @@ class SciPass:
                         "port": in_port['port_id']})
 
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain_name,
                                             header       = header,
                                             actions      = actions,
                                             command      = "ADD",
@@ -816,6 +831,7 @@ class SciPass:
     
     actions = []
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain_name,
                                             header       = header,
                                             actions      = actions,
                                             command      = "DELETE_STRICT",
@@ -829,6 +845,7 @@ class SciPass:
     
     actions = []
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                            domain       = domain_name,
                                             header       = header,
                                             actions      = actions,
                                             command      = "DELETE_STRICT",
@@ -852,6 +869,7 @@ class SciPass:
     self.logger.debug("port stats handler")
 
   def fireForwardingStateChangeHandlers( self,
+                                         domain       = None,
                                          dpid         = None,
                                          header       = None,
                                          actions      = None,
@@ -867,10 +885,24 @@ class SciPass:
     self.logger.debug("Hard Timeout: " + str(hard_timeout))
     self.logger.debug("Priority: " + str(priority))
     now = time.time()
+
+    if(command == "ADD"):
+      self.config[dpid][domain]['flows'].append({'dpid': dpid,
+                                                 'header': header,
+                                                 'actions': actions,
+                                                 'priority': priority
+                                                 })
+
+    if(command == "DELETE" or command == "DELETE_STRICT"):
+      for flow in self.config[dpid][domain]['flows']:
+        if(flow['header'] == header and flow['priority'] == priority):
+          self.config[dpid][domain]['flows'].remove(flow)
+
     if(idle_timeout):
       timeout = now + int(idle_timeout) 
       self.idleTimeouts.append({'timeout': timeout,
                                 'dpid': dpid,
+                                'domain': domain,
                                 'idle_timeout': int(idle_timeout),
                                 'pkt_count': 0,
                                 'header': header,
@@ -881,6 +913,7 @@ class SciPass:
       timeout = now + int(hard_timeout)
       self.hardTimeouts.append({'timeout': timeout,
                                 'dpid': dpid,
+                                'domain': domain,
                                 'header': header,
                                 'actions': actions,
                                 'priority': priority,
@@ -921,8 +954,64 @@ class SciPass:
           return {success: 1}
     return {success: 0, msg: "Unable to find sensor with id: " + sensor}
 
+  def getSwitchFlows(self, dpid=None):
+    flows = []
+    if(self.config.has_key(dpid)):
+      for domain in self.config[dpid]:
+        flows.extend(self.config[dpid][domain]['flows'])
+    return flows
+
+  def getDomainFlows(self, dpid=None, domain=None):
+    if(self.config.has_key(dpid)):
+      if(self.config[dpid].has_key(domain)):
+        return self.config[dpid][domain]['flows']
+
+  def getSwitchDomains(self, dpid=None):
+    domains = []
+    if(self.config.has_key(dpid)):
+      for domain in self.config[dpid]:
+        domains.append(domain)
+    return domains
+
+  def getSensorStatus(self, dpid=None, domain=None, sensor_id=None):
+    if(self.config.has_key(dpid)):
+      if(self.config[dpid].has_key(domain)):
+        bal = self.config[dpid][domain]['balancer']
+        return bal.getSensorStatus(sensor_id)
+
+  def getDomainSensors(self, dpid=None, domain=None):
+    if(self.config.has_key(dpid)):
+      if(self.config[dpid].has_key(domain)):
+        bal = self.config[dpid][domain]['balancer']
+        return bal.getSensors()
+
   def getSwitches(self):
-    return self.switches
+    switches = []
+    for switch in self.switches:
+      ports = []
+      for port in switch.ports:
+        port = switch.ports[port]        
+        ports.append({'port_no': port.port_no,
+                      'mac_addr': port.hw_addr,
+                      'name': port.name,
+                      'config': port.config,
+                      'state': port.state,
+                      'curr': port.curr,
+                      'advertised': port.advertised,
+                      'supported': port.supported,
+                      'peer': port.peer
+                      })
+      switches.append({'dpid': "%016x" % switch.id,
+                       'ports': ports,
+                       'address': switch.address[0],
+                       'is_active': switch.is_active
+                       })
+    return switches
+
+  def get_domain_sensors(self, dpid=None, domain=None):
+    if(dpid == None or domain == None):
+      return
+    return self.config[dpid][domain]['balancer'].getSensors()
 
   def run_balancers(self):
     for dpid in self.config:
@@ -944,6 +1033,7 @@ class SciPass:
           self.logger.info("Timing out flow due to Hard Timeout")
           #remove the flow
           self.fireForwardingStateChangeHandlers( dpid         = flow['dpid'],
+                                                  domain       = flow['domain'],
                                                   header       = flow['header'],
                                                   actions      = flow['actions'],
                                                   command      = "DELETE_STRICT",
@@ -977,6 +1067,7 @@ class SciPass:
           self.logger.info("removing the flow due to idle timeout")
           #remove the flow
           self.fireForwardingStateChangeHandlers( dpid         = flow['dpid'],
+                                                  domain       = flow['domain'],
                                                   header       = flow['header'],
                                                   actions      = flow['actions'],
                                                   command      = "DELETE_STRICT",

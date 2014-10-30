@@ -205,6 +205,9 @@ class SimpleBalancer:
         self.logger.error( "Error updating sensor")
         return 0
 
+  def getSensors(self):
+      return self.sensorStatus
+
   def getSensorStatus(self,sensor):
       if(self.sensorStatus.has_key(sensor)):
           return self.sensorStatus[sensor]
