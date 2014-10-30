@@ -87,7 +87,7 @@ class SciPassRest(ControllerBase):
         result = self.api.get_bad_flows()
         return Response(content_type='application/json',body=json.dumps(result))
 
-    @route('scipass', '/scipass/sensor/load', methods=['GET'])
+    @route('scipass', '/scipass/sensor/load', methods=['PUT'])
     def update_sensor_load(self, req):
         try:
             obj = eval(req.body)
@@ -96,6 +96,26 @@ class SciPassRest(ControllerBase):
             return Response(status=400)
         result = self.api.setSensorStatus(obj['sensor_id'],obj['load'])
         return Response(content_type='application/json',body=json.dumps(result))
+
+    @route('scipass', '/scipass/sensor/get_load', methods=['GET'])
+    def get_sensor_load(self, req):
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing update_sensor_status signal %s", req.body)
+            return Response(status=400)
+        result = self.api.getSensorStatus(obj['sensor_id'])
+        return Response(content_type='application/json',body=json.dumps(result))
+
+    @route('scipass', '/scipass/switches', methods=['GET'])
+    def get_switches(self, req):
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing update_sensor_status signal %s", req.body)
+            return Response(status=400)
+        result = self.api.getSwitches()
+        return Response(content_type='application/json', body=json.dumps(result))
 
 class Ryu(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]

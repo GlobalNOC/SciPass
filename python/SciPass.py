@@ -40,10 +40,11 @@ class SciPass:
       self.configFile = "/etc/SciPass/SciPass.xml"
 
 
-    self.whiteList = []
-    self.blackList = []
+    self.whiteList    = []
+    self.blackList    = []
     self.idleTimeouts = []
     self.hardTimeouts = []
+    self.switches     = []
     self.switchForwardingChangeHandlers = []
 
     self._processConfig(self.configFile)
@@ -520,6 +521,7 @@ class SciPass:
 
   def switchJoined(self, datapath):
     #check to see if we are suppose to operate on this switch
+    self.switches.append(datapath)
     dpid = "%016x" % datapath.id
     if(self.config.has_key(dpid)):
       self.logger.info("Switch has joined!")
@@ -903,6 +905,13 @@ class SciPass:
             self.config[dpid][domain_name]['balancer'].setPrefixBW(prefix, tx, rx)
             return
 
+  def getSensorLoad(self, sensor):
+    self.logger.debug("getting sensor load for sensor %s", sensor)
+    for dpid in self.config:
+      for domain in self.config['dpid']:
+        if(self.config[dpid][domain]['balancer'].getSensorStatus(sensor) != -1):
+          return self.config[dpid][domain]['balancer'].getSensorStatus(sensor)
+
   def setSensorLoad(self, sensor, load):
     self.logger.debug("updating sensor %s with load %d", sensor, load)
     for dpid in self.config:
@@ -912,16 +921,19 @@ class SciPass:
           return {success: 1}
     return {success: 0, msg: "Unable to find sensor with id: " + sensor}
 
+  def getSwitches(self):
+    return self.switches
+
   def run_balancers(self):
     for dpid in self.config:
       for domain_name in self.config[dpid]:
         self.logger.debug("Balancing: %s %s", dpid, domain_name)
         self.config[dpid][domain_name]['balancer'].balance()
         
-
   def getBalancer(self, dpid, domain_name):
     return self.config[dpid][domain_name]['balancer']
 
+  
 
   def TimeoutFlows(self, dpid, flows):
     self.logger.debug("Looking for flows to timeout")
