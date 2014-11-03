@@ -205,6 +205,17 @@ class SimpleBalancer:
         self.logger.error( "Error updating sensor")
         return 0
 
+  def getSensors(self):
+      sensors = []
+      for sensor in self.sensorStatus:
+          obj = {}
+          obj['sensor_id'] = sensor
+          obj['status'] = self.sensorStatus[sensor]
+          obj['load'] = self.sensorLoad[sensor]
+          obj['bandwidth'] = self.getSensorBW(sensor)
+          sensors.append(obj)
+      return sensors
+
   def getSensorStatus(self,sensor):
       if(self.sensorStatus.has_key(sensor)):
           return self.sensorStatus[sensor]
@@ -410,6 +421,12 @@ class SimpleBalancer:
         largestPrefix = prefix
 
     return largestPrefix;
+
+  def getSensorBW(self,sensor):
+      totalBW = 0
+      for prefix in self.sensorPrefixes[sensor]:
+          totalBW    = totalBW    +  self.prefixBW[prefix]
+      return totalBW
 
   def getEstLoad(self,sensor,targetPrefix):
     """returns the estimated load impact for the specified prefix on the specified sensor"""
