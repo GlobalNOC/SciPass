@@ -983,7 +983,12 @@ class SciPass:
     if(self.config.has_key(dpid)):
       if(self.config[dpid].has_key(domain)):
         bal = self.config[dpid][domain]['balancer']
-        return bal.getSensors()
+        sensors = bal.getSensors()
+        for sensor in sensors:
+          sensor['port_id'] = self.config[dpid][domain]['sensor_ports'][sensor['sensor_id']]['port_id']
+          sensor['description'] = self.config[dpid][domain]['sensor_ports'][sensor['sensor_id']]['description']
+          sensor['total_bw'] = self.config[dpid][domain]['sensor_ports'][sensor['sensor_id']]['bw']
+        return sensors
 
   def getSwitches(self):
     switches = []

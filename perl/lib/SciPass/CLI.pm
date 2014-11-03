@@ -546,10 +546,13 @@ END
 	    return;
 	}
 	
-	warn Data::Dumper::Dumper($res);
-
 	foreach my $sensor (@$res){
-	    print "Sensor: " . $sensor . "\n";
+	    print "Sensor:\t\t" . $sensor->{'sensor_id'} . "\n";
+	    print "Description:\t" . $sensor->{'description'} . "\n";
+	    print "OF Port ID:\t" . $sensor->{'port_id'} . "\n";
+	    print "Load:\t\t" . $sensor->{'load'} . "%\n";
+	    print "Bandwidth:\t" . $sensor->{'bandwidth'} . " (" . (($sensor->{'bandwidth'} / $sensor->{'total_bw'}) * 100) . "% utilized)\n";
+	    print "\n\n";
 	}
 
     }elsif( $input =~ /^show switch (\S+) domain (\S+) sensor (\S+) status/){
