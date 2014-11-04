@@ -27,6 +27,7 @@ from ryu.controller.handler import set_ev_cls
 from ryu.ofproto import ether
 from ryu.ofproto import ofproto_v1_0
 from ryu.lib import hub
+from ryu.lib import dpid as dpid_lib
 from ryu.app.wsgi import ControllerBase, WSGIApplication, route
 from webob import Response
 import json
@@ -87,7 +88,12 @@ class SciPassRest(ControllerBase):
         result = self.api.get_bad_flows()
         return Response(content_type='application/json',body=json.dumps(result))
 
-    @route('scipass', '/scipass/sensor/load', methods=['GET'])
+    @route('scipass', '/scipass/switch/{dpid}/flows', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def get_switch_flows(self, req, **kwargs):
+        result = self.api.getSwitchFlows(dpid=kwargs['dpid'])
+        return Response(content_type='application/json', body=json.dumps(result))
+
+    @route('scipass', '/scipass/sensor/load', methods=['PUT'])
     def update_sensor_load(self, req):
         try:
             obj = eval(req.body)
@@ -96,6 +102,37 @@ class SciPassRest(ControllerBase):
             return Response(status=400)
         result = self.api.setSensorStatus(obj['sensor_id'],obj['load'])
         return Response(content_type='application/json',body=json.dumps(result))
+
+    @route('scipass', '/scipass/switch/{dpid}/domain/{domain}/sensor/{sensor_id}', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def get_sensor_load(self, req, **kwargs):
+        result = self.api.getSensorStatus(dpid=kwargs['dpid'], domain=kwargs['domain'], sensor_id=kwargs['sensor_id'])
+        return Response(content_type='application/json',body=json.dumps(result))
+
+    @route('scipass', '/scipass/switches', methods=['GET'])
+    def get_switches(self, req):
+        result = self.api.getSwitches()
+        return Response(content_type='application/json', body=json.dumps(result))
+
+    @route('scipass', '/scipass/switch/{dpid}/domain/{domain}/sensors', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
+    def get_domain_sensors(self, req, **kwargs):
+        result = self.api.getDomainSensors(dpid = kwargs['dpid'], domain = kwargs['domain'] )
+        return Response(content_type='application/json', body=json.dumps(result))
+
+    @route('scipass', '/scipass/switch/{dpid}/domains', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
+    def get_switch_domains(self, req, **kwargs):
+        result = self.api.getSwitchDomains(dpid=kwargs['dpid'])
+        return Response(content_type='application/json', body=json.dumps(result))
+    
+    @route('scipass', '/scipass/switch/{dpid}/domain/{domain}', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
+    def get_domain_status(self, req, **kwargs):
+        result = self.api.getDomainStatus(dpid = kwargs['dpid'], domain = kwargs['domain'])
+        return Response(content_type='application/json', body=json.dumps(result))
+
+    @route('scipass', '/scipass/switch/{dpid}/domain/{domain}/flows',methods=['GET'],requirements = {'dpid': dpid_lib.DPID_PATTERN})
+    def get_domain_flows(self,req, **kwargs):
+        result = self.api.getDomainFlows(dpid = kwargs['dpid'], domain = kwargs['domain'])
+        return Response(content_type='application/json', body=json.dumps(result))
+
 
 class Ryu(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
