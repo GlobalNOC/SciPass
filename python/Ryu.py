@@ -374,7 +374,7 @@ class Ryu(app_manager.RyuApp):
                 if(not self.flowmods.has_key(dpid)):
                     self.flowmods[dpid] = []
                 self.flushRules("%016x" % datapath.id)
-		#--- start the balancing act
+		        #--- start the balancing act
                 self.api.switchJoined(datapath)
 
         elif ev.state == DEAD_DISPATCHER:
@@ -395,8 +395,14 @@ class Ryu(app_manager.RyuApp):
         elif reason == ofproto.OFPPR_DELETE:
             self.logger.info("port deleted %s", port_no)
         elif reason == ofproto.OFPPR_MODIFY:
-            self.logger.info("port modified %s state %s", port_no,link_state)
-            #--- need to check the state to see if port is down
+            state_human = self.api.OFP_PORT_STATE[link_state] if(self.api.OFP_PORT_STATE.has_key(link_state)) else link_state
+            self.logger.info("port modified %s state %s", port_no, state_human)
+
+            #--- need to enable or disable a sensor if the port came up or down
+            if(link_state   == ofproto_v1_0.OFPPS_LINK_DOWN):
+                self.api.setSensorStatus(port_no, 0)
+            elif(link_state == ofproto_v1_0.OFPPS_STP_LISTEN):
+                self.api.setSensorStatus(port_no, 1)
             
         else:
             self.logger.info("Illeagal port state %s %s", port_no, reason)
