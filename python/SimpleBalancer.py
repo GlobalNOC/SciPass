@@ -195,11 +195,41 @@ class SimpleBalancer:
     else:
         return 0
 
+  def unloadSensorPrefixes(self, sensor):
+    """moves all the prefixes off of a sensor an onto the sensor with the least load"""
+    minLoad       = 100
+    minLoadSensor = ""
+    #--- get the sensor with the least load 
+    for other_sensor in self.sensorLoad.keys():
+      
+      # make sure it's not the sensor were moving prefixes off of
+      if(other_sensor == sensor): continue
+      # don't include disabled sensors
+      if(not self.getSensorStatus(other_sensor)): continue
+      
+      load = self.sensorLoad[other_sensor]
+      
+      if(load < minLoad):
+          minLoad       = load
+          minLoadSensor = other_sensor;
+
+    # move all of this sensor prefixes onto the minLoadSensor
+    prefixList = list(self.sensorPrefixes[sensor])
+    self.logger.info("prefixList: %s" % (prefixList))
+    for prefix in prefixList:
+        self.logger.info("moving prefix %s from %s to %s" % (prefix, sensor, minLoadSensor))
+        self.moveSensorPrefix(sensor, minLoadSensor, prefix)
+
   def setSensorStatus(self,sensor,status):
     """sets the load value for the sensor, 0-1 int is range"""
-
     if(self.sensorStatus.has_key(sensor) and (status == 1 or status == 0)):
+        action = 'enabling' if(status == 1) else 'disabling'
+        self.logger.info("%s sensor: %s" % (action, sensor))
         self.sensorStatus[sensor] = status
+
+        # if we're disabling the sensor unload its prefixes to the other sensors
+        if(not status): self.unloadSensorPrefixes(sensor)
+   
         return 1
     else:
         self.logger.error( "Error updating sensor")
@@ -280,7 +310,7 @@ class SimpleBalancer:
     x = 0;
     for prefix in prefixList:
       if(targetPrefix == prefix):
-	#--- call function to remove this from the switch
+	    #--- call function to remove this from the switch
         self.fireDelPrefix(sensor,targetPrefix)
         #--- remove from list
         prefixList.pop(x)
@@ -471,12 +501,16 @@ class SimpleBalancer:
     minSensor   = ""
 
     for sensor in self.sensors.keys():
+      # don't include disabled sensors
+      if(not self.getSensorStatus(sensor)): continue
+
       for prefix in self.sensorPrefixes[sensor]:
         totalSpace = totalSpace + prefix.numhosts
         self.logger.debug( "sensor "+str(sensor)+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
         sensorSpace[sensor] = sensorSpace[sensor] + prefix.numhosts
 
     for sensor in self.sensorLoad.keys():
+      if(not self.getSensorStatus(sensor)): continue
       try:
         x = sensorSpace[sensor] / float(totalSpace)
       except ZeroDivisionError:
@@ -513,12 +547,18 @@ class SimpleBalancer:
     totalBW  = 0
     sensorBW = defaultdict(float)
     for sensor in self.sensorPrefixes.keys():
+      # don't include disabled sensors
+      if(not self.getSensorStatus(sensor)): continue
+
       for prefix in self.sensorPrefixes[sensor]:
         #--- figure out total amount of traffic going over each sensor
         totalBW  =totalBW + prefixBW[prefix]
         sensorBW[sensor] = sensorBW[sensor] + prefixBW[prefix]
 
     for sensor in self.sensorLoad.keys():
+      # don't include disabled sensors
+      if(not self.getSensorStatus(sensor)): continue
+
       if(totalBW > 0):
         load =sensorBW[sensor] / float(totalBW)
       else:
@@ -593,6 +633,9 @@ class SimpleBalancer:
       if(self.ignoreSensorLoad == 0):
           #--- calc load by looking at sensor load
           for sensor in self.sensorLoad.keys():
+              # don't include disabled sensors
+              if(not self.getSensorStatus(sensor)): continue
+
               load = self.sensorLoad[sensor]
               
               if(load > maxLoad):
@@ -645,3 +688,4 @@ class SimpleBalancer:
 
           else:
               self.logger.warn("below sensorLoadMinThreshold")
+              #self.logger.info("sensor prefixes: %s"%(self.sensorPrefixes))

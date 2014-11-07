@@ -20,6 +20,7 @@ import ipaddr
 import pprint
 import libxml2
 from SimpleBalancer import SimpleBalancer
+from ryu.ofproto import ofproto_v1_0 as ofproto
 
 class SciPass:
   """SciPass API for signaling when a flow is known good or bad"""
@@ -46,8 +47,19 @@ class SciPass:
     self.hardTimeouts = []
     self.switches     = []
     self.switchForwardingChangeHandlers = []
-
     self._processConfig(self.configFile)
+
+    # create a dict of human readable ofp_port_states for logging
+    self.OFP_PORT_STATE = {
+        ofproto.OFPPS_LINK_DOWN:   'OFPPS_LINK_DOWN',
+        ofproto.OFPPS_STP_LISTEN:  'OFPPS_STP_LISTEN',
+        ofproto.OFPPS_STP_LEARN:   'OFPPS_STP_LEARN',
+        ofproto.OFPPS_STP_FORWARD: 'OFPPS_STP_FORWARD',
+        ofproto.OFPPS_STP_BLOCK:   'OFPPS_STP_BLOCK',
+        ofproto.OFPPS_STP_MASK:    'OFPPS_STP_MASK'
+    }
+
+
     
   def registerForwardingStateChangeHandler(self, handler):
     self.switchForwardingChangeHandlers.append(handler)
@@ -395,6 +407,33 @@ class SciPass:
 
   def get_good_flow(self):
     return self.blackList
+
+  # gets the config info for a sensor along with its dpid and domain
+  def _getSensorInfo(self, port_id):
+    # loop through dpids
+    for dpid in self.config:
+      # loop through domains
+      for domain_name in self.config[dpid]:
+          domain = self.config[dpid][domain_name]
+          # loop through sensors
+          for sensor_name in domain.get('sensor_ports'):
+            sensor_info = domain.get('sensor_ports')[sensor_name];
+            # return sensor info if we've found our port
+            if(str(sensor_info.get('port_id')) == str(port_id)):
+                return {
+                  'dpid':   dpid,
+                  'domain': domain_name,
+                  'sensor_info': sensor_info
+                }
+
+  def setSensorStatus(self, port_id, status):
+    info = self._getSensorInfo(port_id) 
+    if(info == None): return
+    # set sensor status 
+    self.config[info.get('dpid')][info.get('domain')]['balancer'].setSensorStatus(
+        info['sensor_info'].get('sensor_id'), 
+        status
+    )
 
   def _processConfig(self, xmlFile):
     self.logger.debug("Processing Config file")
