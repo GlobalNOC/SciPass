@@ -10,6 +10,7 @@ from SciPass import SciPass
 import libxml2
 import xmlrunner
 
+
 logging.basicConfig()
 
 
@@ -247,5 +248,5 @@ def suite():
     return suite
 
 
-if __name__ == '__main__':
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports')).run(suite())
+#if __name__ == '__main__':
+#    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports')).run(suite())
