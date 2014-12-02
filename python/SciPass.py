@@ -20,7 +20,6 @@ import ipaddr
 import pprint
 import libxml2
 from SimpleBalancer import SimpleBalancer
-from ryu.ofproto import ofproto_v1_0 as ofproto
 
 class SciPass:
   """SciPass API for signaling when a flow is known good or bad"""
@@ -49,18 +48,6 @@ class SciPass:
     self.switchForwardingChangeHandlers = []
     self._processConfig(self.configFile)
 
-    # create a dict of human readable ofp_port_states for logging
-    self.OFP_PORT_STATE = {
-        ofproto.OFPPS_LINK_DOWN:   'OFPPS_LINK_DOWN',
-        ofproto.OFPPS_STP_LISTEN:  'OFPPS_STP_LISTEN',
-        ofproto.OFPPS_STP_LEARN:   'OFPPS_STP_LEARN',
-        ofproto.OFPPS_STP_FORWARD: 'OFPPS_STP_FORWARD',
-        ofproto.OFPPS_STP_BLOCK:   'OFPPS_STP_BLOCK',
-        ofproto.OFPPS_STP_MASK:    'OFPPS_STP_MASK'
-    }
-
-
-    
   def registerForwardingStateChangeHandler(self, handler):
     self.switchForwardingChangeHandlers.append(handler)
 
