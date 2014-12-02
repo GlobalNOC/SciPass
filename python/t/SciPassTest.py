@@ -8,6 +8,7 @@ import ipaddr
 import os
 from SciPass import SciPass
 import libxml2
+import xmlrunner
 
 logging.basicConfig()
 
@@ -247,4 +248,4 @@ def suite():
 
 
 if __name__ == '__main__':
-    unittest.TextTestRunner(verbosity=2).run(suite())
+    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports')).run(suite())
