@@ -353,3 +353,6 @@ def suite():
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPrefix))
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestBalance))
     return suite
+
+#if __name__ == '__main__':
+#    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports')).run(suite())
