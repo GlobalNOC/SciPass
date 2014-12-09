@@ -10,6 +10,7 @@ from SciPass import SciPass
 import libxml2
 import xmlrunner
 
+
 logging.basicConfig()
 
 
@@ -22,18 +23,18 @@ class TestInit(unittest.TestCase):
         self.assertTrue(isinstance(api,SciPass))
         
 
-#    def test_no_config(self):
-#        self.assertRaises(libxml2.parserError,SciPass)
-#        
-#        api = SciPass( logger = logging.getLogger(__name__),
-#                          config = str(os.getcwd()) + "/t/etc/no_config.xml" )
+    def test_no_config(self):
+        self.assertRaises(libxml2.parserError,SciPass)
+        
+        api = SciPass( logger = logging.getLogger(__name__),
+                          config = str(os.getcwd()) + "/t/etc/no_config.xml" )
         
 
-#    def test_invalid_config(self):
-#        self.assertRaises(libxml2.parserError,SciPass)
-#        
-#        api = SciPass( logger = logging.getLogger(__name__),
-#                          config = str(os.getcwd()) + "/t/etc/InvalidConfig.xml" )
+    def test_invalid_config(self):
+        self.assertRaises(libxml2.parserError,SciPass)
+        
+        api = SciPass( logger = logging.getLogger(__name__),
+                          config = str(os.getcwd()) + "/t/etc/InvalidConfig.xml" )
 
     def test_switch_init(self):
         api = SciPass( logger = logging.getLogger(__name__),
@@ -121,12 +122,12 @@ class TestInit(unittest.TestCase):
         self.assertEquals(flow['header'], {'phys_port': 10, 'dl_type': None})
         self.assertEquals(flow['priority'], 10)
         flow = flows[13]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '20'}, {'type': 'output', 'port': '5'}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '27'}, {'type': 'output', 'port': '26'}, {'type': 'output', 'port': '5'}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 1, 'nw_src': 167776512, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 500)
         flow = flows[14]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '20'}, {'type': 'output', 'port': '6'}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '27'}, {'type': 'output', 'port': '26'}, {'type': 'output', 'port': '6'}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 10, 'nw_dst': 167776512, 'nw_dst_mask': 24})
         self.assertEquals(flow['priority'], 500)
@@ -141,17 +142,17 @@ class TestInit(unittest.TestCase):
         self.assertEquals(flow['header'], {'phys_port': 10, 'nw_dst': 167776512, 'nw_dst_mask': 24})
         self.assertEquals(flow['priority'], 500)
         flow = flows[17]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '22'}, {'type': 'output', 'port': '5'}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '21'}, {'type': 'output', 'port': '20'}, {'type': 'output', 'port': '5'}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 1, 'nw_src': 167776512, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 500)
         flow = flows[18]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '22'}, {'type': 'output', 'port': '6'}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '21'}, {'type': 'output', 'port': '20'}, {'type': 'output', 'port': '6'}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 10, 'nw_dst': 167776512, 'nw_dst_mask': 24})
         self.assertEquals(flow['priority'], 500)
         flow = flows[19]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '20'}, {'type': 'output', 'port': '5'}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '27'}, {'type': 'output', 'port': '26'}, {'type': 'output', 'port': '5'}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 1, 'nw_src': 167776768, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 500)
@@ -247,5 +248,5 @@ def suite():
     return suite
 
 
-if __name__ == '__main__':
-    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports')).run(suite())
+#if __name__ == '__main__':
+#    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports')).run(suite())

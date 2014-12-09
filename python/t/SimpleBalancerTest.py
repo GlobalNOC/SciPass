@@ -5,6 +5,7 @@ import ipaddr
 import unittest
 import xmlrunner
 from SimpleBalancer import SimpleBalancer,MaxPrefixlenError
+from collections import defaultdict
 
 class TestInit(unittest.TestCase):
 
@@ -29,33 +30,65 @@ class TestSensorMods(unittest.TestCase):
 
     def test_add_sensor(self):
         #add the first sensor
-        res = self.balancer.addSensor({"sensor_id": 1})
+        sensors = defaultdict(list)
+        sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
+        sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertTrue(res == 1)
         #add a second sensor
-        res = self.balancer.addSensor({"sensor_id": 2})
+        sensors2 = defaultdict(list)
+        sensors2[3] = {"sensor_id": 3, "of_port_id": 3, "description": "sensor foo3"}
+        sensors2[4] = {"sensor_id": 4, "of_port_id": 4, "description": "sensor foo4"}
+        res = self.balancer.addSensorGroup({"group_id": 2,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr2",
+                                            "sensors": sensors2})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor({"sensor_id": 1})
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertFalse(res == 1)
-        res = self.balancer.addSensor(None)
+        res = self.balancer.addSensorGroup(None)
         self.assertFalse(res == 1)
         load = self.balancer.getSensorLoad()
         self.assertTrue(load[1] == 0)
         self.assertTrue(load[2] == 0)
 
     def test_set_sensor_load(self):
-        res = self.balancer.addSensor({"sensor_id": 1})
+        sensors = defaultdict(list)
+        sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
+        sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertTrue(res == 1)
         res = self.balancer.setSensorLoad(1,.1)
         self.assertTrue(res == 1)
         load = self.balancer.getSensorLoad()
         self.assertTrue(load[1] == 0.1)
-        res = self.balancer.setSensorLoad(2,.1)
+        res = self.balancer.setSensorLoad(3,.1)
         self.assertTrue(res == 0)
         res = self.balancer.setSensorLoad(1,2)
         self.assertTrue(res == 0)
 
     def test_set_sensor_status(self):
-        res = self.balancer.addSensor({"sensor_id": 1})
+        sensors = defaultdict(list)
+        sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
+        sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertTrue(res == 1)
         res = self.balancer.setSensorStatus(1,0)
         self.assertTrue(res == 1)
@@ -64,7 +97,7 @@ class TestSensorMods(unittest.TestCase):
         res = self.balancer.setSensorStatus(1,1)
         status = self.balancer.getSensorStatus(1)
         self.assertTrue(status == 1)
-        status = self.balancer.getSensorStatus(2)
+        status = self.balancer.getSensorStatus(3)
         self.assertTrue(status == -1)
 
 
@@ -88,9 +121,23 @@ class TestPrefix(unittest.TestCase):
 
     def setUp(self):
         self.balancer = SimpleBalancer()
-        res = self.balancer.addSensor({"sensor_id": 1})
+        sensors = defaultdict(list)
+        sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
+        sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor({"sensor_id": 2})
+        sensors2 = defaultdict(list)
+        sensors2[1] = {"sensor_id": 3, "of_port_id": 3, "description": "sensor foo3"}
+        sensors2[2] = {"sensor_id": 4, "of_port_id": 4, "description": "sensor foo4"}
+        res = self.balancer.addSensorGroup({"group_id": 2,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors2}) 
         self.assertTrue(res == 1)
         self.handler_fired = 0
         self.sensor = None
@@ -127,14 +174,14 @@ class TestPrefix(unittest.TestCase):
     def test_add_sensor_prefix(self):
         self.balancer.registerAddPrefixHandler(self.addPrefixHandler)
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        self.balancer.addSensorPrefix(1,net,0)
+        self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
         self.assertTrue(self.prefix == net)
         
     def test_del_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
@@ -144,7 +191,7 @@ class TestPrefix(unittest.TestCase):
         self.sensor = None
         self.prefix = None
         #do the del
-        res = self.balancer.delSensorPrefix(1,net)
+        res = self.balancer.delGroupPrefix(1,net)
         self.assertTrue(res == 1)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
@@ -152,7 +199,7 @@ class TestPrefix(unittest.TestCase):
 
     def test_move_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
@@ -162,7 +209,7 @@ class TestPrefix(unittest.TestCase):
         self.sensor = None
         self.prefix = None
         #do the move
-        res = self.balancer.moveSensorPrefix(1,2,net)
+        res = self.balancer.moveGroupPrefix(1,2,net)
         self.assertTrue(res == 1)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 2)
@@ -171,7 +218,7 @@ class TestPrefix(unittest.TestCase):
 
     def test_set_prefix_bw(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,500,500)
         self.assertTrue(res == 1)
@@ -186,7 +233,7 @@ class TestPrefix(unittest.TestCase):
 
     def test_split_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,500,500)
         self.assertTrue(res == 1)
@@ -211,22 +258,22 @@ class TestPrefix(unittest.TestCase):
 
     def test_get_prefix_sensor(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
-        sensor = self.balancer.getPrefixSensor(net)
+        sensor = self.balancer.getPrefixGroup(net)
         self.assertTrue(sensor == 1)
         net2 = ipaddr.IPv4Network("10.230.0.0/10")
-        sensor = self.balancer.getPrefixSensor(net2)
+        sensor = self.balancer.getPrefixGroup(net2)
         pp = pprint.PrettyPrinter(indent=4)
         pp.pprint(sensor)
         self.assertTrue(sensor == None)
 
     def test_get_largest_prefix(self):
         net = ipaddr.IPv4Network("10.220.0.0/12")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         net2 = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net2,0)
+        res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
         largest = self.balancer.getLargestPrefix(1)
         self.assertTrue(largest == net2)
@@ -239,15 +286,30 @@ class TestBalance(unittest.TestCase):
 
     def test_get_est_load(self):
         self.balancer = SimpleBalancer()
-        res = self.balancer.addSensor({"sensor_id": 1})
+        self.balancer = SimpleBalancer()
+        sensors = defaultdict(list)
+        sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
+        sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor({"sensor_id": 2})
+        sensors2 = defaultdict(list)
+        sensors2[1] = {"sensor_id": 3, "of_port_id": 3, "description": "sensor foo3"}
+        sensors2[2] = {"sensor_id": 4, "of_port_id": 4, "description": "sensor foo4"}
+        res = self.balancer.addSensorGroup({"group_id": 2,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors2})
         self.assertTrue(res == 1)
         net = ipaddr.IPv4Network("10.220.0.0/12")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         net2 = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net2,0)
+        res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,500,500)
         self.assertTrue(res == 1)
@@ -259,15 +321,30 @@ class TestBalance(unittest.TestCase):
 
     def test_balance_by_ip(self):
         self.balancer = SimpleBalancer()
-        res = self.balancer.addSensor({"sensor_id": 1})
+        self.balancer = SimpleBalancer()
+        sensors = defaultdict(list)
+        sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
+        sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor({"sensor_id": 2})
+        sensors2 = defaultdict(list)
+        sensors2[1] = {"sensor_id": 3, "of_port_id": 3, "description": "sensor foo3"}
+        sensors2[2] = {"sensor_id": 4, "of_port_id": 4, "description": "sensor foo4"}
+        res = self.balancer.addSensorGroup({"group_id": 2,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors2})
         self.assertTrue(res == 1)
         net = ipaddr.IPv4Network("10.220.0.0/12")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         net2 = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net2,0)
+        res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,5000000,5000000)
         self.assertTrue(res == 1)
@@ -279,15 +356,30 @@ class TestBalance(unittest.TestCase):
 
     def test_balance_by_net(self):
         self.balancer = SimpleBalancer()
-        res = self.balancer.addSensor({"sensor_id": 1})
+        self.balancer = SimpleBalancer()
+        sensors = defaultdict(list)
+        sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
+        sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor({"sensor_id": 2})
+        sensors2 = defaultdict(list)
+        sensors2[1] = {"sensor_id": 3, "of_port_id": 3, "description": "sensor foo3"}
+        sensors2[2] = {"sensor_id": 4, "of_port_id": 4, "description": "sensor foo4"}
+        res = self.balancer.addSensorGroup({"group_id": 2,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors2})
         self.assertTrue(res == 1)
         net = ipaddr.IPv4Network("10.220.0.0/12")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         net2 = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net2,0)
+        res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,5000000,5000000)
         self.assertTrue(res == 1)
@@ -298,15 +390,30 @@ class TestBalance(unittest.TestCase):
     def test_balance_by_load(self):
         self.balancer = SimpleBalancer( ignoreSensorLoad = 0,
                                         ignorePrefixBW = 0)
-        res = self.balancer.addSensor({"sensor_id": 1})
+        self.balancer = SimpleBalancer()
+        sensors = defaultdict(list)
+        sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
+        sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
+        res = self.balancer.addSensorGroup({"group_id": 1,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors})
         self.assertTrue(res == 1)
-        res = self.balancer.addSensor({"sensor_id": 2})
+        sensors2 = defaultdict(list)
+        sensors2[1] = {"sensor_id": 3, "of_port_id": 3, "description": "sensor foo3"}
+        sensors2[2] = {"sensor_id": 4, "of_port_id": 4, "description": "sensor foo4"}
+        res = self.balancer.addSensorGroup({"group_id": 2,
+                                            "bw": "10GE",
+                                            "admin_status":"active",
+                                            "description": "some descr",
+                                            "sensors": sensors2})
         self.assertTrue(res == 1)
         net = ipaddr.IPv4Network("10.220.0.0/12")
-        res = self.balancer.addSensorPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         net2 = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addSensorPrefix(1,net2,0)
+        res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,5000000,5000000)
         self.assertTrue(res == 1)
@@ -322,30 +429,6 @@ class TestBalance(unittest.TestCase):
         self.balancer = SimpleBalancer()
         self
 
-
-#SimpleBalancerSuite = unittest.TestSuite()
-#SimpleBalancerSuite.addTest(TestInit('test_no_ops'))
-#SimpleBalancerSuite.addTest(TestInit('test_all_ops'))
-#SimpleBalancerSuite.addTest(TestSensorMods('test_add_sensor'))
-#SimpleBalancerSuite.addTest(TestSensorMods('test_set_sensor_load'))
-#SimpleBalancerSuite.addTest(TestSensorMods('test_set_sensor_status'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_split_prefix_for_sensors'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_split_prefix_for_sensors_large'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_add_sensor_prefix'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_del_sensor_prefix'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_move_sensor_prefix'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_set_prefix_bw'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_split_sensor_prefix'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_split_prefix'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_get_prefix_sensor'))
-#SimpleBalancerSuite.addTest(TestPrefix('test_get_largest_prefix'))
-#SimpleBalancerSuite.addTest(TestBalance('test_get_est_load'))
-#SimpleBalancerSuite.addTest(TestBalance('test_balance_by_ip'))
-#SimpleBalancerSuite.addTest(TestBalance('test_balance_by_net'))
-#SimpleBalancerSuite.addTest(TestBalance('test_balance_by_load'))
-#unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports'))
-#if __name__ == '__main__':
-#    unittest.main()
 
 def suite():
     suite = unittest.TestLoader().loadTestsFromTestCase(TestInit)

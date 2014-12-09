@@ -22,10 +22,20 @@
      <port of_port_id="5" type="fw_lan" name="foo10" description="fw lan" />
      <port of_port_id="6" type="fw_wan" name="foo11" description="fw_wan" />
 
-     <sensor_port of_port_id="20" bw="10G" sensor_id="sensor1" admin_status="active" description="some host"/>
-     <sensor_port of_port_id="21" bw="10G" sensor_id="sensor2" admin_status="active" description="some host"/>
-     <sensor_port of_port_id="22" bw="10G" sensor_id="sensor3" admin_status="disabled" description="some host" />
-     <sensor_port of_port_id="23" bw="10G" sensor_id="sensor4" admin_status="spare" description="some host" />
+     <sensor_port_group bw="10G" group_id="group1" admin_status="active" description="some host">
+       <port of_port_id="20" sensor_id="Bro_1"   />
+       <port of_port_id="21" sensor_id="SNORT_1" />
+     </sensor_port_group>
+
+     <sensor_port_group bw="10G" group_id="group2" admin_status="active" description="some host">
+       <port of_port_id="22" sensor_id="Bro_2"   />
+       <port of_port_id="23" sensor_id="SNORT_2" />
+     </sensor_port_group>
+
+     <sensor_port_group bw="10G" group_id="group3" admin_status="disabled" description="some host">
+       <port of_port_id="24" sensor_id="Bro_3"   />
+       <port of_port_id="25" sensor_id="SNORT_3" />
+     </sensor_port_group>
 
    </domain>
   </switch>
