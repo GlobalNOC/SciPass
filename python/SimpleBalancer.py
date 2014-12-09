@@ -79,14 +79,10 @@ class SimpleBalancer:
 
       self.ignorePrefixBW              = ignorePrefixBW
       self.sensorBandwidthMinThreshold = 1
-      self.sensors                     = defaultdict(list)
-      self.sensorLoad                  = defaultdict(list)
-      self.sensorStatus                = defaultdict(list)
-      self.sensorPrefixes              = defaultdict(list)
+      self.groups                     = defaultdict(list)
       
       #--- prefix bandwidth in GigaBits/sec
       self.prefixBW		       = defaultdict(float)
-      self.prefixSensor	               = defaultdict(str)
 
       self.addPrefixHandlers  = []
       self.delPrefixHandlers  = []
@@ -97,10 +93,10 @@ class SimpleBalancer:
   def __str__(self):
       """a string representation"""
       res = "Balancer: \n";
-      res = res + "  Prefixes: "+str(self.sensorPrefixes)+"\n"
-      res = res + "  Load: "+str(self.sensorLoad)+"\n";
-      res = res + "  PrefixBW: "+str(self.prefixBW) +"\n"
-      res = res + "  pre2sensor: "+str(self.prefixSensor)+"\n"
+ #     res = res + "  Prefixes: "+str(self.sensorPrefixes)+"\n"
+ #     res = res + "  Load: "+str(self.sensorLoad)+"\n";
+ #     res = res + "  PrefixBW: "+str(self.prefixBW) +"\n"
+ #     res = res + "  pre2sensor: "+str(self.prefixSensor)+"\n"
       return res 
 
   def __repr__(self):
@@ -163,77 +159,115 @@ class SimpleBalancer:
               #split it in half and try again
               self.distributePrefixes( self.splitPrefix(prefix))
           else:
-              self.logger.debug(str(self.sensors.items()[0][1]['sensor_id']))
-              self.addSensorPrefix( self.sensors.items()[0][1]['sensor_id'], prefix, 0)
+              group = self.groups.keys()[0]
+              self.logger.debug(group)
+              self.addGroupPrefix( self.groups[group]['group_id'] , prefix, 0)
               self.balanceByIP()
               
           
               
 
-  def addSensor(self, sensor):
+  def addSensorGroup(self, group):
     """adds sensor, inits to load 0, sets status to 1"""
-    if(sensor == None):
-        self.logger.error("No Sensor Specified")
+    if(group == None):
+        self.logger.error("No Sensor Group Specified")
         return 0
 
-    if(self.sensors.has_key(sensor['sensor_id'])):
-        self.logger.error("Sensor %s already exists", sensor['sensor_id'])
+    if(self.groups.has_key(group['group_id'])):
+        self.logger.error("SensorGroup %s already exists", group['group_id'])
         return 0
 
-    self.sensors[sensor['sensor_id']] = sensor
-    self.sensorLoad[sensor['sensor_id']] = 0
-    self.sensorStatus[sensor['sensor_id']] = 1
+    group['load'] = 0
+    group['status'] = 1
+    group['prefixes'] = []
+
+    #create sensor status/load for each sensor in the group
+    for sensor in group['sensors']:
+        group['sensors'][sensor]['status'] = 1
+        group['sensors'][sensor]['load'] = 0
+
+    self.groups[group['group_id']] = group
 
     return 1
  
   
   def setSensorLoad(self,sensor,load):
     """sets the load value for the sensor, 0-1 float is range"""
-    if(self.sensorLoad.has_key(sensor) and (load >= 0 and load <= 1)):
-        self.sensorLoad[sensor] = load;
-        return 1
+    if(load >= 0 and load <= 1):
+        for group in self.groups:
+            if(self.groups[group]['sensors'].has_key(sensor)):
+                self.groups[group]['sensors'][sensor]['load'] = load
+                return 1
+        return 0
     else:
         return 0
 
-  def unloadSensorPrefixes(self, sensor):
+  def getGroupLoad(self, group):
+      if(self.groups.has_key(group)):
+          sensors = self.groups[group]['sensors']
+          maxLoad = -1
+          maxSensor = -1
+          for sensor in sensors:
+              if(maxLoad == -1):
+                  maxLoad = sensors[sensor]['load']
+                  maxSensor = sensor
+              else:
+                  if(sensors[sensor]['load'] > maxLoad):
+                      maxSensor = sensor
+                      maxLoad = sensors[sensor]['load']
+          return maxLoad
+      return
+          
+
+  def unloadGroupPrefixes(self, group):
     """moves all the prefixes off of a sensor an onto the sensor with the least load"""
     minLoad       = 100
-    minLoadSensor = ""
+    minLoadGroup  = ""
+    
     #--- get the sensor with the least load 
-    for other_sensor in self.sensorLoad.keys():
+    for other_group in self.groups.keys():
       
       # make sure it's not the sensor were moving prefixes off of
-      if(other_sensor == sensor): continue
+      if(other_group == group): continue
       # don't include disabled sensors
-      if(not self.getSensorStatus(other_sensor)): continue
+      if(not self.getGroupStatus(group)): continue
       
-      load = self.sensorLoad[other_sensor]
+      load = self.getGroupLoad(other_group)
       
       if(load < minLoad):
           minLoad       = load
-          minLoadSensor = other_sensor;
+          minLoadGroup = other_group;
 
     # move all of this sensor prefixes onto the minLoadSensor
-    prefixList = list(self.sensorPrefixes[sensor])
+    prefixList = list(self.groups[group]['prefixes'])
     self.logger.info("prefixList: %s" % (prefixList))
     for prefix in prefixList:
-        self.logger.info("moving prefix %s from %s to %s" % (prefix, sensor, minLoadSensor))
-        self.moveSensorPrefix(sensor, minLoadSensor, prefix)
+        self.logger.info("moving prefix %s from %s to %s" % (prefix, group, minLoadGroup))
+        self.moveSensorPrefix(sensor, minLoadGroup, prefix)
+
+  def getGroupStatus(self,group):
+      if(self.groups.has_key(group)):
+          stat = 1
+          sensors = self.groups[group]['sensors']
+          for sensor in sensors:
+              if(sensors[sensor]['status'] == 0):
+                  return 0
+          if(stat):
+              return 1
 
   def setSensorStatus(self,sensor,status):
-    """sets the load value for the sensor, 0-1 int is range"""
-    if(self.sensorStatus.has_key(sensor) and (status == 1 or status == 0)):
-        action = 'enabling' if(status == 1) else 'disabling'
-        self.logger.info("%s sensor: %s" % (action, sensor))
-        self.sensorStatus[sensor] = status
-
-        # if we're disabling the sensor unload its prefixes to the other sensors
-        if(not status): self.unloadSensorPrefixes(sensor)
-   
-        return 1
-    else:
-        self.logger.error( "Error updating sensor")
-        return 0
+      """sets the load value for the sensor, 0-1 int is range"""
+      for group in self.groups:
+          if(self.groups[group]['sensors'].has_key(sensor)):
+              action = 'enabling' if(status == 1) else 'disabling'
+              self.logger.info("%s sensor: %s" % (action, sensor))
+              self.groups[group]['sensors'][sensor]['status'] = status
+              if(not self.getGroupStatus(group)):
+                  self.unloadGroupPrefixes(group)   
+              return 1
+      
+      self.logger.error( "Error updating sensor")
+      return -1
 
   def getSensors(self):
       sensors = []
@@ -247,11 +281,11 @@ class SimpleBalancer:
       return sensors
 
   def getSensorStatus(self,sensor):
-      if(self.sensorStatus.has_key(sensor)):
-          return self.sensorStatus[sensor]
-      else:
-          self.logger.error("Sensor: " + str(sensor) + " does not exist")
-          return -1
+      for group in self.groups:
+          if(self.groups[group]['sensors'].has_key(sensor)):
+              return self.groups[group]['sensors'][sensor]['status']
+      self.logger.error("Sensor: " + str(sensor) + " does not exist")
+      return -1
 
   def setPrefixBW(self,prefix,bwTx,bwRx):
     """updates balancers understanding trafic bandwidth associated with each prefix"""
@@ -302,36 +336,39 @@ class SimpleBalancer:
     return 1
 
 
-  def delSensorPrefix(self,sensor,targetPrefix):
+  def delGroupPrefix(self,group,targetPrefix):
     """looks for prefix and removes it if its associated with the sensor"""
-    if(not self.sensorLoad.has_key(sensor)):
+    if(not self.groups.has_key(group)):
         return 0
-    prefixList = self.sensorPrefixes[sensor]
+
+    prefixList = self.groups[group]['prefixes']
+
     x = 0;
     for prefix in prefixList:
       if(targetPrefix == prefix):
 	    #--- call function to remove this from the switch
-        self.fireDelPrefix(sensor,targetPrefix)
+        self.fireDelPrefix(group,targetPrefix)
         #--- remove from list
         prefixList.pop(x)
         self.prefixCount = self.prefixCount -1
         del self.prefixBW[targetPrefix]
-        del self.prefixSensor[targetPrefix]
+#        del self.prefixSensor[targetPrefix]
         return 1
       x = x+1
     return 0
 
-  def addSensorPrefix(self,sensor,targetPrefix,bw=0):
+  def addGroupPrefix(self,group,targetPrefix,bw=0):
     """adds a prefix to the sensor"""
 
-    if(not self.sensorLoad.has_key(sensor)):
-        self.logger.error("No sensor: " + str(sensor) + " could be found")
+    if(not self.groups.has_key(group)):
+        self.logger.error("No Group: " + str(group) + " could be found")
         return 0
 
     if(self.prefixCount >= self.maxPrefixes):
         raise MaxPrefixesError()
+    
+    prefixList = list(self.groups[group]['prefixes'])
 
-    prefixList = self.sensorPrefixes[sensor]
     x = 0;
     for prefix in prefixList:
       if(targetPrefix == prefix):
@@ -340,33 +377,34 @@ class SimpleBalancer:
         return 0;
 
     #--- call function to add this to the switch
-    self.fireAddPrefix(sensor,targetPrefix)
-    prefixList.append(targetPrefix)
-    self.prefixCount = self.prefixCount +1
+    self.fireAddPrefix(group,targetPrefix)
+    self.groups[group]['prefixes'].append(targetPrefix)
+    self.prefixCount = self.prefixCount + 1
     self.prefixBW[targetPrefix] = bw
-    self.prefixSensor[targetPrefix] = sensor
+    #self.prefixSensor[targetPrefix] = sensor
 
     return 1;
 
-  def moveSensorPrefix(self,oldSensor,newSensor,targetPrefix):
+  def moveGroupPrefix(self,oldGroup,newGroup,targetPrefix):
     """used to move a prefix from one sensor to another"""
-    if(not self.sensorLoad.has_key(oldSensor) or not self.sensorLoad.has_key(newSensor)):
+#    if(not self.sensorLoad.has_key(oldSensor) or not self.sensorLoad.has_key(newSensor)):
+    if(not self.groups.has_key(oldGroup) or not self.groups.has_key(newGroup)):
         return 0
-    prefixList = self.sensorPrefixes[oldSensor]
+    prefixList = self.groups[oldGroup]['prefixes']
     x = 0;
     for prefix in prefixList:
       if(targetPrefix == prefix):
         #--- found
         prefixList.pop(x)
-        self.sensorPrefixes[newSensor].append(prefix)
-        self.prefixSensor[targetPrefix] = newSensor
-        self.fireMovePrefix(oldSensor,newSensor,targetPrefix)
+        self.groups[newGroup]['prefixes'].append(prefix)
+#        self.prefixSensor[targetPrefix] = newSensor
+        self.fireMovePrefix(oldGroup,newGroup,targetPrefix)
         return 1
       x = x+1 
     return 0
 
 
-  def splitSensorPrefix(self,sensor,candidatePrefix):
+  def splitSensorPrefix(self,group,candidatePrefix):
       """used to split a prefix that is on a sensor"""
       try:
           subnets = self.splitPrefix(candidatePrefix)
@@ -384,10 +422,10 @@ class SimpleBalancer:
                   prefixBW = 0
               
               self.logger.debug( "  -- "+str(prefix)+" bw "+str(prefixBw) )
-              self.addSensorPrefix(sensor,prefix,prefixBw)
+              self.addGroupPrefix(group,prefix,prefixBw)
 
               #--- now remove the less specific and now redundant rule
-          self.delSensorPrefix(sensor,candidatePrefix)
+              self.delGroupPrefix(group,candidatePrefix)
           return 1
       except MaxPrefixlenError as e:
           self.logger.error( "max prefix len limit:  "+str(candidatePrefix) )
@@ -426,7 +464,11 @@ class SimpleBalancer:
     return prefix.subnet(prefixlen_diff=x)
 
   def getSensorLoad(self):
-    return self.sensorLoad
+      sensors = defaultdict(list)
+      for group in self.groups:
+          for sensor in self.groups[group]['sensors']:
+              sensors[sensor] = self.groups[group]['sensors'][sensor]['load']
+      return sensors
 
   def getPrefixBW(self, prefix):
       return self.prefixBW[prefix]
@@ -435,38 +477,41 @@ class SimpleBalancer:
     """returns the set of prefixes and their current load"""
     return self.prefixBW
 
-  def getPrefixSensor(self,targetPrefix):
+  def getPrefixGroup(self,targetPrefix):
     """returns the sensor the prefix is currently assigned to"""
-    if(self.prefixSensor.has_key(targetPrefix)):
-        return self.prefixSensor[targetPrefix]
-    else:
-        return None
+    for group in self.groups:
+        for prefix in self.groups[group]['prefixes']:
+            if(prefix == targetPrefix):
+                return group
+    return None
 
-  def getLargestPrefix(self,sensor):
+  def getLargestPrefix(self,group):
     """returns the largest prefix assigned to the sensor"""
-    best_len = 128;
-    largestPrefix = None;
-    for prefix in self.sensorPrefixes[sensor]:
-      if (prefix._prefixlen < best_len):
-        largestPrefix = prefix
+    if(self.groups.has_key(group)):
+        best_len = 128;
+        largestPrefix = None;
+        for prefix in self.groups[group]['prefixes']:
+            if (prefix._prefixlen < best_len):
+                largestPrefix = prefix
+                
+        return largestPrefix;
+    return None
 
-    return largestPrefix;
-
-  def getSensorBW(self,sensor):
+  def getGroupBW(self,group):
       totalBW = 0
-      for prefix in self.sensorPrefixes[sensor]:
+      for prefix in list(self.groups[group]['prefixes']):
           totalBW    = totalBW    +  self.prefixBW[prefix]
       return totalBW
 
-  def getEstLoad(self,sensor,targetPrefix):
+  def getEstLoad(self,group,targetPrefix):
     """returns the estimated load impact for the specified prefix on the specified sensor"""
     #--- calculate the total address space the sensor has 
     totalHosts 		= 0;
     totalBW		= 0; 
     percentTotal	= 0;
 
-    self.logger.debug("getEstLoad: "+str(sensor)+" "+str(targetPrefix))
-    for prefix in self.sensorPrefixes[sensor]:
+    self.logger.debug("getEstLoad: "+str(group)+" "+str(targetPrefix))
+    for prefix in self.groups[group]['prefixes']:
       totalHosts = totalHosts +  prefix.numhosts
       totalBW    = totalBW    +  self.prefixBW[prefix]
 
@@ -485,7 +530,7 @@ class SimpleBalancer:
   
       if(self.ignoreSensorLoad == 0):
         #-- use sensor load to esitmate prefix laod
-        return self.sensorLoad[sensor] * percentTotal
+        return self.getGroupLoad(group) * percentTotal
       else:
         return percentTotal
 
@@ -493,116 +538,116 @@ class SimpleBalancer:
   def balanceByIP(self):
     """method to balance based soly on IP space"""
      #--- calc load based on routable address space
-    sensorSpace = defaultdict(float)
+    groupSpace = defaultdict(float)
     totalSpace  = 0
     maxMetric   = 0
     minMetric   = 1
-    maxSensor   = ""
-    minSensor   = ""
+    maxGroup   = ""
+    minGroup   = ""
 
-    for sensor in self.sensors.keys():
+    for group in self.groups:
       # don't include disabled sensors
-      if(not self.getSensorStatus(sensor)): continue
+      if(not self.getGroupStatus(group)): continue
 
-      for prefix in self.sensorPrefixes[sensor]:
+      for prefix in self.groups[group]['prefixes']:
         totalSpace = totalSpace + prefix.numhosts
-        self.logger.debug( "sensor "+str(sensor)+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
-        sensorSpace[sensor] = sensorSpace[sensor] + prefix.numhosts
+        self.logger.debug( "group "+str(group)+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
+        groupSpace[group] = groupSpace[group] + prefix.numhosts
 
-    for sensor in self.sensorLoad.keys():
-      if(not self.getSensorStatus(sensor)): continue
+    for group in self.groups:
+      if(not self.getGroupStatus(group)): continue
       try:
-        x = sensorSpace[sensor] / float(totalSpace)
+        x = groupSpace[group] / float(totalSpace)
       except ZeroDivisionError:
           x = 0
       if(x > maxMetric):
         maxMetric   = x 
-        maxSensor = sensor
+        maxGroup = group
 
       if(x < minMetric):
         minMetric   = x
-        minSensor = sensor
+        minGroup = group
 
     delta = maxMetric - minMetric
     self.logger.debug("delta: " + str(delta))
-    self.logger.debug("Sensor load delta threshold: " + str(self.sensorLoadDeltaThreshold))
+    self.logger.debug("Group load delta threshold: " + str(self.sensorLoadDeltaThreshold))
 
     if(delta >= self.sensorLoadDeltaThreshold):
         self.logger.debug("moving prefixes")
         #--- get the prefix with largest esitmated load from maxSensor
-        candidatePrefix = self.getLargestPrefix(maxSensor)
-        self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
+        candidatePrefix = self.getLargestPrefix(maxGroup)
+        self.moveGroupPrefix(maxGroup,minGroup,candidatePrefix)
     else:
         self.logger.debug("everything is fine")
 
   def balanceByNetBytes(self):
     """Balance by network traffic with no regard to sensor load"""
     minLoad         = 100
-    minSensor       = ""
+    minGroup       = ""
 
     maxLoad         = 0    
-    maxSensor       = ""
+    maxGroup       = ""
 
     prefixBW = self.prefixBW
     totalBW  = 0
-    sensorBW = defaultdict(float)
-    for sensor in self.sensorPrefixes.keys():
+    groupBW = defaultdict(float)
+    for group in self.groups:
       # don't include disabled sensors
-      if(not self.getSensorStatus(sensor)): continue
+      if(not self.getGroupStatus(group)): continue
 
-      for prefix in self.sensorPrefixes[sensor]:
+      for prefix in self.groups[group]['prefixes']:
         #--- figure out total amount of traffic going over each sensor
         totalBW  =totalBW + prefixBW[prefix]
-        sensorBW[sensor] = sensorBW[sensor] + prefixBW[prefix]
+        groupBW[group] = groupBW[group] + prefixBW[prefix]
 
-    for sensor in self.sensorLoad.keys():
+    for group in self.groups:
       # don't include disabled sensors
-      if(not self.getSensorStatus(sensor)): continue
+      if(not self.getGroupStatus(group)): continue
 
       if(totalBW > 0):
-        load =sensorBW[sensor] / float(totalBW)
+        load =groupBW[group] / float(totalBW)
       else:
         load = 0
 
       if(load > maxLoad):
         maxLoad = load
-        maxSensor = sensor
+        maxGroup = group
 
       if(load < minLoad):
         minLoad = load
-        minSensor = sensor;
+        minGroup = group;
 
     loadDelta = maxLoad - minLoad;
 
     #---
    
-    self.logger.debug("max sensor = '"+str(maxSensor)+"' load "+str(maxLoad))
+    self.logger.debug("max sensor = '"+str(maxGroup)+"' load "+str(maxLoad))
     #print("min sensor = '"+minSensor+"' load "+str(minLoad))
-    self.logger.debug("load delta = "+str(loadDelta)+" max "+str(maxSensor)+" min "+str(minSensor))
+    self.logger.debug("load delta = "+str(loadDelta)+" max "+str(maxGroup)+" min "+str(minGroup))
 
     if( maxLoad >= self.sensorLoadMinThreshold ):
       if(loadDelta >= self.sensorLoadDeltaThreshold):
         #-- a sensor is above balance threshold and the delta is large enough to consider balancing
         #--- get the prefix with largest esitmated load from maxSensor
 	tmpDict = defaultdict(float)
-        for prefix in self.sensorPrefixes[maxSensor]:
+        for prefix in self.groups[maxGroup]['prefixes']:
           tmpDict[prefix] = prefixBW[prefix]
 
         #--- see if we can move a prefix first 
         for candidatePrefix in sorted(tmpDict,key=tmpDict.get,reverse=True):
           estPrefixLoad = prefixBW[candidatePrefix]/float(totalBW)
-          estNewSensorLoad = estPrefixLoad+minLoad;
+          estNewGroupLoad = estPrefixLoad+minLoad;
 
           #--- check if it will fit on minSensor and if the new sensor will have less load than max sensor 
-          if(estNewSensorLoad <=  1  and estNewSensorLoad < (maxLoad-estPrefixLoad)):
+          if(estNewGroupLoad <=  1  and estNewGroupLoad < (maxLoad-estPrefixLoad)):
             #--- it will fit on minsensor and provides a better balance, move it to minsensor
-            self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
+            self.moveGroupPrefix(maxGroup,minGroup,candidatePrefix)
             return
 
 
         #--- could not move something, consider splitting a prefix 
         for candidatePrefix in sorted(tmpDict,key=tmpDict.get,reverse=True):
-          if(self.splitSensorPrefix(maxSensor,candidatePrefix)):
+          if(self.splitSensorPrefix(maxGroup,candidatePrefix)):
             #--- success
             break
       else:
