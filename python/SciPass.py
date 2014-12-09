@@ -403,14 +403,16 @@ class SciPass:
       for domain_name in self.config[dpid]:
           domain = self.config[dpid][domain_name]
           # loop through sensors
-          for sensor_name in domain.get('sensor_ports'):
-            sensor_info = domain.get('sensor_ports')[sensor_name];
-            # return sensor info if we've found our port
-            if(str(sensor_info.get('port_id')) == str(port_id)):
+          for group in domain.get('sensor_port_groups'):
+            sensors = domain.get('sensor_port_groups')[group];
+            for sensor in sensors:
+              # return sensor info if we've found our port
+              if(str(sensor.get('of_port_id')) == str(port_id)):
                 return {
                   'dpid':   dpid,
                   'domain': domain_name,
-                  'sensor_info': sensor_info
+                  'group': group,
+                  'sensor_info': sensor
                 }
 
   def setSensorStatus(self, port_id, status):
@@ -452,6 +454,7 @@ class SciPass:
         ignore_sensor_load = domain.prop("ignore_sensor_load")
         ignore_prefix_bw = domain.prop("ignore_prefix_bw")
         self.logger.debug("Adding Domain: name: %s, mode: %s, status: %s", name, mode, status)
+
         config[dpid][name] = {}
         config[dpid][name]['mode'] = mode
         config[dpid][name]['status'] = status
@@ -464,6 +467,7 @@ class SciPass:
         config[dpid][name]['default_whitelist_priority'] = default_whitelist_priority
         config[dpid][name]['sensor_load_min_threshold'] = sensorLoadMinThreshold
         config[dpid][name]['sensor_load_delta_threshold'] = sensorLoadDeltaThreshhold
+
         if(ignore_prefix_bw == "true"):
           config[dpid][name]['ignore_prefix_bw'] = 1
         else:
@@ -474,7 +478,7 @@ class SciPass:
         else:
           config[dpid][name]['ignore_sensor_load'] = 0
 
-        config[dpid][name]['sensor_ports'] = {}
+        config[dpid][name]['sensor_groups'] = {}
         config[dpid][name]['ports'] = {}
         config[dpid][name]['ports']['lan'] = []
         config[dpid][name]['ports']['wan'] = []
@@ -494,33 +498,23 @@ class SciPass:
         #register the methods
         config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y : self.addPrefix(dpid = dpid,
                                                                                             domain_name = name,
-                                                                                            sensor_id = x,
+                                                                                            group_id = x,
                                                                                             prefix = y))
 
         config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y : self.delPrefix(dpid = dpid,
                                                                                             domain_name = name,
-                                                                                            sensor_id = x,
+                                                                                            group_id = x,
                                                                                             prefix = y))
 
         config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z : self.movePrefix(dpid = dpid,
                                                                                               domain_name = name,
-                                                                                              old_sensor_id = x,
-                                                                                              new_sensor_id = y,
+                                                                                              old_group_id = x,
+                                                                                              new_group_id = y,
                                                                                               prefix = z
                                                                                               ))
 
         ports = ctxt.xpathEval("port")
-        sensor_ports = ctxt.xpathEval("sensor_port")
-
-        for port in sensor_ports:
-          sensor = {"port_id": port.prop("of_port_id"),
-                    "bw": port.prop("bw"),
-                    "sensor_id": port.prop("sensor_id"),
-                    "admin_status": port.prop("admin_status"),
-                    "description": port.prop("description")}
-          config[dpid][name]['sensor_ports'][sensor['sensor_id']] = sensor
-          config[dpid][name]['balancer'].addSensor(sensor)
-
+        sensor_groups = ctxt.xpathEval("sensor_group")
         for port in ports:
           ctxt.setContextNode(port)
           ptype = port.prop("type")
@@ -545,6 +539,21 @@ class SciPass:
                                                      "prefixes": prefixes_array,
                                                      "vlan_tag": vlan_tag
                                                      })
+          
+        for group in sensor_groups:
+          ctxt.setContextNode(group)
+          group_info = {"bw": group.prop("bw"),
+                        "group_id": group.prop("group_id"),
+                        "admin_state": group.prop("admin_state"),
+                        "description": group.prop("description"),
+                        "sensors": {}}
+          config[dpid][name]['sensor_groups'][group.prop("group_id")] = group_info
+          sensors = ctxt.xpathEval("sensor")
+          for sensor in sensors:
+            sensor = {"port_id": sensor.prop("of_port_id"),
+                      "sensor_id": sensor.prop("sensor_id")}
+            config[dpid][name]['sensor_groups'][group_info['group_id']]['sensors'][sensor['sensor_id']] = sensor
+          config[dpid][name]['balancer'].addSensorGroup(group_info)
         
     self.config = config      
     doc.freeDoc()
@@ -758,8 +767,8 @@ class SciPass:
   def _setupBalancer(self, dpid = None, domain_name = None):
     self.logger.debug("balancer rule init")
 
-  def addPrefix(self, dpid=None, domain_name=None, sensor_id=None, prefix=None):
-    self.logger.debug("Add Prefix " + str(domain_name) + " " + str(sensor_id) + " " + str(prefix))
+  def addPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
+    self.logger.debug("Add Prefix " + str(domain_name) + " " + str(group_id) + " " + str(prefix))
     #find the north and south port
 
     in_port  = None
@@ -785,8 +794,10 @@ class SciPass:
 
     actions = []
     #output to sensor (basically this is the IDS balance case)
-    actions.append({"type": "output",
-                    "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]['port_id']})
+    sensors = self.config[dpid][domain_name]['sensor_groups'][group_id]['sensors']
+    for sensor in sensors:
+      actions.append({"type": "output",
+                      "port": sensors[sensor]['port_id']})
     if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
       #append the FW or other destination
       if(ports.has_key('fw_lan') and len(ports['fw_lan']) > 0):
@@ -811,8 +822,9 @@ class SciPass:
     
     actions = []
     #output to sensor (basically this is the IDS balance case)
-    actions.append({"type": "output",
-                    "port": self.config[dpid][domain_name]['sensor_ports'][sensor_id]['port_id']})
+    for sensor in sensors:
+      actions.append({"type": "output",
+                      "port": sensors[sensor]['port_id']})
     if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
 
       #append the FW or other destination
@@ -832,7 +844,7 @@ class SciPass:
                                             hard_timeout = 0,
                                             priority     = 500)
 
-  def delPrefix(self, dpid=None, domain_name=None, sensor_id=None, prefix=None):
+  def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
     self.logger.debug("Remove Prefix")
 
     in_port  = None
@@ -879,11 +891,11 @@ class SciPass:
                                             hard_timeout = 0,
                                             priority     = 500)
     
-  def movePrefix(self, dpid = None, domain_name=None, new_sensor_id=None, old_sensor_id=None, prefix=None):
+  def movePrefix(self, dpid = None, domain_name=None, new_group_id=None, old_group_id=None, prefix=None):
     self.logger.debug("move prefix")
     #delete and add the prefix
-    self.delPrefix(dpid, domain_name, old_sensor_id, prefix)
-    self.addPrefix(dpid, domain_name, new_sensor_id, prefix)
+    self.delPrefix(dpid, domain_name, old_group_id, prefix)
+    self.addPrefix(dpid, domain_name, new_group_id, prefix)
 
   def remove_flow(self, ev):
     self.logger.debug("remove flow")
@@ -1009,12 +1021,8 @@ class SciPass:
     if(self.config.has_key(dpid)):
       if(self.config[dpid].has_key(domain)):
         bal = self.config[dpid][domain]['balancer']
-        sensors = bal.getSensors()
-        for sensor in sensors:
-          sensor['port_id'] = self.config[dpid][domain]['sensor_ports'][sensor['sensor_id']]['port_id']
-          sensor['description'] = self.config[dpid][domain]['sensor_ports'][sensor['sensor_id']]['description']
-          sensor['total_bw'] = self.config[dpid][domain]['sensor_ports'][sensor['sensor_id']]['bw']
-        return sensors
+        sensor_groups = bal.getSensorGroups()
+        return sensor_groups
 
   def getSwitches(self):
     switches = []
