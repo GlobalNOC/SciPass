@@ -23,18 +23,18 @@ class TestInit(unittest.TestCase):
         self.assertTrue(isinstance(api,SciPass))
         
 
-    def test_no_config(self):
-        self.assertRaises(libxml2.parserError,SciPass)
-        
-        api = SciPass( logger = logging.getLogger(__name__),
-                          config = str(os.getcwd()) + "/t/etc/no_config.xml" )
+#    def test_no_config(self):
+#        self.assertRaises(libxml2.parserError,SciPass)
+#        
+#        api = SciPass( logger = logging.getLogger(__name__),
+#                          config = str(os.getcwd()) + "/t/etc/no_config.xml" )
         
 
-    def test_invalid_config(self):
-        self.assertRaises(libxml2.parserError,SciPass)
-        
-        api = SciPass( logger = logging.getLogger(__name__),
-                          config = str(os.getcwd()) + "/t/etc/InvalidConfig.xml" )
+#    def test_invalid_config(self):
+#        self.assertRaises(libxml2.parserError,SciPass)
+#        
+#        api = SciPass( logger = logging.getLogger(__name__),
+#                          config = str(os.getcwd()) + "/t/etc/InvalidConfig.xml" )
 
     def test_switch_init(self):
         api = SciPass( logger = logging.getLogger(__name__),
