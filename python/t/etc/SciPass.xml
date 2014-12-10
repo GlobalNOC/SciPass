@@ -13,6 +13,7 @@
       <port of_port_id="2" type="lan" name="foo12" description="another lan int">
 	<prefix type="v4">10.0.19.0/24</prefix>
         <prefix type="v4">10.0.20.0/24</prefix>
+	<prefix type="v6">::/128</prefix>
       </port>
       
 
