@@ -528,9 +528,13 @@ class SciPass:
                             "prefix_str": prefix.getContent(),
                             "prefix": ipaddr.IPv4Network(prefix.getContent())}
             else:
+              #eventually we'll be able to do this, but for now
+              #we are going to hardcode ::/128 so that its considered a single 
+              #prefix that is not divisible anymore
               prefix_obj = {"type": prefix.prop("type"),
-                            "prefix_str": prefix.getContent(),
+                            "prefix_str": "::/128", #prefix.getContent(),
                             "prefix": ipaddr.IPv6Network(prefix.getContent())}
+                            
             prefixes_array.append(prefix_obj)
 
           config[dpid][name]['ports'][ptype].append({"port_id": port.prop("of_port_id"),
@@ -634,9 +638,14 @@ class SciPass:
         prefixes.append(prefix['prefix'])
         #specific prefix forwarding rules
         #FW LAN to specific LAN PORT
-        header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
-                  "nw_dst": int(prefix['prefix']),
-                  "nw_dst_mask": int(prefix['prefix'].prefixlen)}
+        header = {}
+        if(prefix['type'] != "v4" and prefix['type'] != "ipv4"):
+          header = {"dl_type": 34525,
+                    "phys_port": int(ports['fw_lan'][0]['port_id'])}
+        else:
+          header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
+                    "nw_dst": int(prefix['prefix']),
+                    "nw_dst_mask": int(prefix['prefix'].prefixlen)}
         
         actions = []
         actions.append({"type": "output",
@@ -652,9 +661,14 @@ class SciPass:
                                                 priority     = int(priority))
         
         #SPECIFIC LAN -> FW LAN port
-        header = {"phys_port": int(in_port['port_id']),
-                  "nw_src": int(prefix['prefix']),
-                  "nw_src_mask": int(prefix['prefix'].prefixlen)}
+        header = {}
+        if(prefix['type'] != "v4" and prefix['type'] != "ipv4"):
+          header = {"dl_type": 34525,
+                    "phys_port": int(in_port['port_id'])}
+        else:
+          header = {"phys_port": int(in_port['port_id']),
+                    "nw_src": int(prefix['prefix']),
+                    "nw_src_mask": int(prefix['prefix'].prefixlen)}
 
         actions = []
         actions.append({"type": "output",
@@ -733,6 +747,7 @@ class SciPass:
     #LAN to WAN
     header = {"phys_port": int(ports['lan'][0]['port_id']),
               'dl_type': None}
+        
     actions = []
     actions.append({'type':'output',
                     'port':int(ports['wan'][0]['port_id'])})
@@ -782,15 +797,21 @@ class SciPass:
     for port in ports['lan']:
       for prefix_obj in port['prefixes']:
         if(prefix_obj['prefix'].Contains( prefix )):
+          self.logger.error("Prefix: " + str(prefix_obj['prefix']) + " contains " + str(prefix)) 
           in_port = port
-
+           
     if(in_port == None):
       self.logger.error("unable to find either an output or an input port")
       return
 
-    header = {"nw_src":      int(prefix),
-              "nw_src_mask": int(prefix.prefixlen),
-              "phys_port":   int(in_port['port_id'])}
+    header = {}
+    if(prefix._version != 4):
+      header = {"dl_type": 34525,
+                "phys_port": int(in_port['port_id'])}
+    else:
+      header = {"nw_src":      int(prefix),
+                "nw_src_mask": int(prefix.prefixlen),
+                "phys_port":   int(in_port['port_id'])}
 
     actions = []
     #output to sensor (basically this is the IDS balance case)
@@ -815,10 +836,14 @@ class SciPass:
                                             idle_timeout = 0,
                                             hard_timeout = 0,
                                             priority     = 500)
-
-    header = {"nw_dst":      int(prefix),
-              "nw_dst_mask": int(prefix.prefixlen),
-              "phys_port":   int(ports['wan'][0]['port_id'])}
+    header = {}
+    if(prefix._version != 4):
+      header = {"dl_type": 34525,
+                "phys_port": int(ports['wan'][0]['port_id'])}
+    else:
+      header = {"nw_dst":      int(prefix),
+                "nw_dst_mask": int(prefix.prefixlen),
+                "phys_port":   int(ports['wan'][0]['port_id'])}
     
     actions = []
     #output to sensor (basically this is the IDS balance case)
@@ -862,10 +887,14 @@ class SciPass:
     if(in_port == None):
       self.logger.error("Unable to find an input port for the prefix")
       return
-
-    header = {"nw_src":      int(prefix),
-              "nw_src_mask": int(prefix.prefixlen),
-              "phys_port":   int(in_port['port_id'])}
+    header = {}
+    if(prefix._version != 4):
+      header = {"dl_type": 34525,
+                "phys_port": int(in_port['port_id'])}
+    else:
+      header = {"nw_src":      int(prefix),
+                "nw_src_mask": int(prefix.prefixlen),
+                "phys_port":   int(in_port['port_id'])}
     
     actions = []
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
@@ -876,10 +905,14 @@ class SciPass:
                                             idle_timeout = 0,
                                             hard_timeout = 0,
                                             priority     = 500)
-
-    header = {"nw_dst":      int(prefix),
-              "nw_dst_mask": int(prefix.prefixlen),
-              "phys_port":   int(ports['wan'][0]['port_id'])}
+    header = {}
+    if(prefix._version != 4):
+      header = {"dl_type": 34525,
+                "phys_port": int(ports['wan'][0]['port_id'])}
+    else:
+      header = {"nw_dst":      int(prefix),
+                "nw_dst_mask": int(prefix.prefixlen),
+                "phys_port":   int(ports['wan'][0]['port_id'])}
     
     actions = []
     self.fireForwardingStateChangeHandlers( dpid         = dpid,

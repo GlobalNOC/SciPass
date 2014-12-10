@@ -307,33 +307,20 @@ class SimpleBalancer:
     """used to register a handler for del prefix events"""
     self.movePrefixHandlers.append(handler)
 
-  def fireAddPrefix(self,sensor,prefix):
+  def fireAddPrefix(self,group,prefix):
     """When called will fire each of the registered add prefix handlers"""
     for handler in self.addPrefixHandlers:
-      handler(sensor,prefix)
+      handler(group,prefix)
 
-  def fireDelPrefix(self,sensor,prefix):
+  def fireDelPrefix(self,group,prefix):
     """When called will fire each of the registered del prefix handlers"""
     for handler in self.delPrefixHandlers:
-      handler(sensor,prefix)
+      handler(group,prefix)
 
-  def fireMovePrefix(self,oldSensor,newSensor,prefix):
+  def fireMovePrefix(self,oldGroup,newGroup,prefix):
     """when called will fire each of the registered move prefix handlers"""
     for handler in self.movePrefixHandlers:
-      handler(oldSensor,newSensor,prefix)
-
-  def setSensorPrefixList(self,sensor,prefixList):
-    """update the sensor's prefix list"""
-    if(len(prefixList) >self.maxPrefixes):
-        raise MaxPrefixesError(str(prefixList))
-
-    #--- reset the list
-    del self.sensorPrefixes[sensor][:]
-
-    for prefix in prefixList:
-        self.addSensorPrefix(sensor,prefix)
-
-    return 1
+      handler(oldGroup,newGroup,prefix)
 
 
   def delGroupPrefix(self,group,targetPrefix):
