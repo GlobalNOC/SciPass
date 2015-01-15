@@ -51,7 +51,7 @@ class DuplicatePrefixError(Exception):
 class SimpleBalancer:
   """A simple balancer using only OpenFlow"""
   def __init__(  self,
-                 ignoreSensorLoad	= 1,
+                 ignoreSensorLoad	= 0,
                  ignorePrefixBW         = 1,
 		 maxPrefixes		= 32,
   		 mostSpecificPrefixLen	= 29,
