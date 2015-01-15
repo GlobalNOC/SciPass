@@ -317,7 +317,8 @@ class TestBalance(unittest.TestCase):
         self.assertTrue(res == 1)
         net3 = ipaddr.IPv4Network("10.0.0.0/8")
         percentTotal = self.balancer.getEstLoad(1,net3)
-        self.assertTrue(percentTotal == 3.2)
+        print "PERCENT TOTAL: " + str(percentTotal)
+        self.assertTrue(percentTotal == .5)
 
     def test_balance_by_ip(self):
         self.balancer = SimpleBalancer()
