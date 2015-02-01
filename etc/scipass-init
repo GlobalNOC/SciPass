@@ -5,7 +5,7 @@
 
 options="--config-file /etc/SciPass/ryu.conf --use-syslog --nouse-stderr"
 
-CMD="ryu-manager /usr/share/SciPass/Ryu.py $options"
+CMD="ryu-manager /usr/lib/python2.6/site-packages/SciPass/Ryu.py $options"
  
 start() {
     $CMD 2>&1 &
@@ -13,7 +13,7 @@ start() {
 }
  
 stop() {
-    pid=`ps -ef | grep 'ryu-manager /usr/share/SciPass/Ryu.py' | grep -v "grep" | awk '{ print $2 }'`
+    pid=`ps -ef | grep 'ryu-manager /usr/lib/python2.6/site-packages/SciPass/Ryu.py' | grep -v "grep" | awk '{ print $2 }'`
     echo $pid
     kill $pid
     sleep 2

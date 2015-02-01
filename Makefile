@@ -10,7 +10,7 @@ clean:
 	rm -rf dist
 
 test:
-	cd python; coverage run --source=./ --omit=__init__.py,*Test.py,t/SciPass.py t/Test.py; coverage report -m; coverage xml;coverage annotate; coverage html;
+	cd python; coverage run --source=./ --omit=__init__.py,Ryu.py,*Test.py,t/SciPass.py t/Test.py; coverage report -m; coverage xml;coverage annotate; coverage html;
 
 dist:
 	rm -rf dist/$(NAME)-$(VERSION)
