@@ -806,7 +806,7 @@ class SciPass:
     for port in ports['lan']:
       for prefix_obj in port['prefixes']:
         if(prefix_obj['prefix'].Contains( prefix )):
-          #self.logger.error("Prefix: " + str(prefix_obj['prefix']) + " contains " + str(prefix)) 
+          self.logger.debug("Prefix: " + str(prefix_obj['prefix']) + " contains " + str(prefix)) 
           in_port = port
          
           header = {}
@@ -867,14 +867,14 @@ class SciPass:
           for sensor in sensors:
             actions.append({"type": "output",
                             "port": sensors[sensor]['port_id']})
-            if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+          if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
                 #append the FW or other destination
-                if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
-                  actions.append({"type": "output",
-                                  "port": ports['fw_wan'][0]['port_id']})
-                else:
-                  actions.append({"type": "output",
-                                  "port": in_port['port_id']})
+            if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
+              actions.append({"type": "output",
+                              "port": ports['fw_wan'][0]['port_id']})
+            else:
+              actions.append({"type": "output",
+                              "port": in_port['port_id']})
             self.logger.debug("Header: %s" % str(header))
             self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                     domain       = domain_name,

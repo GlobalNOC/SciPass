@@ -7,7 +7,7 @@ Group: GRNOC
 URL: http://globalnoc.iu.edu
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-#Requires: python-ryu
+Requires: python-ryu
 Requires: perl-Term-ReadLine-Gnu
 Requires: python-ipaddr
 
