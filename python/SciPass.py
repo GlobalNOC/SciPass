@@ -781,9 +781,18 @@ class SciPass:
 
   def _setupBalancer(self, dpid = None, domain_name = None):
     self.logger.debug("balancer rule init")
+    #ok now that we have that done... start balancing!!!
+    prefixes = []
+    ports = self.config[dpid][domain_name]['ports']
+    for port in ports['lan']:
+      in_port = port
+      for prefix in in_port['prefixes']:
+        prefixes.append(prefix['prefix'])
 
+    self.config[dpid][domain_name]['balancer'].distributePrefixes(set(prefixes))
+        
   def addPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
-    self.logger.debug("Add Prefix " + str(domain_name) + " " + str(group_id) + " " + str(prefix))
+    #self.logger.error("Add Prefix " + str(domain_name) + " " + str(group_id) + " " + str(prefix))
     #find the north and south port
 
     in_port  = None
@@ -797,77 +806,84 @@ class SciPass:
     for port in ports['lan']:
       for prefix_obj in port['prefixes']:
         if(prefix_obj['prefix'].Contains( prefix )):
-          self.logger.error("Prefix: " + str(prefix_obj['prefix']) + " contains " + str(prefix)) 
+          #self.logger.error("Prefix: " + str(prefix_obj['prefix']) + " contains " + str(prefix)) 
           in_port = port
-           
-    if(in_port == None):
-      self.logger.error("unable to find either an output or an input port")
-      return
+         
+          header = {}
+          if(prefix._version != 4):
+            header = {"dl_type": 34525,
+                      "phys_port": int(in_port['port_id'])}
+          else:
+            header = {"nw_src":      int(prefix),
+                      "nw_src_mask": int(prefix.prefixlen),
+                      "phys_port":   int(in_port['port_id'])}
 
-    header = {}
-    if(prefix._version != 4):
-      header = {"dl_type": 34525,
-                "phys_port": int(in_port['port_id'])}
-    else:
-      header = {"nw_src":      int(prefix),
-                "nw_src_mask": int(prefix.prefixlen),
-                "phys_port":   int(in_port['port_id'])}
+          actions = []
+          #output to sensor (basically this is the IDS balance case)
+          sensors = self.config[dpid][domain_name]['sensor_groups'][group_id]['sensors']
+          for sensor in sensors:
+            self.logger.debug("output: " + str(sensors[sensor]));
+            actions.append({"type": "output",
+                            "port": sensors[sensor]['port_id']})
+          
+          if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+          #append the FW or other destination
+            if(ports.has_key('fw_lan') and len(ports['fw_lan']) > 0):
+              actions.append({"type": "output",
+                              "port": ports['fw_lan'][0]['port_id']})
+            else:
+              actions.append({"type": "output",
+                              "port": ports['wan'][0]['port_id']})
 
-    actions = []
-    #output to sensor (basically this is the IDS balance case)
-    sensors = self.config[dpid][domain_name]['sensor_groups'][group_id]['sensors']
-    for sensor in sensors:
-      actions.append({"type": "output",
-                      "port": sensors[sensor]['port_id']})
-    if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
-      #append the FW or other destination
-      if(ports.has_key('fw_lan') and len(ports['fw_lan']) > 0):
-        actions.append({"type": "output",
-                        "port": ports['fw_lan'][0]['port_id']})
-      else:
-        actions.append({"type": "output",
-                        "port": ports['wan'][0]['port_id']})
+          self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                  domain       = domain_name,
+                                                  header       = header,
+                                                  actions      = actions,
+                                                  command      = "ADD",
+                                                  idle_timeout = 0,
+                                                  hard_timeout = 0,
+                                                  priority     = 500)
 
-    self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            domain       = domain_name,
-                                            header       = header,
-                                            actions      = actions,
-                                            command      = "ADD",
-                                            idle_timeout = 0,
-                                            hard_timeout = 0,
-                                            priority     = 500)
-    header = {}
-    if(prefix._version != 4):
-      header = {"dl_type": 34525,
-                "phys_port": int(ports['wan'][0]['port_id'])}
-    else:
-      header = {"nw_dst":      int(prefix),
-                "nw_dst_mask": int(prefix.prefixlen),
-                "phys_port":   int(ports['wan'][0]['port_id'])}
-    
-    actions = []
-    #output to sensor (basically this is the IDS balance case)
-    for sensor in sensors:
-      actions.append({"type": "output",
-                      "port": sensors[sensor]['port_id']})
-    if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+          header = {}
+          if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+            if(prefix._version != 4):
+              header = {"dl_type": 34525,
+                        "phys_port": int(ports['wan'][0]['port_id'])}
+            else:
+              header = {"nw_dst":      int(prefix),
+                        "nw_dst_mask": int(prefix.prefixlen),
+                        "phys_port":   int(ports['wan'][0]['port_id'])}
+          else:
+            if(prefix._version != 4):
+              header = {"dl_type": 34525,
+                        "phys_port": int(in_port['port_id'])}
+            else:
+              header = {"nw_dst": int(prefix),
+                        "nw_dst_mask": int(prefix.prefixlen),
+                        "phys_port": int(in_port['port_id'])}
 
-      #append the FW or other destination
-      if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
-        actions.append({"type": "output",
-                        "port": ports['fw_wan'][0]['port_id']})
-      else:
-        actions.append({"type": "output",
-                        "port": in_port['port_id']})
-
-    self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            domain       = domain_name,
-                                            header       = header,
-                                            actions      = actions,
-                                            command      = "ADD",
-                                            idle_timeout = 0,
-                                            hard_timeout = 0,
-                                            priority     = 500)
+          actions = []
+          #output to sensor (basically this is the IDS balance case)
+          for sensor in sensors:
+            actions.append({"type": "output",
+                            "port": sensors[sensor]['port_id']})
+            if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+                #append the FW or other destination
+                if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
+                  actions.append({"type": "output",
+                                  "port": ports['fw_wan'][0]['port_id']})
+                else:
+                  actions.append({"type": "output",
+                                  "port": in_port['port_id']})
+            self.logger.debug("Header: %s" % str(header))
+            self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                    domain       = domain_name,
+                                                    header       = header,
+                                                    actions      = actions,
+                                                    command      = "ADD",
+                                                    idle_timeout = 0,
+                                                    hard_timeout = 0,
+                                                    priority     = 500)
 
   def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
     self.logger.debug("Remove Prefix")
@@ -884,45 +900,48 @@ class SciPass:
         if(prefix_obj['prefix'].Contains( prefix )):
           in_port = port
 
-    if(in_port == None):
-      self.logger.error("Unable to find an input port for the prefix")
-      return
-    header = {}
-    if(prefix._version != 4):
-      header = {"dl_type": 34525,
-                "phys_port": int(in_port['port_id'])}
-    else:
-      header = {"nw_src":      int(prefix),
-                "nw_src_mask": int(prefix.prefixlen),
-                "phys_port":   int(in_port['port_id'])}
+          header = {}
+          if(prefix._version != 4):
+            header = {"dl_type": 34525,
+                      "phys_port": int(in_port['port_id'])}
+          else:
+            header = {"nw_src":      int(prefix),
+                      "nw_src_mask": int(prefix.prefixlen),
+                      "phys_port":   int(in_port['port_id'])}
     
-    actions = []
-    self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            domain       = domain_name,
-                                            header       = header,
-                                            actions      = actions,
-                                            command      = "DELETE_STRICT",
-                                            idle_timeout = 0,
-                                            hard_timeout = 0,
-                                            priority     = 500)
-    header = {}
-    if(prefix._version != 4):
-      header = {"dl_type": 34525,
-                "phys_port": int(ports['wan'][0]['port_id'])}
-    else:
-      header = {"nw_dst":      int(prefix),
-                "nw_dst_mask": int(prefix.prefixlen),
-                "phys_port":   int(ports['wan'][0]['port_id'])}
-    
-    actions = []
-    self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            domain       = domain_name,
-                                            header       = header,
-                                            actions      = actions,
-                                            command      = "DELETE_STRICT",
-                                            idle_timeout = 0,
-                                            hard_timeout = 0,
-                                            priority     = 500)
+          actions = []
+          self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                  domain       = domain_name,
+                                                  header       = header,
+                                                  actions      = actions,
+                                                  command      = "DELETE_STRICT",
+                                                  idle_timeout = 0,
+                                                  hard_timeout = 0,
+                                                  priority     = 500)
+          header = {}
+          if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+            header = {}
+            if(prefix._version != 4):
+              header = {"dl_type": 34525,
+                        "phys_port": int(ports['wan'][0]['port_id'])}
+            else:
+              header = {"nw_dst":      int(prefix),
+                        "nw_dst_mask": int(prefix.prefixlen),
+                        "phys_port":   int(ports['wan'][0]['port_id'])}
+          else:
+            header = {"nw_dst":      int(prefix),
+                      "nw_dst_mask": int(prefix.prefixlen),
+                      "phys_port":   int(in_port['port_id'])}
+
+            actions = []
+            self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                    domain       = domain_name,
+                                                    header       = header,
+                                                    actions      = actions,
+                                                    command      = "DELETE_STRICT",
+                                                    idle_timeout = 0,
+                                                    hard_timeout = 0,
+                                                    priority     = 500)
     
   def movePrefix(self, dpid = None, domain_name=None, new_group_id=None, old_group_id=None, prefix=None):
     self.logger.debug("move prefix")

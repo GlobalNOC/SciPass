@@ -152,7 +152,7 @@ class Ryu(app_manager.RyuApp):
         self.statsInterval = 5
         self.balanceInterval = 15
         self.bal = None
-        
+        self.stats = {}
         self.stats_thread = hub.spawn(self._stats_loop)
         self.balance_thread = hub.spawn(self._balance_loop)
         
@@ -172,7 +172,7 @@ class Ryu(app_manager.RyuApp):
         wsgi.register(SciPassRest, {'api' : self.api})
         
     def changeSwitchForwardingState(self, dpid=None, header=None, actions=None, command=None, idle_timeout=None, hard_timeout=None, priority=1):
-        self.logger.debug("Changing switch forwarding state")
+        #self.logger.error("Changing switch forwarding state")
         
         if(not self.datapaths.has_key(dpid)):
             self.logger.error("unable to find switch with dpid " + dpid)
@@ -248,14 +248,14 @@ class Ryu(app_manager.RyuApp):
                                      tp_src      = obj['tp_src'],
                                      tp_dst      = obj['tp_dst'])
             
-        self.logger.debug("Match: " + str(match))
+        #self.logger.error("Match: " + str(match))
         
         of_actions = []
         for action in actions:
             if(action['type'] == "output"):
                 of_actions.append(parser.OFPActionOutput(int(action['port']),0))
                 
-        self.logger.debug("Actions: " + str(of_actions))
+        #self.logger.error("Actions: " + str(of_actions))
         if(command == "ADD"):
             command = ofp.OFPFC_ADD
         elif(command == "DELETE_STRICT"):
@@ -263,8 +263,8 @@ class Ryu(app_manager.RyuApp):
         else:
             command = -1
 
-        self.logger.debug("Sending flow mod with command: " + str(command))
-        self.logger.debug("Datpath: " + str(datapath))
+        #self.logger.error("Sending flow mod with command: " + str(command))
+        #self.logger.error("Datpath: " + str(datapath))
 
         mod = parser.OFPFlowMod( datapath     = datapath,
                                  priority     = int(priority),
@@ -277,7 +277,9 @@ class Ryu(app_manager.RyuApp):
 
         if(datapath.is_active == True):
             datapath.send_msg(mod)
-            
+        else:
+            self.logger.error("Device is not connected")
+
     def flushRules(self, dpid):
         if(not self.datapaths.has_key(dpid)):
             self.logger.error("unable to find switch with dpid " + dpid)
@@ -324,7 +326,7 @@ class Ryu(app_manager.RyuApp):
 
     def _balance_loop(self):
          while 1:
-             self.logger.debug("here!!")
+             self.logger.error("here!!")
              #--- tell the system to rebalance
              self.api.run_balancers()
              #--- sleep
@@ -336,16 +338,13 @@ class Ryu(app_manager.RyuApp):
 
         cookie = cookie_mask = 0
         match  = parser.OFPMatch()
-        req    = parser.OFPFlowStatsRequest(	datapath, 
+        req    = parser.OFPFlowStatsRequest(	datapath,
 						0,
 						match,
-        					#ofp.OFPTT_ALL,
 						0xff,
         					ofp.OFPP_NONE)
-						#0xffffffff,
-        					#cookie, 
-						#cookie_mask,
-        					#match)
+
+
         datapath.send_msg(req)
 
         req = parser.OFPPortStatsRequest(datapath, 0, ofp.OFPP_NONE)
@@ -366,22 +365,34 @@ class Ryu(app_manager.RyuApp):
                  [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change_handler(self, ev):
         datapath = ev.datapath
+        dpid = "%016x" % datapath.id
         if ev.state == MAIN_DISPATCHER:
-            if not datapath.id in self.datapaths:
-                self.logger.debug('register datapath: %016x', datapath.id)
+            if not dpid in self.datapaths:
+                self.logger.error('register datapath: %016x', datapath.id)
+                self.datapaths[dpid] = datapath
+                if(not self.flowmods.has_key(dpid)):
+                    self.flowmods[dpid] = []
+            else:
+                del self.datapaths[dpid]
+                self.logger.error('register datapath: %016x', datapath.id)
                 dpid = "%016x" % datapath.id
                 self.datapaths[dpid] = datapath
                 if(not self.flowmods.has_key(dpid)):
                     self.flowmods[dpid] = []
-                self.flushRules("%016x" % datapath.id)
-		        #--- start the balancing act
-                self.api.switchJoined(datapath)
+
+            self.flushRules(dpid)
+            #--- start the balancing act
+            self.api.switchJoined(datapath)
 
         elif ev.state == DEAD_DISPATCHER:
-            if datapath.id in self.datapaths:
-                self.logger.debug('unregister datapath: %016x', datapath.id)
-                del self.datapaths[datapath.id]
-
+            if dpid in self.datapaths:
+                self.logger.error('datapath leave: %016x', datapath.id)
+                del self.datapaths[dpid]
+            else:
+                self.logger.error("unregistered node left!@!@!@!")
+        else:
+            self.logger.error("Unknown state in change handler: " + str(ev.state))
+            
     @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
     def _port_status_handler(self, ev):
         msg        = ev.msg
@@ -410,114 +421,153 @@ class Ryu(app_manager.RyuApp):
 
     @set_ev_cls(ofp_event.EventOFPFlowStatsReply, MAIN_DISPATCHER)
     def _flow_stats_reply_handler(self, ev):
-        
-        #--- figure out the time since last stats
-	old_time = self.lastStatsTime
-        self.lastStatsTime = int(time.time()) 
-	stats_et = None
-        if(old_time != None):
-	  stats_et = self.lastStatsTime - old_time 
-        
         body = ev.msg.body
 
-        ofproto = ev.msg.datapath.ofproto
-        flows = []
-	prefix_bps = defaultdict(lambda: defaultdict(int))
         #--- update scipass utilization stats for forwarding rules
 
+        if(not self.stats.has_key(ev.msg.datapath.id)):
+            self.stats[ev.msg.datapath.id] = []
+
         for stat in body:
-          dur_sec = stat.duration_sec
-	  in_port = stat.match.in_port
-          src_mask = 32 - ((stat.match.wildcards & ofproto.OFPFW_NW_SRC_MASK) >> ofproto.OFPFW_NW_SRC_SHIFT)
-          dst_mask = 32 - ((stat.match.wildcards & ofproto.OFPFW_NW_DST_MASK) >> ofproto.OFPFW_NW_DST_SHIFT)
+            self.stats[ev.msg.datapath.id].append(stat)
+            
+        if(ev.msg.flags == 0):
+            self.process_flow_stats(self.stats[ev.msg.datapath.id], ev.msg.datapath)
+            self.stats[ev.msg.datapath.id] = []
+        
+           
+    def process_flow_stats(self, stats, dp):
+        self.logger.error("flow stat processor")
+        self.logger.error("flows stats: " + str(len(stats)))
+        #--- figure out the time since last stats
+        prefix_bps = defaultdict(lambda: defaultdict(int))
+        prefix_bytes = {}
+        flows = []
+        dpid = dp.id
+        ofproto = dp.ofproto
+        old_time = self.lastStatsTime
+        now = int(time.time())
 
-          if(src_mask > 0):
-            #--- this is traffic TX from target prefix
-            id   = ipaddr.IPv4Address(stat.match.nw_src)
-            prefix = ipaddr.IPv4Network(str(id)+"/"+str(src_mask))  
-            dir  = "tx"
+        stats_et = None
+        if(old_time != None):
+            stats_et = now - old_time
 
-          elif(dst_mask > 0):
-            #--- this is traffic RX from target prefix
-            id   = ipaddr.IPv4Address(stat.match.nw_dst)
-            prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
-            dir = "rx"
-          else:
-            #--- no mask, lets skip
-            continue
+        self.lastStatsTime = now
 
-          raw_bytes = stat.byte_count
-          old_bytes = self.prefix_bytes[prefix][dir]
-          self.prefix_bytes[prefix][dir] = raw_bytes
-          bytes = raw_bytes - old_bytes
-          et = stats_et 
-          if(et == None or dur_sec < et):
-            et = dur_sec
+        for stat in stats:
+            
+            dur_sec = stat.duration_sec
+            in_port = stat.match.in_port
+            src_mask = 32 - ((stat.match.wildcards & ofproto.OFPFW_NW_SRC_MASK) >> ofproto.OFPFW_NW_SRC_SHIFT)
+            dst_mask = 32 - ((stat.match.wildcards & ofproto.OFPFW_NW_DST_MASK) >> ofproto.OFPFW_NW_DST_SHIFT)
+            if(stat.match.dl_type == 34525):
+                prefix = ipaddr.IPv6Network("::/128")
+                dir = "tx"
+            elif(src_mask > 0):
+                #--- this is traffic TX from target prefix
+                id = ipaddr.IPv4Address(stat.match.nw_src)
+                prefix = ipaddr.IPv4Network(str(id)+"/"+str(src_mask))  
+                dir  = "tx"
+            elif(dst_mask > 0):
+                #--- this is traffic RX from target prefix
+                id = ipaddr.IPv4Address(stat.match.nw_dst)
+                prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
+                dir = "rx"
+            else:
+                self.logger.error("Flow:" + str(stat.match))
+                #--- no mask, lets skip
+                continue
+        
+            
+            if(not prefix_bytes.has_key(prefix)):
+                prefix_bytes[prefix] = {}
+                prefix_bytes[prefix]["tx"] = 0
+                prefix_bytes[prefix]["rx"] = 0
 
-          try:
-            rate = bytes / float(et)
-          except ZeroDivisionError:
-            rate = 0
+            prefix_bytes[prefix][dir] += stat.byte_count
 
-          prefix_bps[prefix][dir] = rate
-          
-          match = stat.match.__dict__
-          wildcards = stat.match.wildcards
-          del match['dl_dst']
-          del match['dl_src']
-          del match['dl_type']
-          del match['wildcards']
+            match = stat.match.__dict__
+            wildcards = stat.match.wildcards
+            del match['dl_dst']
+            del match['dl_src']
+            del match['dl_type']
+            del match['wildcards']
 
-          if(match['dl_vlan_pcp'] == 0):
-              del match['dl_vlan_pcp']
-              
-          if(match['dl_vlan'] == 0):
-              del match['dl_vlan']
+            if(match['dl_vlan_pcp'] == 0):
+                del match['dl_vlan_pcp']
 
-          if(match['nw_proto'] == 0):
-              del match['nw_proto']
-              
-          if(match['nw_tos'] == 0):
-              del match['nw_tos']
+            if(match['dl_vlan'] == 0):
+                del match['dl_vlan']
 
-          if(match['nw_src'] == 0):
-              del match['nw_src']
-              
-          if(match['nw_dst'] == 0):
-              del match['nw_dst']
+            if(match['nw_proto'] == 0):
+                del match['nw_proto']
 
-          if(match['tp_src'] == 0):
-              del match['tp_src']
+            if(match['nw_tos'] == 0):
+                del match['nw_tos']
 
-          if(match['tp_dst'] == 0):
-              del match['tp_dst']
+            if(match['nw_src'] == 0):
+                del match['nw_src']
 
-          if(match['in_port'] == 0):
-              del match['in_port']
-          else:
-              match['phys_port'] = int(match['in_port'])
-              del match['in_port']
-              
-          mask = 32 - ((wildcards & ofproto_v1_0.OFPFW_NW_SRC_MASK)
-                       >> ofproto_v1_0.OFPFW_NW_SRC_SHIFT)
-          match['nw_src_mask'] = mask
+            if(match['nw_dst'] == 0):
+                del match['nw_dst']
 
-          mask = 32 - ((wildcards & ofproto_v1_0.OFPFW_NW_DST_MASK)
-                       >> ofproto_v1_0.OFPFW_NW_DST_SHIFT)
-          match['nw_dst_mask'] = mask
+            if(match['tp_src'] == 0):
+                del match['tp_src']
 
-          flows.append({'match': match,
-                        'wildcards': wildcards,
-                        'packet_count': stat.packet_count
-                        })
+            if(match['tp_dst'] == 0):
+                del match['tp_dst']
+
+            if(match['in_port'] == 0):
+                del match['in_port']
+            else:
+                match['phys_port'] = int(match['in_port'])
+                del match['in_port']
+
+            mask = 32 - ((wildcards & ofproto_v1_0.OFPFW_NW_SRC_MASK)
+                         >> ofproto_v1_0.OFPFW_NW_SRC_SHIFT)
+            match['nw_src_mask'] = mask
+
+            mask = 32 - ((wildcards & ofproto_v1_0.OFPFW_NW_DST_MASK)
+                         >> ofproto_v1_0.OFPFW_NW_DST_SHIFT)
+            match['nw_dst_mask'] = mask
+
+            flows.append({'match': match,
+                          'wildcards': wildcards,
+                          'packet_count': stat.packet_count
+                          })
+            
+
+        for prefix in prefix_bytes:
+            for dir in ("rx","tx"):
+                old_bytes = self.prefix_bytes[prefix][dir]
+                new_bytes = prefix_bytes[prefix][dir]
+                bytes = new_bytes - old_bytes
+                #if we are less than the previous counter then we re-balanced
+                #set back to 0 and start again
+                if(bytes < 0):
+                    self.prefix_bytes[prefix][dir] = 0
+                    bytes = 0
+
+                if(stats_et == None):
+                    stats_et = 0
+
+                try:
+                    rate = bytes / float(int(stats_et))
+                except ZeroDivisionError:
+                    self.logger.error("Division by zero, rate = 0")
+                    rate = 0
+            
+                prefix_bps[prefix][dir] = rate
+                self.prefix_bytes[prefix][dir] = prefix_bytes[prefix][dir]
+        
 
         #--- update the balancer
         for prefix in prefix_bps.keys():
 	  rx = prefix_bps[prefix]["rx"]
           tx = prefix_bps[prefix]["tx"]
-          self.api.updatePrefixBW("%016x" % ev.msg.datapath.id, prefix, tx, rx)
+          self.api.updatePrefixBW("%016x" % dpid, prefix, tx, rx)
 
-        self.api.TimeoutFlows("%016x" % ev.msg.datapath.id, flows)
+        self.api.TimeoutFlows("%016x" % dpid, flows)
           
     @set_ev_cls(ofp_event.EventOFPPortStatsReply, MAIN_DISPATCHER)
     def _port_stats_reply_handler(self, ev):
