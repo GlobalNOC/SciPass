@@ -284,8 +284,8 @@ class TestPrefix(unittest.TestCase):
 
 class TestBalance(unittest.TestCase):
 
-    def test_get_est_load(self):
-        self.balancer = SimpleBalancer()
+    def test_get_est_load_net(self):
+        self.balancer = SimpleBalancer( ignorePrefixBW = 0)
         sensors = defaultdict(list)
         sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
         sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
@@ -318,7 +318,8 @@ class TestBalance(unittest.TestCase):
         percentTotal = self.balancer.getEstLoad(1,net3)
         self.assertTrue(percentTotal == 0)
         percentTotal = self.balancer.getEstLoad(1,net)
-        self.assertTrue(percentTotal == .32)
+        print "Percent Total: " + str(percentTotal)
+        self.assertTrue(percentTotal == .5)
 
     def test_balance_by_ip(self):
         self.balancer = SimpleBalancer()

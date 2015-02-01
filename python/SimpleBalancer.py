@@ -296,7 +296,7 @@ class SimpleBalancer:
 
   def setPrefixBW(self,prefix,bwTx,bwRx):
     """updates balancers understanding trafic bandwidth associated with each prefix"""
-    self.logger.error("Updating prefix BW for " + str(prefix) + " to " + str((bwTx/1000/1000)*8) + " " + str((bwRx/1000/1000)*8))
+    self.logger.error("Updating prefix BW for " + str(prefix) + " to " + str((bwTx/1000/1000)*8) + "Kb/s " + str((bwRx/1000/1000)*8) + "Kb/s")
     if(self.prefixBW.has_key(prefix)):
         self.prefixBW[prefix] = bwTx+bwRx
         return 1
@@ -515,11 +515,14 @@ class SimpleBalancer:
       totalHosts = totalHosts +  prefix.numhosts
       totalBW    = totalBW    +  self.prefixBW[prefix]
 
+    self.logger.error("Total BW for group = %s" % totalBW)
+
     if(self.ignorePrefixBW == 0):
       #--- use prefix bandwidth to estimate load
       targetBW     = self.prefixBW[targetPrefix]
+      self.logger.error("targetBW: %s" % targetBW)
       if(totalBW > 0 and targetBW > 0):
-        percentTotal = totalBW / targetBW
+        percentTotal = targetBW / (totalBW * 1.0)
       else:
         percentTotal = 0
 
@@ -675,11 +678,13 @@ class SimpleBalancer:
       maxLoad         = 0    
       maxSensor       = ""
       
+      #both sensor load and bandwidth are disabled
+      #just balance by total hosts
       if(self.ignoreSensorLoad and self.ignorePrefixBW):
           return self.balanceByIP()
 
+      #balance by network traffic
       if(self.ignoreSensorLoad):
-          self.logger.error("Balancing by traffic")
           return self.balanceByNetBytes()
 
       prefixBW = self.prefixBW
@@ -687,19 +692,19 @@ class SimpleBalancer:
       #--- find the current loads and figure out max, min and range
       if(self.ignoreSensorLoad == 0):
           #--- calc load by looking at sensor load
-          for sensor in self.sensorLoad.keys():
+          for group in self.groups.keys():
               # don't include disabled sensors
-              if(not self.getSensorStatus(sensor)): continue
+              if(not self.getGroupStatus(group)): continue
 
-              load = self.sensorLoad[sensor]
+              load = self.getGroupLoad(group)
               
               if(load > maxLoad):
                   maxLoad = load
-                  maxSensor = sensor
+                  maxSensor = group
                   
               if(load < minLoad):
                   minLoad = load
-                  minSensor = sensor;
+                  minSensor = group;
 
           loadDelta = maxLoad - minLoad;
 
@@ -723,7 +728,7 @@ class SimpleBalancer:
                   #--- check if it will fit on minSensor and if the new sensor will have less load than max sensor 
                   if(estPreLoad <  (1 - minLoad) and estNewSensorLoad < maxLoad):
                       #--- if it will fit, move it to minsensor
-                      self.moveSensorPrefix(maxSensor,minSensor,candidatePrefix)
+                      self.moveGroupPrefix(maxSensor,minSensor,candidatePrefix)
 
                   else:
                   #--- will not fit, split, then leave on original sensor and retry later after
