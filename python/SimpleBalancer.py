@@ -161,11 +161,18 @@ class SimpleBalancer:
           else:
               group = self.groups.keys()[0]
               self.logger.debug(group)
-              self.addGroupPrefix( self.groups[group]['group_id'] , prefix, 0)
+              try:
+                  self.addGroupPrefix( self.groups[group]['group_id'] , prefix, 0)
+              except DuplicatePrefixError:
+                  self.logger.error("Already have prefix: " + str(prefix))
+                  self.pushAllPrefixes()
+
               self.balanceByIP()
               
-          
-              
+  def pushAllPrefixes(self):
+      for group in self.groups:
+          for prefix in self.groups[group]['prefixes']:
+              self.fireAddPrefix(group, prefix)
 
   def addSensorGroup(self, group):
     """adds sensor, inits to load 0, sets status to 1"""
@@ -339,9 +346,9 @@ class SimpleBalancer:
         #--- remove from list
         prefixList.pop(x)
         self.prefixCount = self.prefixCount -1
-        del self.prefixBW[targetPrefix]
-#        del self.prefixSensor[targetPrefix]
-        return 1
+        if(self.prefixBW.has_key(targetPrefix)):
+            del self.prefixBW[targetPrefix]
+            return 1
       x = x+1
     return 0
 
@@ -353,7 +360,7 @@ class SimpleBalancer:
         return 0
 
     if(self.prefixCount >= self.maxPrefixes):
-        raise MaxPrefixesError()
+        raise MaxPrefixesError("prefix greater than max prefixes")
     
     prefixList = list(self.groups[group]['prefixes'])
 
@@ -361,8 +368,14 @@ class SimpleBalancer:
     for prefix in prefixList:
       if(targetPrefix == prefix):
         #--- already in list
-        raise DuplicatePrefixError()
+        raise DuplicatePrefixError("Prefix already in list")
         return 0;
+      elif(targetPrefix.Contains(prefix)):
+          raise DuplicatePrefixError("Prefix is already contained by something else")
+          return 0
+      elif(prefix.Contains(targetPrefix)):
+          raise DuplicatePrefixError("Prefix is already contained by something else")
+          return 0
 
     #--- call function to add this to the switch
     self.fireAddPrefix(group,targetPrefix)
@@ -410,10 +423,9 @@ class SimpleBalancer:
                   prefixBW = 0
               
               self.logger.debug( "  -- "+str(prefix)+" bw "+str((prefixBw / 1000 / 1000) * 8) )
-              self.addGroupPrefix(group,prefix,prefixBw)
-
-              #--- now remove the less specific and now redundant rule
               self.delGroupPrefix(group,candidatePrefix)
+              self.addGroupPrefix(group,prefix,prefixBw)
+              #--- now remove the less specific and now redundant rule
           return 1
       except MaxPrefixlenError as e:
           self.logger.error( "max prefix len limit:  "+str(candidatePrefix) )

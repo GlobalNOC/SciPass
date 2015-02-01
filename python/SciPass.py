@@ -822,7 +822,7 @@ class SciPass:
           #output to sensor (basically this is the IDS balance case)
           sensors = self.config[dpid][domain_name]['sensor_groups'][group_id]['sensors']
           for sensor in sensors:
-            self.logger.error("output: " + str(sensors[sensor]));
+            self.logger.debug("output: " + str(sensors[sensor]));
             actions.append({"type": "output",
                             "port": sensors[sensor]['port_id']})
           
@@ -875,7 +875,7 @@ class SciPass:
                 else:
                   actions.append({"type": "output",
                                   "port": in_port['port_id']})
-            self.logger.error("HEader: %s" % str(header))
+            self.logger.debug("Header: %s" % str(header))
             self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                     domain       = domain_name,
                                                     header       = header,
