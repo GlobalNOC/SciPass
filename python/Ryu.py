@@ -277,7 +277,9 @@ class Ryu(app_manager.RyuApp):
 
         if(datapath.is_active == True):
             datapath.send_msg(mod)
-            
+        else:
+            self.logger.error("Device is not connected")
+
     def flushRules(self, dpid):
         if(not self.datapaths.has_key(dpid)):
             self.logger.error("unable to find switch with dpid " + dpid)
@@ -363,23 +365,34 @@ class Ryu(app_manager.RyuApp):
                  [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change_handler(self, ev):
         datapath = ev.datapath
-        self.logger.error('new datapath: %016x', datapath.id)
+        dpid = "%016x" % datapath.id
         if ev.state == MAIN_DISPATCHER:
-            if not datapath.id in self.datapaths:
+            if not dpid in self.datapaths:
+                self.logger.error('register datapath: %016x', datapath.id)
+                self.datapaths[dpid] = datapath
+                if(not self.flowmods.has_key(dpid)):
+                    self.flowmods[dpid] = []
+            else:
+                del self.datapaths[dpid]
                 self.logger.error('register datapath: %016x', datapath.id)
                 dpid = "%016x" % datapath.id
                 self.datapaths[dpid] = datapath
                 if(not self.flowmods.has_key(dpid)):
                     self.flowmods[dpid] = []
-                self.flushRules("%016x" % datapath.id)
-		        #--- start the balancing act
-                self.api.switchJoined(datapath)
+
+            self.flushRules(dpid)
+            #--- start the balancing act
+            self.api.switchJoined(datapath)
 
         elif ev.state == DEAD_DISPATCHER:
-            if datapath.id in self.datapaths:
-                self.logger.error('unregister datapath: %016x', datapath.id)
-                del self.datapaths[datapath.id]
-
+            if dpid in self.datapaths:
+                self.logger.error('datapath leave: %016x', datapath.id)
+                del self.datapaths[dpid]
+            else:
+                self.logger.error("unregistered node left!@!@!@!")
+        else:
+            self.logger.error("Unknown state in change handler: " + str(ev.state))
+            
     @set_ev_cls(ofp_event.EventOFPPortStatus, MAIN_DISPATCHER)
     def _port_status_handler(self, ev):
         msg        = ev.msg

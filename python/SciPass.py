@@ -875,15 +875,15 @@ class SciPass:
             else:
               actions.append({"type": "output",
                               "port": in_port['port_id']})
-          self.logger.error("HEader: %s" % str(header))
-          self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                  domain       = domain_name,
-                                                  header       = header,
-                                                  actions      = actions,
-                                                  command      = "ADD",
-                                                  idle_timeout = 0,
-                                                  hard_timeout = 0,
-                                                  priority     = 500)
+            self.logger.debug("Header: %s" % str(header))
+            self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                    domain       = domain_name,
+                                                    header       = header,
+                                                    actions      = actions,
+                                                    command      = "ADD",
+                                                    idle_timeout = 0,
+                                                    hard_timeout = 0,
+                                                    priority     = 500)
 
   def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
     self.logger.debug("Remove Prefix")

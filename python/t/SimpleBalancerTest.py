@@ -286,7 +286,6 @@ class TestBalance(unittest.TestCase):
 
     def test_get_est_load(self):
         self.balancer = SimpleBalancer()
-        self.balancer = SimpleBalancer()
         sensors = defaultdict(list)
         sensors[1] = {"sensor_id": 1, "of_port_id": 1, "description": "sensor foo"}
         sensors[2] = {"sensor_id": 2, "of_port_id": 2, "description": "sensor foo2"}
@@ -305,20 +304,21 @@ class TestBalance(unittest.TestCase):
                                             "description": "some descr",
                                             "sensors": sensors2})
         self.assertTrue(res == 1)
-        net = ipaddr.IPv4Network("10.220.0.0/12")
+        net = ipaddr.IPv4Network("10.10.0.0/24")
         res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
-        net2 = ipaddr.IPv4Network("10.0.0.0/10")
+        net2 = ipaddr.IPv4Network("10.11.0.0/24")
         res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
-        res = self.balancer.setPrefixBW(net,500,500)
+        res = self.balancer.setPrefixBW(net,5000000,5000000)
         self.assertTrue(res == 1)
-        res = self.balancer.setPrefixBW(net2,500,500)
+        res = self.balancer.setPrefixBW(net2,5000000,5000000)
         self.assertTrue(res == 1)
-        net3 = ipaddr.IPv4Network("10.0.0.0/8")
+        net3 = ipaddr.IPv4Network("10.12.0.0/24")
         percentTotal = self.balancer.getEstLoad(1,net3)
-        print "PERCENT TOTAL: " + str(percentTotal)
-        self.assertTrue(percentTotal == .5)
+        self.assertTrue(percentTotal == 0)
+        percentTotal = self.balancer.getEstLoad(1,net)
+        self.assertTrue(percentTotal == .32)
 
     def test_balance_by_ip(self):
         self.balancer = SimpleBalancer()
