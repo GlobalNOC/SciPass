@@ -99,6 +99,23 @@ class SimpleBalancer:
  #     res = res + "  pre2sensor: "+str(self.prefixSensor)+"\n"
       return res 
 
+  def getConfig(self):
+      obj = {}
+      obj['max_prefixes'] = self.maxPrefixes
+      obj['prefixCount'] = self.prefixCount
+      obj['ignoreSnesorLoad'] = self.ignoreSensorLoad
+      obj['mostSpecificPrefixLen'] = self.mostSpecificPrefixLen
+      obj['leastSpecificPrefixLen'] = self.leastSpecificPrefixLen
+      obj['sensorLoadMinThreshold'] = self.sensorLoadMinThreshold
+      obj['sensorLoadDeltaThreshold'] = self.sensorLoadDeltaThreshold
+
+      return obj
+
+  def getTotals(self):
+      """calculates total bandwidth bypassed, dropped, and balanced"""
+      obj = {}
+      return obj
+
   def __repr__(self):
       return json.dumps(self,default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
@@ -261,6 +278,13 @@ class SimpleBalancer:
                   return 0
           if(stat):
               return 1
+
+  def getSensorGroups(self):
+      return self.groups
+
+  def getSensorGroup(self, sensor_group):
+      if(self.groups.has_key(sensor_group)):
+          return self.groups[sensor_group]
 
   def setSensorStatus(self,sensor,status):
       """sets the load value for the sensor, 0-1 int is range"""
@@ -553,9 +577,9 @@ class SimpleBalancer:
       if(not self.getGroupStatus(group)): continue
 
       for prefix in self.groups[group]['prefixes']:
-        totalSpace = totalSpace + prefix.numhosts
-        self.logger.debug( "group "+str(group)+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
-        groupSpace[group] = groupSpace[group] + prefix.numhosts
+          totalSpace = totalSpace + prefix.numhosts
+          self.logger.debug( "group "+str(group)+" prefix "+str(prefix)+" space = "+str(prefix.numhosts))
+          groupSpace[group] = groupSpace[group] + prefix.numhosts
 
     for group in self.groups:
       if(not self.getGroupStatus(group)): continue

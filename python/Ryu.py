@@ -113,9 +113,19 @@ class SciPassRest(ControllerBase):
         result = self.api.getSwitches()
         return Response(content_type='application/json', body=json.dumps(result))
 
-    @route('scipass', '/scipass/switch/{dpid}/domain/{domain}/sensors', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
-    def get_domain_sensors(self, req, **kwargs):
-        result = self.api.getDomainSensors(dpid = kwargs['dpid'], domain = kwargs['domain'] )
+    @route('scipass', '/scipass/switch/{dpid}/domain/{domain}/sensor_groups', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
+    def get_domain_sensor_groups(self, req, **kwargs):
+        result = self.api.getDomainSensorGroups(dpid = kwargs['dpid'], domain = kwargs['domain'] )
+        return Response(content_type='application/json', body=json.dumps(result))
+
+    @route('scipass', '/scipass/switch/{dpid}/domain/{domain}/sensor_group/{sensor_group}', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
+    def get_domain_sensor_group_details(self, req, **kwargs):
+        result = self.api.getDomainSensorGroup(dpid = kwargs['dpid'], domain = kwargs['domain'], sensor_group = kwargs['sensor_group'] )
+        return Response(content_type='application/json', body=json.dumps(result))
+
+    @route('scipass','/scipass/switch/{dpid}/domain/{domain}/sensor_group/{sensor_group}/sensor/{sensor}', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
+    def get_domain_sensor_group_sensor(self, req, **kwargs):
+        result = self.api.getDomainSensor(dpid = kwargs['dpid'], domain = kwargs['domain'], sensor_group = kwargs['sensor_group'], sensor = kwargs['sensor'])
         return Response(content_type='application/json', body=json.dumps(result))
 
     @route('scipass', '/scipass/switch/{dpid}/domains', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
@@ -125,7 +135,7 @@ class SciPassRest(ControllerBase):
     
     @route('scipass', '/scipass/switch/{dpid}/domain/{domain}', methods=['GET'], requirements = {'dpid': dpid_lib.DPID_PATTERN})
     def get_domain_status(self, req, **kwargs):
-        result = self.api.getDomainStatus(dpid = kwargs['dpid'], domain = kwargs['domain'])
+        result = self.api.getDomainDetails(dpid = kwargs['dpid'], domain = kwargs['domain'])
         return Response(content_type='application/json', body=json.dumps(result))
 
     @route('scipass', '/scipass/switch/{dpid}/domain/{domain}/flows',methods=['GET'],requirements = {'dpid': dpid_lib.DPID_PATTERN})

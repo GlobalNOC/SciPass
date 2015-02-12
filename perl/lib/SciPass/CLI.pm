@@ -119,12 +119,12 @@ sub expand_commands {
                 $matching_parts++;
                 $partial_matches->{$i}->{ $command_parts[$i] } = 1;
 		
-                #print "$command_parts[$i] matches $input_parts[$i]\n";
             }
 
         }
 
     }
+
     for ( my $i = 0 ; $i < scalar(@input_parts) ; $i++ ) {
         if ( $exact_matches->{$i} ) {
             $new_text .= "$exact_matches->{$i} ";
@@ -137,7 +137,7 @@ sub expand_commands {
         else {
 
             #no partial or exact matches, or multiple partial matches
-            warn "command not found\n";
+            #warn "command not found\n";
             return ( 1, $input );
         }
     }
@@ -304,7 +304,7 @@ sub build_command_list {
     my $possible_commands =  [ "show switches",
 			       "show switch [% sw_name %] flows",
 			       "show switch [% sw_name %] domains", 
-			       "show switch [% sw_name %] domain [% domain_name %] status",
+			       "show switch [% sw_name %] domain [% domain_name %] details",
 			       "show switch [% sw_name %] domain [% domain_name %] flows",
 			       "show switch [% sw_name %] domain [% domain_name %] sensor_groups",
 			       "show switch [% sw_name %] domain [% domain_name %] sensor_group [% group_id %] status",
@@ -333,7 +333,7 @@ sub build_command_list {
 		    $vars->{'sw_name'} = $switch->{'name'};
 		    $vars->{'domain_name'} = $domain->{'name'};
 		    $vars->{'group_id'} = $domain->{'sensor_group'}->{$group}->{'group_id'};
-		    warn Data::Dumper::Dumper($domain->{'sensor_group'}->{$group});
+		    #warn Data::Dumper::Dumper($domain->{'sensor_group'}->{$group});
 		    foreach my $sensor (@{$domain->{'sensor_group'}->{$group}->{'sensor'}}){
 			my $vars;
 			$vars->{'sw_name'} = $switch->{'name'};
@@ -399,7 +399,7 @@ show switch [sw_name] flows
 
      returns all of the flows currently installed on a switch
 
-show switch [sw_name] domain [domain_name] status
+show switch [sw_name] domain [domain_name] details
 
      returns the current status of the domain
 
@@ -520,15 +520,52 @@ END
             print "Domain: " . $domain . "\n";
         }
 
-    }elsif ( $input =~ /^show switch (\S+) domain (\S+) status/ ) {
+    }elsif ( $input =~ /^show switch (\S+) domain (\S+) details/ ) {
 	my $switch_dpid = $1;
         if(defined($self->{'switch_names'}->{$switch_dpid})){
 	    $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
 	}
 
-	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domain/$2/status");
+	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domain/$2");
 	my $res = $ws->foo();
-	print Data::Dumper::Dumper($res);
+
+	if(!defined($res)){
+	    print "Problem fetching details for domain\n";
+	    return;
+	}
+
+	print "Domain: $2 Details\n\n";
+	
+	print "  Current Usage:\n";
+	print " \tCurrent Prefix Count: " . $res->{'config'}->{'prefixCount'} . "\n";
+	print "\n";
+	print "  Configuration:\n";
+	print "\tMax Prefixes: " . $res->{'config'}->{'max_prefixes'} . "\n";
+	print "\tLeast Specific Prefix Len: " . $res->{'config'}->{'leastSpecificPrefixLen'} . "\n";
+	print "\tMost Specific Prefix Len: " . $res->{'config'}->{'mostSpecificPrefixLen'} . "\n";
+	print "\tSensor Load/BW Minimum Threshold: " . $res->{'config'}->{'sensorLoadMinThreshold'} . "\n";
+	print "\tSensor Load/BW Delta Threshold: " . $res->{'config'}->{'sensorLoadDeltaThreshold'} . "\n";
+
+	foreach my $port_type (keys (%{$res->{'ports'}})){
+	    print "\t$port_type ports:\n";
+	    foreach my $port (@{$res->{'ports'}->{$port_type}}){
+		print "\t\tName: \t" . $port->{'name'} . "\n";
+		print "\t\tDescription:" . $port->{'description'} . "\n";
+		print "\t\tPort ID: \t" . $port->{'port_id'} . "\n";
+		print "\t\tPrefixes:\n";
+		if(scalar($port->{'prefixes'}) == 0){
+		    print "\t\t\tNone\n";
+		}else{
+		    foreach my $prefix (@{$port->{'prefixes'}}){
+			print "\t\t\t" . $prefix->{'prefix'} . "\n";
+		    }
+		}
+		print "\n\n";
+	    }
+	}
+
+	
+
 
     }elsif( $input =~ /^show switch (\S+) domain (\S+) flows/){
 
@@ -563,9 +600,9 @@ END
 	    print "Unable to find any sensors!!\n";
 	    return;
 	}
-
-	foreach my $group (@$res){
-	    print "Group:\t\t" . $group->{'name'} . "\n";
+	foreach my $group_name (keys (%{$res})){
+	    my $group = $res->{$group_name};
+	    print "Group:\t\t" . $group_name . "\n";
 	    print "Group ID:\t" . $group->{'group_id'} . "\n";
 	    print "Description:\t" . $group->{'description'} . "\n";
 	    print "Bandwidth:\t" . $group->{'bandwidth'} . "\n";
@@ -587,7 +624,51 @@ END
 
 	}
 
-    }elsif( $input =~ /^show switch (\S+) domain (\S+) sensor (\S+) status/){
+    }elsif( $input =~ /^show switch (\S+) domain (\S+) sensor_group (\S+) status/){
+        my $switch_dpid = $1;
+        if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+	}
+        $ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domain/$2/sensor_group/$3");
+	my $res = $ws->foo();
+
+        if(!defined($res)){
+            print "Unable to find sensor group\n";
+            return;
+        }
+	
+	if($res->{'status'}){
+	    print "Group " . $res->{'name'} . " Status: Enabled\n";
+	}else{
+	    print "Group " . $res->{'name'} . " Status: Disabled\n";
+	}
+
+    }elsif( $input =~ /^show switch (\S+) domain (\S+) sensor_group (\S+) sensors/){
+        my $switch_dpid = $1;
+        if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+	}
+        $ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/domain/$2/sensor_group/$3");
+	my $res = $ws->foo();
+
+        if(!defined($res)){
+            print "Unable to find any sensors!!\n";
+            return;
+        }
+
+	foreach my $id (keys (%{$res->{'sensors'}})){
+	    my $sensor = $res->{'sensors'}->{$id};
+	    print "Sensor:\t" . $sensor->{'sensor_id'} . "\n";
+	    print "\tDescription:\t" . $sensor->{'description'} . "\n";
+	    print "\tOF Port ID:\t" . $sensor->{'port_id'} . "\n";
+	    print "\tName:\t\t" . $sensor->{'name'} . "\n";
+	    print "\tLoad:\t\t" . $sensor->{'load'} . "\n";
+	    print "----------------------------------\n\n";
+	}
+	
+    }elsif( $input =~ /^show switch (\S+) domain (\S+) sensor_group (\S+) sensor (\S+)/){	
+	
+	
 	
     }elsif( $input =~ /^show flows good/){
 	$ws->set_url("$base_url:$port/scipass/flows/get_good_flows");
@@ -601,6 +682,7 @@ END
             print "Flow:\n";
             print $self->flow_to_human($flow) . "\n\n";
         }
+
     }elsif( $input =~ /^show flows bad/){
 	$ws->set_url("$base_url:$port/scipass/flows/get_bad_flows");
         my $res = $ws->foo();
@@ -614,7 +696,11 @@ END
             print $self->flow_to_human($flow) . "\n\n";
         }
     }else{
-	print "Invalid Command!! $input\n";
+	if( $input eq ''){
+	    
+	}else{
+	    print "Invalid Command!! $input\n";
+	}
     }
     
     return;    #$insert_text;
