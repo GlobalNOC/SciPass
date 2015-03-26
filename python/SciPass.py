@@ -18,6 +18,7 @@ import logging
 import time
 import ipaddr
 import pprint
+import copy
 import libxml2
 from SimpleBalancer import SimpleBalancer
 
@@ -806,7 +807,7 @@ class SciPass:
     for port in ports['lan']:
       for prefix_obj in port['prefixes']:
         if(prefix_obj['prefix'].Contains( prefix )):
-          #self.logger.error("Prefix: " + str(prefix_obj['prefix']) + " contains " + str(prefix)) 
+          self.logger.debug("Prefix: " + str(prefix_obj['prefix']) + " contains " + str(prefix)) 
           in_port = port
          
           header = {}
@@ -867,14 +868,14 @@ class SciPass:
           for sensor in sensors:
             actions.append({"type": "output",
                             "port": sensors[sensor]['port_id']})
-            if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+          if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
                 #append the FW or other destination
-                if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
-                  actions.append({"type": "output",
-                                  "port": ports['fw_wan'][0]['port_id']})
-                else:
-                  actions.append({"type": "output",
-                                  "port": in_port['port_id']})
+            if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
+              actions.append({"type": "output",
+                              "port": ports['fw_wan'][0]['port_id']})
+            else:
+              actions.append({"type": "output",
+                              "port": in_port['port_id']})
             self.logger.debug("Header: %s" % str(header))
             self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                     domain       = domain_name,
@@ -1056,6 +1057,32 @@ class SciPass:
       if(self.config[dpid].has_key(domain)):
         return self.config[dpid][domain]['flows']
 
+  def getDomainDetails(self, dpid=None, domain=None):
+    if(self.config.has_key(dpid)):
+      if(self.config[dpid].has_key(domain)):
+        bal = self.config[dpid][domain]['balancer']
+        res = {}
+        res['config'] = bal.getConfig()
+        sensor_groups = copy.copy(self.getDomainSensorGroups(dpid, domain))
+        for sensor_group in sensor_groups:
+          group = sensor_groups[sensor_group]
+          new_prefixes = []
+          for prefix in group['prefixes']:
+            new_prefixes.append(str(prefix))
+
+        ports = copy.deepcopy(self.config[dpid][domain]['ports'])
+        
+        for ptype in ports:
+          for p in ports[ptype]:
+            new_prefixes = []
+            for prefix in p['prefixes']:
+              prefix['prefix'] = str(prefix['prefix'])
+
+        res['ports'] = ports
+
+        return res
+        
+
   def getSwitchDomains(self, dpid=None):
     domains = []
     if(self.config.has_key(dpid)):
@@ -1069,12 +1096,33 @@ class SciPass:
         bal = self.config[dpid][domain]['balancer']
         return bal.getSensorStatus(sensor_id)
 
-  def getDomainSensors(self, dpid=None, domain=None):
+  def getDomainSensorGroups(self, dpid=None, domain=None):
     if(self.config.has_key(dpid)):
       if(self.config[dpid].has_key(domain)):
         bal = self.config[dpid][domain]['balancer']
-        sensor_groups = bal.getSensorGroups()
+        sensor_groups = copy.copy(bal.getSensorGroups())
+        for group in sensor_groups:
+          prefixes = sensor_groups[group]['prefixes']
+          new_prefixes = []
+          for prefix in prefixes:
+            new_prefixes.append(str(prefix))
+          sensor_groups[group]['prefixes'] = new_prefixes
+            
         return sensor_groups
+
+
+  def getDomainSensorGroup(self, dpid=None, domain=None, sensor_group=None):
+    if(self.config.has_key(dpid)):
+      if(self.config[dpid].has_key(domain)):
+        bal = self.config[dpid][domain]['balancer']
+        sensor_group = copy.copy(bal.getSensorGroup(sensor_group))
+        new_prefixes = []
+        for prefix in sensor_group['prefixes']:
+          new_prefixes.append(str(prefix))
+        sensor_group['prefixes'] = new_prefixes
+
+        return sensor_group
+          
 
   def getSwitches(self):
     switches = []

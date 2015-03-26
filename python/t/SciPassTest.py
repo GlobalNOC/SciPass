@@ -56,7 +56,7 @@ class TestInit(unittest.TestCase):
         datapath = Mock(id=1)
         api.switchJoined(datapath)
 
-        self.assertTrue( len(flows) == 37)
+        self.assertTrue( len(flows) == 34)
         #verify all of the 'flow details are set properly'
         for flow in flows:
             self.assertEquals(flow['dpid'], "%016x" % datapath.id)
@@ -154,24 +154,24 @@ class TestInit(unittest.TestCase):
         self.assertEquals(flow['header'], {'phys_port': 1, 'nw_src': 167776512, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 500)
         flow = flows[18]
-        self.assertEquals(flow['actions'],[])
-        self.assertEquals(flow['command'],"DELETE_STRICT")
-        self.assertEquals(flow['header'], {'phys_port': 10, 'nw_dst': 167776512, 'nw_dst_mask': 24})
-        self.assertEquals(flow['priority'], 500)
-        flow = flows[19]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': '21'}, {'type': 'output', 'port': '20'}, {'type': 'output', 'port': '5'}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 1, 'nw_src': 167776512, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 500)
-        flow = flows[20]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '21'}, {'type': 'output', 'port': '20'}, {'type': 'output', 'port': '6'}])
+        flow = flows[19]
+        self.assertEquals(flow['actions'], [{'type': 'output', 'port': '21'}, {'type': 'output', 'port': '20'}, {'type': 'output', 'port': '6'}])
         self.assertEquals(flow['command'],"ADD")
-        self.assertEquals(flow['header'], {'phys_port': 10, 'nw_dst': 167776512, 'nw_dst_mask': 24})
+        self.assertEquals(flow['header'], {'nw_dst_mask': 24, 'phys_port': 10, 'nw_dst': 167776512})
         self.assertEquals(flow['priority'], 500)
-        flow = flows[21]
+        flow = flows[20]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': '27'}, {'type': 'output', 'port': '26'}, {'type': 'output', 'port': '5'}])
         self.assertEquals(flow['command'],"ADD")
-        self.assertEquals(flow['header'], {'phys_port': 1, 'nw_src': 167776768, 'nw_src_mask': 24})
+        self.assertEquals(flow['header'],  {'phys_port': 1, 'nw_src': 167776768, 'nw_src_mask': 24})
+        self.assertEquals(flow['priority'], 500)
+        flow = flows[21]
+        self.assertEquals(flow['actions'], [{'type': 'output', 'port': '27'}, {'type': 'output', 'port': '26'}, {'type': 'output', 'port': '6'}])
+        self.assertEquals(flow['command'],"ADD")
+        self.assertEquals(flow['header'], {'phys_port': 10, 'nw_dst': 167776768, 'nw_dst_mask': 24})
         self.assertEquals(flow['priority'], 500)
         flow = flows[22]
 #        logging.error(flows[21])
@@ -209,7 +209,7 @@ class TestFunctionality(unittest.TestCase):
         datapath = Mock(id=1)
         self.api.switchJoined(datapath)
 
-        self.assertEquals( len(flows), 37)
+        self.assertEquals( len(flows), 34)
         self.api.updatePrefixBW("%016x" % datapath.id, ipaddr.IPv4Network("10.0.19.0/24"), 500,500)
         self.assertTrue(self.api.getBalancer("%016x" % datapath.id, "R&E").getPrefixBW(ipaddr.IPv4Network("10.0.19.0/24")), 1000)
         self.api.updatePrefixBW("%016x" % datapath.id, ipaddr.IPv4Network("10.0.17.0/24"), 500,500)
@@ -225,7 +225,7 @@ class TestFunctionality(unittest.TestCase):
         datapath = Mock(id=1)
         self.api.switchJoined(datapath)
         #self.logger.error("testing good flow")
-        self.assertEquals(len(flows),37)
+        self.assertEquals(len(flows),34)
         flows = []
         self.api.good_flow({"nw_src": "10.0.20.2/32", "nw_dst":"156.56.6.1/32", "tp_src":1, "tp_dst":2})
         self.assertEquals(len(flows),2)
@@ -257,7 +257,7 @@ class TestFunctionality(unittest.TestCase):
         datapath = Mock(id=1)
         self.api.switchJoined(datapath)
         #self.logger.error("testing good flow")
-        self.assertEquals(len(flows),37)
+        self.assertEquals(len(flows),34)
         flows = []
         self.api.bad_flow({"nw_src": "10.0.20.2/32", "nw_dst":"156.56.6.1/32", "tp_src":1, "tp_dst":2})
         self.assertEquals(len(flows),2)
