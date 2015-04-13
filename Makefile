@@ -1,5 +1,5 @@
 NAME=SciPass
-VERSION=1.0.0
+VERSION=0.9.1
 
 rpm:	dist
 	rpmbuild -ta dist/$(NAME)-$(VERSION).tar.gz
