@@ -7,11 +7,12 @@ Group: GRNOC
 URL: http://globalnoc.iu.edu
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-Requires: ryu
+Requires: ryu >= 3.18
 Requires: perl-Term-ReadLine-Gnu
 Requires: python-ipaddr
-Requires: WebOb-1.3.1
+Requires: WebOb >= 1.3.1
 Requires: python-netaddr
+Requires: python-oslo-config >= 1.2.0
 
 %description
 SciPass is a Science DMZ and IDS load balance via OpenFlow and Ryu
