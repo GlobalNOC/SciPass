@@ -15,5 +15,5 @@ test:
 dist:
 	rm -rf dist/$(NAME)-$(VERSION)
 	mkdir -p dist/$(NAME)-$(VERSION)
-	cp -r etc/ python/ SciPass.spec dist/$(NAME)-$(VERSION)/
+	cp -r etc/ python/ perl/ SciPass.spec dist/$(NAME)-$(VERSION)/
 	cd dist; tar -czvf $(NAME)-$(VERSION).tar.gz $(NAME)-$(VERSION)/ --exclude .svn
