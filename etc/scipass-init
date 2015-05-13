@@ -1,38 +1,100 @@
-#!/bin/sh
-# chkconfig: 123456 90 10
-# TTS Server for Speech Synthesis
+#!/bin/bash
+#
+# Startup script for SciPass
 #
 
-options="--config-file /etc/SciPass/ryu.conf --use-syslog --nouse-stderr"
+# Source function library
+if [ -f /etc/rc.d/init.d/functions ]; then
+. /etc/rc.d/init.d/functions
+elif [ -f /etc/init.d/functions ]; then
+. /etc/init.d/functions
+elif [ -f /etc/rc.d/functions ]; then
+. /etc/rc.d/functions
+fi
 
-CMD="ryu-manager /usr/lib/python2.6/site-packages/SciPass/Ryu.py $options"
- 
-start() {
-    $CMD 2>&1 &
-    echo "SciPass Started"
-}
- 
-stop() {
-    pid=`ps -ef | grep 'ryu-manager /usr/lib/python2.6/site-packages/SciPass/Ryu.py' | grep -v "grep" | awk '{ print $2 }'`
-    echo $pid
-    kill $pid
-    sleep 2
-    echo "SciPass Stopped"
-}
- 
+name=scipass
+options="--config-file /etc/SciPass/ryu.conf --use-syslog --nouse-stderr"
+lockfile=/var/lock/subsys/$name
+command="ryu-manager /usr/lib/python2.6/site-packages/SciPass/Ryu.py $options"
+PIDFILE=/var/run/$name.pid
+
+#see how we were called.
 case "$1" in
   start)
-    start
-    ;;
+        #start
+        IS_RUNNING=0
+        echo -n $"Starting $name: "
+        if [[ -f $lockfile  && -f $PIDFILE ]];then
+            MYPID=`head -n 1 $PIDFILE`
+            TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
+            if [ -z "${TEST_RUNNING}" ];
+            then
+               IS_RUNNING=0
+            else
+               IS_RUNNING=1
+            fi
+
+        fi
+        if [ $IS_RUNNING != 0 ];then
+            failure; echo
+        else
+            PID=`$command > /dev/null 2>&1 & echo $!`
+            
+            if [ -z $PID ]; then
+                printf "%s\n" "Fail"
+            fi
+
+            if [ $? -eq 0 ]; then
+                echo $PID > $PIDFILE
+                touch $lockfile
+                success; echo
+            else
+                failure; echo
+
+            fi
+        fi
+        ;;
   stop)
-    stop   
-    ;;
+        #stop
+        if [ -f $PIDFILE ]; then
+                action $"Stopping ${name}: " /bin/true
+                kill -TERM `cat $PIDFILE`
+                rm -f $PIDFILE
+        else
+                action $"Stopping ${name}: " /bin/false
+
+        fi
+        rm -rf $lockfile
+        ;;
+  status)
+        #status
+        if [ -f $PIDFILE ]; then
+                MYPID=`head -n 1 $PIDFILE`
+                TEST_RUNNING=`ps -p ${MYPID} | grep ${MYPID}`
+                if [ -z "${TEST_RUNNING}" ];
+                then
+                    echo "$name (pid `cat $PIDFILE`) is not running (but PID file exists)"
+            exit 3
+                else
+                    echo "$name (pid `cat $PIDFILE`) is running"
+                fi
+        else
+                echo "$name is not running"
+        exit 3
+        fi
+        exit $?
+        ;;
   restart)
-    stop
-    start
-    ;;
+        $0 stop
+        #wee need to sleep to make sure the deamon has enoth time to shutdown
+        sleep 3
+        $0 start
+        exit $?
+        ;;
   *)
-    echo "Usage: /etc/init.d/scipass {start|stop|restart}"
-    exit 1
+        echo $"Usage: $0 {start|stop|restart|status}"
+        exit 1
+
 esac
-exit 0
+
+exit $RETVAL
