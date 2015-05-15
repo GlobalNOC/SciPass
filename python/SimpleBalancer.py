@@ -403,7 +403,7 @@ class SimpleBalancer:
 
     #--- call function to add this to the switch
     self.fireAddPrefix(group,targetPrefix)
-    self.groups[group]['prefixes'].append(targetPrefix)
+    self.groups[group]['prefixes'].append(ipaddr.IPv4Network(targetPrefix))
     self.prefixCount = self.prefixCount + 1
     self.prefixBW[targetPrefix] = bw
     #self.prefixSensor[targetPrefix] = sensor
@@ -421,8 +421,7 @@ class SimpleBalancer:
       if(targetPrefix == prefix):
         #--- found
         prefixList.pop(x)
-        self.groups[newGroup]['prefixes'].append(prefix)
-#        self.prefixSensor[targetPrefix] = newSensor
+        self.groups[newGroup]['prefixes'].append(ipaddr.IPv4Network(prefix))
         self.fireMovePrefix(oldGroup,newGroup,targetPrefix)
         return 1
       x = x+1 
@@ -622,6 +621,7 @@ class SimpleBalancer:
       # don't include disabled sensors
       if(not self.getGroupStatus(group)): continue
       self.logger.error("Group: " + str(group))
+      self.logger.error("Group Prefixes: {0}".format(self.groups[group]['prefixes']))
       for prefix in self.groups[group]['prefixes']:
         #--- figure out total amount of traffic going over each sensor
           self.logger.error("Prefix: " + str(prefix) + " BW: " + str((prefixBW[prefix]/1000/1000)* 8))
