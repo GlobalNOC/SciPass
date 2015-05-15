@@ -43,7 +43,7 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %defattr(-,root,root,-)
 /etc/init.d/scipass
-/etc/SciPass/SciPass.xml
+%config(noreplace) /etc/SciPass/SciPass.xml
 /etc/SciPass/ryu.conf
 %{python_sitelib}/SciPass/*
 %{perl_vendorlib}/*
