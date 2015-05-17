@@ -1100,7 +1100,7 @@ class SciPass:
     if(self.config.has_key(dpid)):
       if(self.config[dpid].has_key(domain)):
         bal = self.config[dpid][domain]['balancer']
-        sensor_groups = copy.copy(bal.getSensorGroups())
+        sensor_groups = copy.deepcopy(bal.getSensorGroups())
         for group in sensor_groups:
           prefixes = sensor_groups[group]['prefixes']
           new_prefixes = []
