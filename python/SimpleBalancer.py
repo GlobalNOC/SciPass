@@ -320,9 +320,9 @@ class SimpleBalancer:
 
   def setPrefixBW(self,prefix,bwTx,bwRx):
     """updates balancers understanding trafic bandwidth associated with each prefix"""
-    self.logger.error("Updating prefix BW for " + str(prefix) + " to " + str((bwTx/1000/1000)*8) + "Kb/s " + str((bwRx/1000/1000)*8) + "Kb/s")
+    self.logger.error("Updating prefix BW for " + str(prefix) + " to " + str((bwTx/1000/1000)*8) + "Mb/s " + str((bwRx/1000/1000)*8) + "Mb/s")
     if(self.prefixBW.has_key(prefix)):
-        self.prefixBW[prefix] = bwTx+bwRx
+        self.prefixBW[prefix] = (bwTx * 8) + (bwRx * 8)
         return 1
     self.logger.error( "Error updating prefixBW for " + str(prefix) + "... prefix does not exist")
     return 0
@@ -433,7 +433,7 @@ class SimpleBalancer:
       try:
           subnets = self.splitPrefix(candidatePrefix)
           bw = self.prefixBW[candidatePrefix]
-          self.logger.error( "split prefix "+str(candidatePrefix) +" bw "+str((bw / 1000 / 1000 )*8))
+          self.logger.error( "split prefix "+str(candidatePrefix) +" bw "+str((bw / 1000 / 1000 )) + "Mbps")
           #--- update the bandwidth we are guessing is going to each prefix to smooth things, before real data is avail
           self.prefixBW[candidatePrefix] = 0
           
@@ -445,7 +445,7 @@ class SimpleBalancer:
               except ZeroDivisionError:
                   prefixBW = 0
               
-              self.logger.debug( "  -- "+str(prefix)+" bw "+str((prefixBw / 1000 / 1000) * 8) )
+              self.logger.debug( "  -- "+str(prefix)+" bw "+str((prefixBw / 1000 / 1000)) + "Mbps" )
               self.delGroupPrefix(group,candidatePrefix)
               self.addGroupPrefix(group,prefix,prefixBw)
               #--- now remove the less specific and now redundant rule
@@ -624,15 +624,16 @@ class SimpleBalancer:
       self.logger.error("Group Prefixes: {0}".format(self.groups[group]['prefixes']))
       for prefix in self.groups[group]['prefixes']:
         #--- figure out total amount of traffic going over each sensor
-          self.logger.error("Prefix: " + str(prefix) + " BW: " + str((prefixBW[prefix]/1000/1000)* 8))
+          self.logger.error("Prefix: " + str(prefix) + " BW: " + str((prefixBW[prefix]/1000/1000)) + "Mbps")
           totalBW  = totalBW + prefixBW[prefix]
           groupBW[group] = groupBW[group] + prefixBW[prefix]
+      self.groups[group]['bandwidth'] = groupBW[group]
 
     for group in self.groups:
       # don't include disabled sensors
       if(not self.getGroupStatus(group)): continue
 
-      self.logger.error("Group: " + str(group) + " bw " + str((groupBW[group]/1000/1000)*8) + "Mbps")
+      self.logger.error("Group: " + str(group) + " bw " + str((groupBW[group]/1000/1000)) + "Mbps")
 
       if(totalBW > 0):
         load =groupBW[group] / float(totalBW)

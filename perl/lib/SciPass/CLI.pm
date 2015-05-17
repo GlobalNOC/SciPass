@@ -605,7 +605,7 @@ END
 	    print "Group:\t\t" . $group_name . "\n";
 	    print "Group ID:\t" . $group->{'group_id'} . "\n";
 	    print "Description:\t" . $group->{'description'} . "\n";
-	    print "Bandwidth:\t" . $group->{'bandwidth'} . "\n";
+	    print "Bandwidth:\t" . $self->convert_to_si($group->{'bandwidth'}) . "bps\n";
 	    print "Load:\t\t" . $group->{'load'} . "\n";;
 	    print "Prefixes:\n";
 	    foreach my $prefix (@{$group->{'prefixes'}}){
@@ -754,6 +754,21 @@ sub flow_to_human{
 	}
     }
     return $str;
+}
+
+sub convert_to_si{
+    my $self = shift;
+    my $value = shift;
+    
+    if($value > 1000 && $value < 1000000){
+	return $value / 1000 . "K";
+    }elsif($value > 1000000 && $value < 1000000000){
+	return $value / 1000000 . "M";
+    }elsif($value > 1000000000){
+	return $value / 100000000000 . "G";
+    }else{
+	return $value;
+    }
 }
 
 sub terminal_loop {
