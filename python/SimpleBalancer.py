@@ -403,7 +403,7 @@ class SimpleBalancer:
 
     #--- call function to add this to the switch
     self.fireAddPrefix(group,targetPrefix)
-    self.groups[group]['prefixes'].append(ipaddr.IPv4Network(targetPrefix))
+    self.groups[group]['prefixes'].append(targetPrefix)
     self.prefixCount = self.prefixCount + 1
     self.prefixBW[targetPrefix] = bw
     #self.prefixSensor[targetPrefix] = sensor
@@ -421,7 +421,7 @@ class SimpleBalancer:
       if(targetPrefix == prefix):
         #--- found
         prefixList.pop(x)
-        self.groups[newGroup]['prefixes'].append(ipaddr.IPv4Network(prefix))
+        self.groups[newGroup]['prefixes'].append(prefix)
         self.fireMovePrefix(oldGroup,newGroup,targetPrefix)
         return 1
       x = x+1 
