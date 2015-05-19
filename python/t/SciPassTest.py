@@ -23,18 +23,18 @@ class TestInit(unittest.TestCase):
         self.assertTrue(isinstance(api,SciPass))
         
 
-#    def test_no_config(self):
-#        self.assertRaises(libxml2.parserError,SciPass)
-#        
-#        api = SciPass( logger = logging.getLogger(__name__),
-#                          config = str(os.getcwd()) + "/t/etc/no_config.xml" )
+    def test_no_config(self):
+        self.assertRaises(libxml2.parserError,SciPass)
+        
+        api = SciPass( logger = logging.getLogger(__name__),
+                          config = str(os.getcwd()) + "/t/etc/no_config.xml" )
         
 
-#    def test_invalid_config(self):
-#        self.assertRaises(libxml2.parserError,SciPass)
-#        
-#        api = SciPass( logger = logging.getLogger(__name__),
-#                          config = str(os.getcwd()) + "/t/etc/InvalidConfig.xml" )
+    def test_invalid_config(self):
+        self.assertRaises(libxml2.parserError,SciPass)
+        
+        api = SciPass( logger = logging.getLogger(__name__),
+                          config = str(os.getcwd()) + "/t/etc/InvalidConfig.xml" )
 
     def test_switch_init(self):
         api = SciPass( logger = logging.getLogger(__name__),
@@ -278,11 +278,27 @@ class TestFunctionality(unittest.TestCase):
         self.assertEqual(flow['command'],"ADD")
         self.assertEqual(flow['dpid'],"%016x" % datapath.id)
 
+    def test_block_unknown_prefix(self):
+        pass
+    
+    def test_bypass_unknown_prefix(self):
+        pass       
+
+class TestFlowStatProcessing(unittest.TestCase):
+    def test_empty_flowstat_process(self):
+        pass
+
+    def test_good_flowstat(self):
+        pass
+
+    def test_bad_flowstat(self):
+        pass
+
+    def test_unknown_flowstat(self):
+        pass
+
+
 def suite():
     suite = unittest.TestLoader().loadTestsFromTestCase(TestInit)
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestFunctionality))
     return suite
-
-
-#if __name__ == '__main__':
-#    unittest.main(testRunner=xmlrunner.XMLTestRunner(output='test-reports')).run(suite())

@@ -223,13 +223,15 @@ class TestPrefix(unittest.TestCase):
         res = self.balancer.setPrefixBW(net,500,500)
         self.assertTrue(res == 1)
         prefixBW = self.balancer.getPrefixes()
-        self.assertTrue(prefixBW[net] == 1000)
+        #note setPrefixBW takes in bytes so for bits
+        # we multiply by 8
+        self.assertTrue(prefixBW[net] == 8 * 1000)
         net2 = ipaddr.IPv4Network("172.16.0.0/16")
         res = self.balancer.setPrefixBW(net2, 1000, 1000)
         self.assertTrue(res == 0)
         prefixBW = self.balancer.getPrefixes()
         self.assertTrue(prefixBW.has_key(net2) == False)
-        self.assertTrue(prefixBW[net] == 1000)
+        self.assertTrue(prefixBW[net] == 8 * 1000)
 
     def test_split_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
@@ -243,8 +245,10 @@ class TestPrefix(unittest.TestCase):
         self.assertTrue(len(prefixBW) == 2)
         newnet = ipaddr.IPv4Network("10.0.0.0/11")
         newnet2 = ipaddr.IPv4Network("10.32.0.0/11")
-        self.assertTrue(prefixBW[newnet] == 500.0)
-        self.assertTrue(prefixBW[newnet2] == 500.0)
+        #remember that we set it via bytes and this will be returned
+        #as bits persec
+        self.assertTrue(prefixBW[newnet] == 8 * 500.0)
+        self.assertTrue(prefixBW[newnet2] == 8 * 500.0)
 
     def test_split_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/11")
