@@ -375,8 +375,10 @@ class Ryu(app_manager.RyuApp):
                  [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change_handler(self, ev):
         datapath = ev.datapath
-        dpid = "%016x" % datapath.id
         if ev.state == MAIN_DISPATCHER:
+            if(datapath.id == None):
+                return
+            dpid = "%016x" % datapath.id
             if not dpid in self.datapaths:
                 self.logger.error('register datapath: %016x', datapath.id)
                 self.datapaths[dpid] = datapath
@@ -385,7 +387,6 @@ class Ryu(app_manager.RyuApp):
             else:
                 del self.datapaths[dpid]
                 self.logger.error('register datapath: %016x', datapath.id)
-                dpid = "%016x" % datapath.id
                 self.datapaths[dpid] = datapath
                 if(not self.flowmods.has_key(dpid)):
                     self.flowmods[dpid] = []
@@ -395,6 +396,9 @@ class Ryu(app_manager.RyuApp):
             self.api.switchJoined(datapath)
 
         elif ev.state == DEAD_DISPATCHER:
+            if(datapath.id == None):
+                return
+            dpid = "%016x" % datapath.id
             if dpid in self.datapaths:
                 self.logger.error('datapath leave: %016x', datapath.id)
                 del self.datapaths[dpid]
