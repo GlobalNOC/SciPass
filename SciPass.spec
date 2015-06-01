@@ -1,18 +1,20 @@
 Summary: Science DMZ and IDS loadbalancer via OpenFlow RYU
 Name: SciPass
-Version: 0.9.1
+Version: 1.0.0
 Release: 1
 License: Apache2
 Group: GRNOC
 URL: http://globalnoc.iu.edu
 Source0: %{name}-%{version}.tar.gz
 BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
-Requires: ryu >= 3.18
+Requires: python-ryu >= 3.21
 Requires: perl-Term-ReadLine-Gnu
 Requires: python-ipaddr
-Requires: WebOb >= 1.3.1
+Requires: python-WebOb >= 1.4.1
 Requires: python-netaddr
-Requires: python-oslo-config >= 1.2.0
+Requires: python-oslo.config >= 1.11
+Requires: python-six >= 1.9.0
+Requires: python-stevedore >= 1.4.0
 
 %description
 SciPass is a Science DMZ and IDS load balance via OpenFlow and Ryu
