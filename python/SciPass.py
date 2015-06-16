@@ -863,19 +863,21 @@ class SciPass:
                         "nw_dst_mask": int(prefix.prefixlen),
                         "phys_port": int(in_port['port_id'])}
 
-          actions = []
-          #output to sensor (basically this is the IDS balance case)
-          for sensor in sensors:
-            actions.append({"type": "output",
-                            "port": sensors[sensor]['port_id']})
-          if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
-                #append the FW or other destination
-            if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
+            actions = []
+            #output to sensor (basically this is the IDS balance case)
+            
+            for sensor in sensors:
               actions.append({"type": "output",
-                              "port": ports['fw_wan'][0]['port_id']})
-            else:
-              actions.append({"type": "output",
-                              "port": in_port['port_id']})
+                              "port": sensors[sensor]['port_id']})
+              if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+                  #append the FW or other destination
+                if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
+                  actions.append({"type": "output",
+                                  "port": ports['fw_wan'][0]['port_id']})
+                else:
+                  actions.append({"type": "output",
+                                  "port": in_port['port_id']})
+            
             self.logger.debug("Header: %s" % str(header))
             self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                     domain       = domain_name,
