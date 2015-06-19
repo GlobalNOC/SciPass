@@ -3,7 +3,7 @@
    <switch dpid="0000000000000001" name="IUPUI-SW">
     <domain name="IUPUI" mode="Balancer" admin_status="active" least_specific_prefix_len="24" most_specific_prefix_len="32" 
 	        blacklist_priority="1000" whitelist_priority="900" sensor_min_load_threshold="0.1" sensor_load_delta_threshold="0.1"
-	        max_prefixes="200" idle_timeout="90" hard_timeout="300" >
+	        ignore_sensor_load="true" max_prefixes="200" idle_timeout="90" hard_timeout="300" >
 
       <port of_port_id="17" type="lan" name="17" description="lan int">
         <prefix type="v4">0.0.0.0/0</prefix>

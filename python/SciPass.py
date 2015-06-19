@@ -863,30 +863,30 @@ class SciPass:
                         "nw_dst_mask": int(prefix.prefixlen),
                         "phys_port": int(in_port['port_id'])}
 
-            actions = []
-            #output to sensor (basically this is the IDS balance case)
+          actions = []
+          #output to sensor (basically this is the IDS balance case)
             
-            for sensor in sensors:
+          for sensor in sensors:
+            actions.append({"type": "output",
+                            "port": int(sensors[sensor]['port_id'])})
+          if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
+              #append the FW or other destination
+            if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
               actions.append({"type": "output",
-                              "port": sensors[sensor]['port_id']})
-              if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
-                  #append the FW or other destination
-                if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
-                  actions.append({"type": "output",
-                                  "port": ports['fw_wan'][0]['port_id']})
-                else:
-                  actions.append({"type": "output",
-                                  "port": in_port['port_id']})
-            
-            self.logger.debug("Header: %s" % str(header))
-            self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                    domain       = domain_name,
-                                                    header       = header,
-                                                    actions      = actions,
-                                                    command      = "ADD",
-                                                    idle_timeout = 0,
-                                                    hard_timeout = 0,
-                                                    priority     = 500)
+                              "port": int(ports['fw_wan'][0]['port_id'])})
+            else:
+              actions.append({"type": "output",
+                              "port": int(ports['wan'][0]['port_id'])})
+                
+          self.logger.debug("Header: %s" % str(header))
+          self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                  domain       = domain_name,
+                                                  header       = header,
+                                                  actions      = actions,
+                                                  command      = "ADD",
+                                                  idle_timeout = 0,
+                                                  hard_timeout = 0,
+                                                  priority     = 500)
 
   def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
     self.logger.debug("Remove Prefix")
@@ -936,15 +936,15 @@ class SciPass:
                       "nw_dst_mask": int(prefix.prefixlen),
                       "phys_port":   int(in_port['port_id'])}
 
-            actions = []
-            self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                    domain       = domain_name,
-                                                    header       = header,
-                                                    actions      = actions,
-                                                    command      = "DELETE_STRICT",
-                                                    idle_timeout = 0,
-                                                    hard_timeout = 0,
-                                                    priority     = 500)
+          actions = []
+          self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                  domain       = domain_name,
+                                                  header       = header,
+                                                  actions      = actions,
+                                                  command      = "DELETE_STRICT",
+                                                  idle_timeout = 0,
+                                                  hard_timeout = 0,
+                                                  priority     = 500)
     
   def movePrefix(self, dpid = None, domain_name=None, new_group_id=None, old_group_id=None, prefix=None):
     self.logger.debug("move prefix")
