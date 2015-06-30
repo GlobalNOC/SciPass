@@ -68,7 +68,7 @@ class SimpleBalancer:
       #--- used to limit the number of subnets / forwarding rules we install on the swtich
       self.maxPrefixes		       = maxPrefixes;
       self.prefixCount		       = 0;
-
+      self.prefix_priorities           = defaultdict(list)
       self.mostSpecificPrefixLen       = mostSpecificPrefixLen
       self.leastSpecificPrefixLen      = leastSpecificPrefixLen
   
@@ -168,6 +168,7 @@ class SimpleBalancer:
 
   def distributePrefixes(self, prefix_array):
       self.logger.debug("Distrbiuting prefixes")
+      curr_priority = 500
       for prefix in prefix_array:
           self.logger.debug("prefix len: " + str(prefix.prefixlen))
           self.logger.debug("least speciifc: " + str(self.leastSpecificPrefixLen))
@@ -179,12 +180,13 @@ class SimpleBalancer:
               group = self.groups.keys()[0]
               self.logger.debug(group)
               try:
-                  self.addGroupPrefix( self.groups[group]['group_id'] , prefix, 0)
+                  self.addGroupPrefix( self.groups[group]['group_id'], prefix, curr_priority, 0)
+                  self.prefix_priorities[prefix] = curr_priority
               except DuplicatePrefixError:
                   self.logger.error("Already have prefix: " + str(prefix))
-                  self.pushAllPrefixes()
+          curr_priority += 500
 
-              self.balanceByIP()
+      self.balanceByIP()
               
   def pushAllPrefixes(self):
       for group in self.groups:
@@ -339,20 +341,20 @@ class SimpleBalancer:
     """used to register a handler for del prefix events"""
     self.movePrefixHandlers.append(handler)
 
-  def fireAddPrefix(self,group,prefix):
+  def fireAddPrefix(self,group,prefix, priority):
     """When called will fire each of the registered add prefix handlers"""
     for handler in self.addPrefixHandlers:
-      handler(group,prefix)
+      handler(group,prefix, priority)
 
-  def fireDelPrefix(self,group,prefix):
+  def fireDelPrefix(self,group,prefix, priority):
     """When called will fire each of the registered del prefix handlers"""
     for handler in self.delPrefixHandlers:
-      handler(group,prefix)
+      handler(group,prefix, priority)
 
-  def fireMovePrefix(self,oldGroup,newGroup,prefix):
+  def fireMovePrefix(self,oldGroup,newGroup,prefix, priority):
     """when called will fire each of the registered move prefix handlers"""
     for handler in self.movePrefixHandlers:
-      handler(oldGroup,newGroup,prefix)
+      handler(oldGroup,newGroup,prefix, priority)
 
 
   def delGroupPrefix(self,group,targetPrefix):
@@ -361,6 +363,11 @@ class SimpleBalancer:
         return 0
 
     prefixList = self.groups[group]['prefixes']
+
+    priority = 0
+    for pfix in self.prefix_priorities:
+        if(pfxi.Contains(targetPrefix)):
+            priority = self.prefix_priorities[pfix]
 
     x = 0;
     for prefix in prefixList:
@@ -376,7 +383,7 @@ class SimpleBalancer:
       x = x+1
     return 0
 
-  def addGroupPrefix(self,group,targetPrefix,bw=0):
+  def addGroupPrefix(self,group,targetPrefix,priority,bw=0):
     """adds a prefix to the sensor"""
 
     if(not self.groups.has_key(group)):
@@ -402,7 +409,7 @@ class SimpleBalancer:
           return 0
 
     #--- call function to add this to the switch
-    self.fireAddPrefix(group,targetPrefix)
+    self.fireAddPrefix(group,targetPrefix, priority)
     self.groups[group]['prefixes'].append(targetPrefix)
     self.prefixCount = self.prefixCount + 1
     self.prefixBW[targetPrefix] = bw
@@ -412,17 +419,23 @@ class SimpleBalancer:
 
   def moveGroupPrefix(self,oldGroup,newGroup,targetPrefix):
     """used to move a prefix from one sensor to another"""
-#    if(not self.sensorLoad.has_key(oldSensor) or not self.sensorLoad.has_key(newSensor)):
+
     if(not self.groups.has_key(oldGroup) or not self.groups.has_key(newGroup)):
         return 0
     prefixList = self.groups[oldGroup]['prefixes']
     x = 0;
+    
+    priority = 0
+    for pfix in self.prefix_priorities:
+        if(pfix.Contains(targetPrefix)):
+            priority = self.prefix_priorities[pfix]
+    
     for prefix in prefixList:
       if(targetPrefix == prefix):
         #--- found
         prefixList.pop(x)
         self.groups[newGroup]['prefixes'].append(prefix)
-        self.fireMovePrefix(oldGroup,newGroup,targetPrefix)
+        self.fireMovePrefix(oldGroup,newGroup,targetPrefix, priority)
         return 1
       x = x+1 
     return 0

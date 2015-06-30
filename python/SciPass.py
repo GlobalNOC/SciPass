@@ -497,21 +497,24 @@ class SciPass:
                                                          ) 
         config[dpid][name]['flows'] = []
         #register the methods
-        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y : self.addPrefix(dpid = dpid,
+        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y,z : self.addPrefix(dpid = dpid,
                                                                                             domain_name = name,
                                                                                             group_id = x,
-                                                                                            prefix = y))
+                                                                                            prefix = y,
+                                                                                             priority = z))
 
-        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y : self.delPrefix(dpid = dpid,
+        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y,z : self.delPrefix(dpid = dpid,
                                                                                             domain_name = name,
                                                                                             group_id = x,
-                                                                                            prefix = y))
+                                                                                            prefix = y,
+                                                                                             priority = z))
 
-        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z : self.movePrefix(dpid = dpid,
+        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z,a : self.movePrefix(dpid = dpid,
                                                                                               domain_name = name,
                                                                                               old_group_id = x,
                                                                                               new_group_id = y,
-                                                                                              prefix = z
+                                                                                              prefix = z,
+                                                                                                  priority=a
                                                                                               ))
 
         ports = ctxt.xpathEval("port")
@@ -792,7 +795,7 @@ class SciPass:
 
     self.config[dpid][domain_name]['balancer'].distributePrefixes(set(prefixes))
         
-  def addPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
+  def addPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None, priority=None):
     #self.logger.error("Add Prefix " + str(domain_name) + " " + str(group_id) + " " + str(prefix))
     #find the north and south port
 
@@ -888,7 +891,7 @@ class SciPass:
                                                   hard_timeout = 0,
                                                   priority     = 500)
 
-  def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
+  def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None, priority=None):
     self.logger.debug("Remove Prefix")
 
     in_port  = None
@@ -946,11 +949,11 @@ class SciPass:
                                                   hard_timeout = 0,
                                                   priority     = 500)
     
-  def movePrefix(self, dpid = None, domain_name=None, new_group_id=None, old_group_id=None, prefix=None):
+  def movePrefix(self, dpid = None, domain_name=None, new_group_id=None, old_group_id=None, prefix=None, priority=None):
     self.logger.debug("move prefix")
     #delete and add the prefix
-    self.delPrefix(dpid, domain_name, old_group_id, prefix)
-    self.addPrefix(dpid, domain_name, new_group_id, prefix)
+    self.delPrefix(dpid, domain_name, old_group_id, prefix, priority)
+    self.addPrefix(dpid, domain_name, new_group_id, prefix, priority)
 
   def remove_flow(self, ev):
     self.logger.debug("remove flow")
