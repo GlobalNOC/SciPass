@@ -98,8 +98,8 @@ class SciPass:
 
     idle_timeout = None
     priority     = self.config[dpid][name]['default_whitelist_priority']
-    self.logger.debug("Idle Timeout: " + self.config[dpid][name]['idle_timeout'])
-    self.logger.debug("Priority: " + priority)
+    self.logger.debug("Idle Timeout: %d", int(self.config[dpid][name]['idle_timeout']))
+    self.logger.debug("Priority: %d", int(priority))
     
     header = {}
     if(not obj.has_key('idle_timeout')):
@@ -448,8 +448,9 @@ class SciPass:
         least_specific_len = domain.prop("least_specific_prefix_len")
         idle_timeout = domain.prop("idle_timeout")
         hard_timeout = domain.prop("hard_timeout")
-        default_blacklist_priority = domain.prop("blacklist_priority")
-        default_whitelist_priority = domain.prop("whitelist_priority")
+        #because of all the priority stuff in the balancer we have to set the blacklist/whitelist priority to the max
+        default_blacklist_priority = 65535
+        default_whitelist_priority = 65535
         sensorLoadMinThreshold = domain.prop("sensor_min_load_threshold")
         sensorLoadDeltaThreshhold = domain.prop("sensor_load_delta_threshold")
         ignore_sensor_load = domain.prop("ignore_sensor_load")
@@ -497,22 +498,24 @@ class SciPass:
                                                          ) 
         config[dpid][name]['flows'] = []
         #register the methods
-        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y : self.addPrefix(dpid = dpid,
-                                                                                            domain_name = name,
-                                                                                            group_id = x,
-                                                                                            prefix = y))
-
-        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y : self.delPrefix(dpid = dpid,
-                                                                                            domain_name = name,
-                                                                                            group_id = x,
-                                                                                            prefix = y))
-
-        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z : self.movePrefix(dpid = dpid,
-                                                                                              domain_name = name,
-                                                                                              old_group_id = x,
-                                                                                              new_group_id = y,
-                                                                                              prefix = z
-                                                                                              ))
+        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y, z : self.addPrefix(dpid = dpid,
+                                                                                               domain_name = name,
+                                                                                               group_id = x,
+                                                                                               prefix = y,
+                                                                                               priority = z))
+        
+        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y, z : self.delPrefix(dpid = dpid,
+                                                                                               domain_name = name,
+                                                                                               group_id = x,
+                                                                                               prefix = y,
+                                                                                               priority = z))
+        
+        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a : self.movePrefix(dpid = dpid,
+                                                                                                    domain_name = name,
+                                                                                                    old_group_id = x,
+                                                                                                    new_group_id = y,
+                                                                                                    prefix = z,
+                                                                                                    priority=a))
 
         ports = ctxt.xpathEval("port")
         sensor_groups = ctxt.xpathEval("sensor_group")
@@ -792,7 +795,7 @@ class SciPass:
 
     self.config[dpid][domain_name]['balancer'].distributePrefixes(set(prefixes))
         
-  def addPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
+  def addPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None, priority=None):
     #self.logger.error("Add Prefix " + str(domain_name) + " " + str(group_id) + " " + str(prefix))
     #find the north and south port
 
@@ -843,7 +846,7 @@ class SciPass:
                                                   command      = "ADD",
                                                   idle_timeout = 0,
                                                   hard_timeout = 0,
-                                                  priority     = 500)
+                                                  priority     = priority)
 
           header = {}
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
@@ -865,28 +868,30 @@ class SciPass:
 
           actions = []
           #output to sensor (basically this is the IDS balance case)
+            
           for sensor in sensors:
             actions.append({"type": "output",
-                            "port": sensors[sensor]['port_id']})
+                            "port": int(sensors[sensor]['port_id'])})
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
-                #append the FW or other destination
+              #append the FW or other destination
             if(ports.has_key('fw_wan') and len(ports['fw_wan']) > 0):
               actions.append({"type": "output",
-                              "port": ports['fw_wan'][0]['port_id']})
+                              "port": int(ports['fw_wan'][0]['port_id'])})
             else:
               actions.append({"type": "output",
-                              "port": in_port['port_id']})
-            self.logger.debug("Header: %s" % str(header))
-            self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                    domain       = domain_name,
-                                                    header       = header,
-                                                    actions      = actions,
-                                                    command      = "ADD",
-                                                    idle_timeout = 0,
-                                                    hard_timeout = 0,
-                                                    priority     = 500)
+                              "port": int(ports['wan'][0]['port_id'])})
+                
+          self.logger.debug("Header: %s" % str(header))
+          self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                  domain       = domain_name,
+                                                  header       = header,
+                                                  actions      = actions,
+                                                  command      = "ADD",
+                                                  idle_timeout = 0,
+                                                  hard_timeout = 0,
+                                                  priority     = priority)
 
-  def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None):
+  def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None, priority=None):
     self.logger.debug("Remove Prefix")
 
     in_port  = None
@@ -918,7 +923,7 @@ class SciPass:
                                                   command      = "DELETE_STRICT",
                                                   idle_timeout = 0,
                                                   hard_timeout = 0,
-                                                  priority     = 500)
+                                                  priority     = priority)
           header = {}
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
             header = {}
@@ -934,21 +939,21 @@ class SciPass:
                       "nw_dst_mask": int(prefix.prefixlen),
                       "phys_port":   int(in_port['port_id'])}
 
-            actions = []
-            self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                    domain       = domain_name,
-                                                    header       = header,
-                                                    actions      = actions,
-                                                    command      = "DELETE_STRICT",
-                                                    idle_timeout = 0,
-                                                    hard_timeout = 0,
-                                                    priority     = 500)
+          actions = []
+          self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                  domain       = domain_name,
+                                                  header       = header,
+                                                  actions      = actions,
+                                                  command      = "DELETE_STRICT",
+                                                  idle_timeout = 0,
+                                                  hard_timeout = 0,
+                                                  priority     = priority)
     
-  def movePrefix(self, dpid = None, domain_name=None, new_group_id=None, old_group_id=None, prefix=None):
+  def movePrefix(self, dpid = None, domain_name=None, new_group_id=None, old_group_id=None, prefix=None, priority=None):
     self.logger.debug("move prefix")
     #delete and add the prefix
-    self.delPrefix(dpid, domain_name, old_group_id, prefix)
-    self.addPrefix(dpid, domain_name, new_group_id, prefix)
+    self.delPrefix(dpid, domain_name, old_group_id, prefix, priority)
+    self.addPrefix(dpid, domain_name, new_group_id, prefix, priority)
 
   def remove_flow(self, ev):
     self.logger.debug("remove flow")
