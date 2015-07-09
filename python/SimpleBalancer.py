@@ -68,14 +68,14 @@ class SimpleBalancer:
       #--- used to limit the number of subnets / forwarding rules we install on the swtich
       self.maxPrefixes		       = maxPrefixes;
       self.prefixCount		       = 0;
-      self.prefix_priorities           = defaultdict(list)
-      self.mostSpecificPrefixLen       = mostSpecificPrefixLen
-      self.leastSpecificPrefixLen      = leastSpecificPrefixLen
+      self.prefixPriorities           = defaultdict(list)
+      self.mostSpecificPrefixLen       = int(mostSpecificPrefixLen)
+      self.leastSpecificPrefixLen      = int(leastSpecificPrefixLen)
   
       self.ignoreSensorLoad	       = ignoreSensorLoad
       self.sensorLoadMinThreshold      = float(sensorLoadMinThresh)
       self.sensorLoadDeltaThreshold    = float(sensorLoadDeltaThresh)
-
+      self.curr_priority               = 500
 
       self.ignorePrefixBW              = ignorePrefixBW
       self.sensorBandwidthMinThreshold = 1
@@ -119,6 +119,13 @@ class SimpleBalancer:
   def __repr__(self):
       return json.dumps(self,default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
+  def getPrefixPriority(self, prefix):
+      for pfix in self.prefixPriorities:
+          if(pfix.Contains(prefix)):
+              return self.prefixPriorities[pfix]
+
+
+
   def showStatus(self):
       """returns text represention in show format of the current status balancing"""
 
@@ -134,7 +141,7 @@ class SimpleBalancer:
       totalHosts = 0
       totalBW    = 0;
 
-      status = "Balance Method: "+mode+":\n";
+      status = "Balance Method: %s:\n" % mode
 
       sensorHosts = defaultdict(int)
       sensorBW    = defaultdict(int)
@@ -166,32 +173,53 @@ class SimpleBalancer:
       return status
  
 
+  #distributes prefixes through all groups
+  #this is not going to be event but it is at least a start
   def distributePrefixes(self, prefix_array):
-      self.logger.debug("Distrbiuting prefixes")
-      curr_priority = 500
+      self.logger.error("Distributing prefixes")
+
+      group_index = 0
       for prefix in prefix_array:
-          self.logger.debug("prefix len: " + str(prefix.prefixlen))
-          self.logger.debug("least speciifc: " + str(self.leastSpecificPrefixLen))
-          if(prefix.prefixlen > self.leastSpecificPrefixLen):
-              self.logger.debug("prefix exceeds the most specific prefix len")
-              #split it in half and try again
-              self.distributePrefixes( self.splitPrefix(prefix))
+          
+          self.logger.debug("prefix len: %d", prefix.prefixlen)
+          self.logger.debug("least speciifc: %d", self.leastSpecificPrefixLen)
+
+          #because we don't have OF 1.3 yet
+          if(prefix.version == 4):
+              if(prefix.prefixlen < self.leastSpecificPrefixLen):
+                  self.logger.debug("prefix: %s exceeds the least specific prefix len %d", str(prefix), self.leastSpecificPrefixLen )
+                  #split it in half and try again
+                  try:
+                      self.distributePrefixes( self.splitPrefix(prefix) )
+                  except MaxPrefixlenError:
+                      self.logger.error("Exceeded the most specific prefix len!\n");
+              else:
+                  group = self.groups.keys()[group_index]
+                  self.logger.debug("Adding prefix %s to group: %s", str(prefix), str(self.groups[group]['group_id']))
+                  try:
+                      self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
+                  except DuplicatePrefixError:
+                      self.logger.error("Already have prefix: " + str(prefix))
+                  group_index += 1
+                  if(group_index >= len(self.groups)):
+                      group_index = 0
           else:
-              group = self.groups.keys()[0]
-              self.logger.debug(group)
+              #handle IPv6 differently
+              group = self.groups.keys()[group_index]
+              self.logger.debug("Adding prefix %s to group: %s", str(prefix), str(self.groups[group]['group_id']))
               try:
-                  self.addGroupPrefix( self.groups[group]['group_id'], prefix, curr_priority, 0)
-                  self.prefix_priorities[prefix] = curr_priority
+                  self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
               except DuplicatePrefixError:
                   self.logger.error("Already have prefix: " + str(prefix))
-          curr_priority += 500
-
-      self.balanceByIP()
+              group_index += 1
+              if(group_index >= len(self.groups)):
+                  group_index = 0
               
   def pushAllPrefixes(self):
       for group in self.groups:
           for prefix in self.groups[group]['prefixes']:
-              self.fireAddPrefix(group, prefix)
+              priority = self.getPrefixPriority(prefix)
+              self.fireAddPrefix(group, prefix, priority['priority'])
 
   def addSensorGroup(self, group):
     """adds sensor, inits to load 0, sets status to 1"""
@@ -364,16 +392,13 @@ class SimpleBalancer:
 
     prefixList = self.groups[group]['prefixes']
 
-    priority = 0
-    for pfix in self.prefix_priorities:
-        if(pfxi.Contains(targetPrefix)):
-            priority = self.prefix_priorities[pfix]
+    priority = self.getPrefixPriority(targetPrefix)
 
     x = 0;
     for prefix in prefixList:
       if(targetPrefix == prefix):
 	    #--- call function to remove this from the switch
-        self.fireDelPrefix(group,targetPrefix)
+        self.fireDelPrefix(group,targetPrefix, priority['priority'])
         #--- remove from list
         prefixList.pop(x)
         self.prefixCount = self.prefixCount -1
@@ -383,7 +408,7 @@ class SimpleBalancer:
       x = x+1
     return 0
 
-  def addGroupPrefix(self,group,targetPrefix,priority,bw=0):
+  def addGroupPrefix(self,group,targetPrefix,bw=0):
     """adds a prefix to the sensor"""
 
     if(not self.groups.has_key(group)):
@@ -394,7 +419,13 @@ class SimpleBalancer:
         raise MaxPrefixesError("prefix greater than max prefixes")
     
     prefixList = list(self.groups[group]['prefixes'])
+    priority = self.getPrefixPriority(targetPrefix)
 
+    if(priority == None):
+        self.prefixPriorities[targetPrefix] = {'priority': self.curr_priority, 'total': 100}
+        priority = self.prefixPriorities[targetPrefix]
+        self.curr_priority += 100
+        
     x = 0;
     for prefix in prefixList:
       if(targetPrefix == prefix):
@@ -409,11 +440,10 @@ class SimpleBalancer:
           return 0
 
     #--- call function to add this to the switch
-    self.fireAddPrefix(group,targetPrefix, priority)
+    self.fireAddPrefix(group,targetPrefix, priority['priority'])
     self.groups[group]['prefixes'].append(targetPrefix)
     self.prefixCount = self.prefixCount + 1
     self.prefixBW[targetPrefix] = bw
-    #self.prefixSensor[targetPrefix] = sensor
 
     return 1;
 
@@ -425,17 +455,14 @@ class SimpleBalancer:
     prefixList = self.groups[oldGroup]['prefixes']
     x = 0;
     
-    priority = 0
-    for pfix in self.prefix_priorities:
-        if(pfix.Contains(targetPrefix)):
-            priority = self.prefix_priorities[pfix]
+    priority = self.getPrefixPriority(targetPrefix)
     
     for prefix in prefixList:
       if(targetPrefix == prefix):
         #--- found
         prefixList.pop(x)
         self.groups[newGroup]['prefixes'].append(prefix)
-        self.fireMovePrefix(oldGroup,newGroup,targetPrefix, priority)
+        self.fireMovePrefix(oldGroup,newGroup,targetPrefix, priority['priority'])
         return 1
       x = x+1 
     return 0
@@ -449,7 +476,10 @@ class SimpleBalancer:
           self.logger.error( "split prefix "+str(candidatePrefix) +" bw "+str((bw / 1000 / 1000 )) + "Mbps")
           #--- update the bandwidth we are guessing is going to each prefix to smooth things, before real data is avail
           self.prefixBW[candidatePrefix] = 0
+          priority = self.getPrefixPriority(candidatePrefix)
           
+          incrementer = priority['total'] / len(subnets)
+          cur_priority = priority['priority']
           #--- first, add the more specific rules
           for prefix in subnets:
               #--- set a guess that each of the 2 subnets gets half of the traffic
@@ -459,10 +489,14 @@ class SimpleBalancer:
                   prefixBW = 0
               
               self.logger.debug( "  -- "+str(prefix)+" bw "+str((prefixBw / 1000 / 1000)) + "Mbps" )
-              self.delGroupPrefix(group,candidatePrefix)
-              self.addGroupPrefix(group,prefix,prefixBw)
+              self.delGroupPrefix(group, candidatePrefix)
+              self.prefixPriorities[prefix] = {'priority': cur_priority, 'total': incrementer}
+              self.addGroupPrefix(group, prefix, prefixBw)
+              cur_priority += incrementer
+
               #--- now remove the less specific and now redundant rule
           return 1
+
       except MaxPrefixlenError as e:
           self.logger.error( "max prefix len limit:  "+str(candidatePrefix) )
           return 0
@@ -483,8 +517,8 @@ class SimpleBalancer:
 
   def splitPrefix(self,prefix):
     """takes a prefix and splits it into 2 subnets that by increasing masklen by 1 bit"""
-    self.logger.debug("Most Specific: " + str(self.mostSpecificPrefixLen))
-    if(prefix._prefixlen <= int(self.mostSpecificPrefixLen) - 1):
+    self.logger.error("Most Specific: " + str(self.mostSpecificPrefixLen))
+    if(prefix.prefixlen <= int(self.mostSpecificPrefixLen) - 1):
         return prefix.Subnet()
     else:
         raise MaxPrefixlenError(prefix);   

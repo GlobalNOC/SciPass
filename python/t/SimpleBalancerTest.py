@@ -103,21 +103,24 @@ class TestSensorMods(unittest.TestCase):
 
 class TestPrefix(unittest.TestCase):
 
-    def addHandler(self, sensor, prefix):
+    def addHandler(self, sensor, prefix, priority):
         self.handler_fired = 1
         self.sensor = sensor
         self.prefix = prefix
+        self.priority = priority
 
-    def delHandler(self, sensor, prefix):
+    def delHandler(self, sensor, prefix, priority):
         self.handler_fired = 1
         self.sensor = sensor
         self.prefix = prefix
+        self.priority = priority
 
-    def moveHandler(self, old_sensor,sensor, prefix):
+    def moveHandler(self, old_sensor,sensor, prefix, priority):
         self.handler_fired = 1
         self.sensor = sensor
         self.prefix = prefix
         self.old_sensor = old_sensor
+        self.priority = priority
 
     def setUp(self):
         self.balancer = SimpleBalancer()
@@ -150,6 +153,8 @@ class TestPrefix(unittest.TestCase):
         self.balancer.registerDelPrefixHandler(self.delPrefixHandler)
         self.balancer.registerMovePrefixHandler(self.movePrefixHandler)
 
+        
+
     def tearDown(self):
         self.handler_fired = 0
         self.sensor = None
@@ -174,40 +179,47 @@ class TestPrefix(unittest.TestCase):
     def test_add_sensor_prefix(self):
         self.balancer.registerAddPrefixHandler(self.addPrefixHandler)
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        self.balancer.addGroupPrefix(1,net,0)
+        self.balancer.addGroupPrefix(1,net,100)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
         self.assertTrue(self.prefix == net)
-        
+        self.assertTrue(self.priority == 500)
+
     def test_del_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addGroupPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net,100)
         self.assertTrue(res == 1)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
         self.assertTrue(self.prefix == net)
+        self.assertTrue(self.priority == 500)
         #clear them out
         self.handler = 0
         self.sensor = None
         self.prefix = None
+        self.priority = None
         #do the del
         res = self.balancer.delGroupPrefix(1,net)
         self.assertTrue(res == 1)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
         self.assertTrue(self.prefix == net)
+        print self.priority
+        self.assertTrue(self.priority == 500)
 
     def test_move_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
-        res = self.balancer.addGroupPrefix(1,net,0)
+        res = self.balancer.addGroupPrefix(1,net)
         self.assertTrue(res == 1)
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
         self.assertTrue(self.prefix == net)
+        self.assertTrue(self.priority == 500)
         #clear them out, make sure we see the del
         self.handler = 0
         self.sensor = None
         self.prefix = None
+        self.priority == 0
         #do the move
         res = self.balancer.moveGroupPrefix(1,2,net)
         self.assertTrue(res == 1)
@@ -215,6 +227,8 @@ class TestPrefix(unittest.TestCase):
         self.assertTrue(self.sensor == 2)
         self.assertTrue(self.prefix == net)
         self.assertTrue(self.old_sensor == 1)
+        print self.priority
+        self.assertTrue(self.priority == 500)
 
     def test_set_prefix_bw(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
