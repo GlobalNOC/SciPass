@@ -176,7 +176,7 @@ class SimpleBalancer:
   #distributes prefixes through all groups
   #this is not going to be event but it is at least a start
   def distributePrefixes(self, prefix_array):
-      self.logger.error("Distributing prefixes")
+      self.logger.info("Distributing prefixes")
 
       group_index = 0
       for prefix in prefix_array:
@@ -199,7 +199,7 @@ class SimpleBalancer:
                   try:
                       self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
                   except DuplicatePrefixError:
-                      self.logger.error("Already have prefix: " + str(prefix))
+                      self.logger.debug("Already have prefix: " + str(prefix))
                   group_index += 1
                   if(group_index >= len(self.groups)):
                       group_index = 0
@@ -210,7 +210,7 @@ class SimpleBalancer:
               try:
                   self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
               except DuplicatePrefixError:
-                  self.logger.error("Already have prefix: " + str(prefix))
+                  self.logger.debug("Already have prefix: " + str(prefix))
               group_index += 1
               if(group_index >= len(self.groups)):
                   group_index = 0
@@ -350,7 +350,7 @@ class SimpleBalancer:
 
   def setPrefixBW(self,prefix,bwTx,bwRx):
     """updates balancers understanding trafic bandwidth associated with each prefix"""
-    self.logger.error("Updating prefix BW for " + str(prefix) + " to " + str((bwTx/1000/1000)*8) + "Mb/s " + str((bwRx/1000/1000)*8) + "Mb/s")
+    self.logger.debug("Updating prefix BW for " + str(prefix) + " to " + str((bwTx/1000/1000)*8) + "Mb/s " + str((bwRx/1000/1000)*8) + "Mb/s")
     if(self.prefixBW.has_key(prefix)):
         self.prefixBW[prefix] = (bwTx * 8) + (bwRx * 8)
         return 1
