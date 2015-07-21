@@ -336,7 +336,7 @@ class Ryu(app_manager.RyuApp):
 
     def _balance_loop(self):
          while 1:
-             self.logger.error("here!!")
+             self.logger.debug("Balancing")
              #--- tell the system to rebalance
              self.api.run_balancers()
              #--- sleep
@@ -420,8 +420,9 @@ class Ryu(app_manager.RyuApp):
         elif reason == ofproto.OFPPR_DELETE:
             self.logger.info("port deleted %s", port_no)
         elif reason == ofproto.OFPPR_MODIFY:
-            state_human = self.api.OFP_PORT_STATE[link_state] if(self.api.OFP_PORT_STATE.has_key(link_state)) else link_state
-            self.logger.info("port modified %s state %s", port_no, state_human)
+            #this is not working
+            #state_human = self.api.OFP_PORT_STATE[link_state] if(self.api.OFP_PORT_STATE.has_key(link_state)) else link_state
+            #self.logger.info("port modified %s state %s", port_no, state_human)
 
             #--- need to enable or disable a sensor if the port came up or down
             if(link_state   == ofproto_v1_0.OFPPS_LINK_DOWN):
@@ -451,8 +452,8 @@ class Ryu(app_manager.RyuApp):
         
            
     def process_flow_stats(self, stats, dp):
-        self.logger.error("flow stat processor")
-        self.logger.error("flows stats: " + str(len(stats)))
+        self.logger.debug("flow stat processor")
+        self.logger.debug("flows stats: " + str(len(stats)))
         #--- figure out the time since last stats
         prefix_bps = defaultdict(lambda: defaultdict(int))
         prefix_bytes = {}
@@ -568,7 +569,7 @@ class Ryu(app_manager.RyuApp):
                 try:
                     rate = bytes / float(int(stats_et))
                 except ZeroDivisionError:
-                    self.logger.error("Division by zero, rate = 0")
+                    self.logger.debug("Division by zero, rate = 0")
                     rate = 0
             
                 prefix_bps[prefix][dir] = rate

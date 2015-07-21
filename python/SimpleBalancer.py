@@ -88,6 +88,8 @@ class SimpleBalancer:
       self.delPrefixHandlers  = []
       self.movePrefixHandlers = []
       
+      self.prefix_list = []
+      self.initialized = False
       return
   
   def __str__(self):
@@ -98,6 +100,19 @@ class SimpleBalancer:
  #     res = res + "  PrefixBW: "+str(self.prefixBW) +"\n"
  #     res = res + "  pre2sensor: "+str(self.prefixSensor)+"\n"
       return res 
+
+  def addPrefix(self, prefix):
+      if(prefix not in self.prefix_list):
+          self.prefix_list.append(prefix)
+
+  def pushToSwitch(self):
+      """initialize a device"""
+      if(self.initialized):
+          self.pushAllPrefixes()
+      else:
+          self.distributePrefixes(self.prefix_list)
+          self.initialized = True
+      self.logger.info("Switch Initialized")
 
   def getConfig(self):
       obj = {}
@@ -123,8 +138,6 @@ class SimpleBalancer:
       for pfix in self.prefixPriorities:
           if(pfix.Contains(prefix)):
               return self.prefixPriorities[pfix]
-
-
 
   def showStatus(self):
       """returns text represention in show format of the current status balancing"""
@@ -176,7 +189,7 @@ class SimpleBalancer:
   #distributes prefixes through all groups
   #this is not going to be event but it is at least a start
   def distributePrefixes(self, prefix_array):
-      self.logger.error("Distributing prefixes")
+      self.logger.debug("Distributing prefixes: " + str(prefix_array))
 
       group_index = 0
       for prefix in prefix_array:
@@ -199,7 +212,7 @@ class SimpleBalancer:
                   try:
                       self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
                   except DuplicatePrefixError:
-                      self.logger.error("Already have prefix: " + str(prefix))
+                      self.logger.debug("Already have prefix: " + str(prefix))
                   group_index += 1
                   if(group_index >= len(self.groups)):
                       group_index = 0
@@ -210,7 +223,7 @@ class SimpleBalancer:
               try:
                   self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
               except DuplicatePrefixError:
-                  self.logger.error("Already have prefix: " + str(prefix))
+                  self.logger.debug("Already have prefix: " + str(prefix))
               group_index += 1
               if(group_index >= len(self.groups)):
                   group_index = 0
@@ -350,11 +363,11 @@ class SimpleBalancer:
 
   def setPrefixBW(self,prefix,bwTx,bwRx):
     """updates balancers understanding trafic bandwidth associated with each prefix"""
-    self.logger.error("Updating prefix BW for " + str(prefix) + " to " + str((bwTx/1000/1000)*8) + "Mb/s " + str((bwRx/1000/1000)*8) + "Mb/s")
+    self.logger.debug("Updating prefix BW for " + str(prefix) + " to " + str((bwTx/1000/1000)*8) + "Mb/s " + str((bwRx/1000/1000)*8) + "Mb/s")
     if(self.prefixBW.has_key(prefix)):
         self.prefixBW[prefix] = (bwTx * 8) + (bwRx * 8)
         return 1
-    self.logger.error( "Error updating prefixBW for " + str(prefix) + "... prefix does not exist")
+    self.logger.debug( "Error updating prefixBW for " + str(prefix) + "... prefix does not exist")
     return 0
 
   def registerAddPrefixHandler(self,handler):
@@ -473,7 +486,7 @@ class SimpleBalancer:
       try:
           subnets = self.splitPrefix(candidatePrefix)
           bw = self.prefixBW[candidatePrefix]
-          self.logger.error( "split prefix "+str(candidatePrefix) +" bw "+str((bw / 1000 / 1000 )) + "Mbps")
+          self.logger.info( "split prefix "+str(candidatePrefix) +" bw "+str((bw / 1000 / 1000 )) + "Mbps")
           #--- update the bandwidth we are guessing is going to each prefix to smooth things, before real data is avail
           self.prefixBW[candidatePrefix] = 0
           priority = self.getPrefixPriority(candidatePrefix)
@@ -517,7 +530,7 @@ class SimpleBalancer:
 
   def splitPrefix(self,prefix):
     """takes a prefix and splits it into 2 subnets that by increasing masklen by 1 bit"""
-    self.logger.error("Most Specific: " + str(self.mostSpecificPrefixLen))
+    self.logger.debug("Most Specific: " + str(self.mostSpecificPrefixLen))
     if(prefix.prefixlen <= int(self.mostSpecificPrefixLen) - 1):
         return prefix.Subnet()
     else:
@@ -585,12 +598,12 @@ class SimpleBalancer:
       totalHosts = totalHosts +  prefix.numhosts
       totalBW    = totalBW    +  self.prefixBW[prefix]
 
-    self.logger.error("Total BW for group = %s" % totalBW)
+    self.logger.debug("Total BW for group = %s" % totalBW)
 
     if(self.ignorePrefixBW == 0):
       #--- use prefix bandwidth to estimate load
       targetBW     = self.prefixBW[targetPrefix]
-      self.logger.error("targetBW: %s" % targetBW)
+      self.logger.debug("targetBW: %s" % targetBW)
       if(totalBW > 0 and targetBW > 0):
         percentTotal = targetBW / (totalBW * 1.0)
       else:
@@ -667,11 +680,11 @@ class SimpleBalancer:
     for group in self.groups:
       # don't include disabled sensors
       if(not self.getGroupStatus(group)): continue
-      self.logger.error("Group: " + str(group))
-      self.logger.error("Group Prefixes: {0}".format(self.groups[group]['prefixes']))
+      self.logger.debug("Group: " + str(group))
+      self.logger.debug("Group Prefixes: {0}".format(self.groups[group]['prefixes']))
       for prefix in self.groups[group]['prefixes']:
         #--- figure out total amount of traffic going over each sensor
-          self.logger.error("Prefix: " + str(prefix) + " BW: " + str((prefixBW[prefix]/1000/1000)) + "Mbps")
+          self.logger.debug("Prefix: " + str(prefix) + " BW: " + str((prefixBW[prefix]/1000/1000)) + "Mbps")
           totalBW  = totalBW + prefixBW[prefix]
           groupBW[group] = groupBW[group] + prefixBW[prefix]
       self.groups[group]['bandwidth'] = groupBW[group]
@@ -680,14 +693,14 @@ class SimpleBalancer:
       # don't include disabled sensors
       if(not self.getGroupStatus(group)): continue
 
-      self.logger.error("Group: " + str(group) + " bw " + str((groupBW[group]/1000/1000)) + "Mbps")
+      self.logger.debug("Group: " + str(group) + " bw " + str((groupBW[group]/1000/1000)) + "Mbps")
 
       if(totalBW > 0):
         load =groupBW[group] / float(totalBW)
       else:
         load = 0
 
-      self.logger.error("Group: " + str(group) + " load "+ str(load))
+      self.logger.debug("Group: " + str(group) + " load "+ str(load))
 
       if(load > maxLoad):
         maxLoad = load
@@ -701,9 +714,9 @@ class SimpleBalancer:
 
     #---
    
-    self.logger.error("max sensor = '"+str(maxGroup)+"' load "+str(maxLoad))
-    self.logger.error("loadminthreshold = " + str(self.sensorLoadMinThreshold))
-    self.logger.error("load delta = "+str(loadDelta)+" max "+str(maxGroup)+" min "+str(minGroup))
+    self.logger.debug("max sensor = '"+str(maxGroup)+"' load "+str(maxLoad))
+    self.logger.debug("loadminthreshold = " + str(self.sensorLoadMinThreshold))
+    self.logger.debug("load delta = "+str(loadDelta)+" max "+str(maxGroup)+" min "+str(minGroup))
 
     if( maxLoad >= self.sensorLoadMinThreshold ):
       if(loadDelta >= self.sensorLoadDeltaThreshold):
@@ -729,7 +742,7 @@ class SimpleBalancer:
         for candidatePrefix in sorted(tmpDict,key=tmpDict.get,reverse=True):
           if(self.splitSensorPrefix(maxGroup,candidatePrefix)):
               #--- success
-              self.logger.error("Sensor prefix successfully split")
+              self.logger.info("Sensor prefix successfully split")
               break
           else:
               self.logger.error("Sensor prefix not successfully split")

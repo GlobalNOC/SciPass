@@ -68,7 +68,7 @@ class SciPass:
       for name in self.config[datapath_id]:
         for port in self.config[datapath_id][name]['ports']['lan']:
             for prefix in port['prefixes']:
-              self.logger.error("Comparing" + str(new_prefix) + " " + str(prefix['prefix']))
+              self.logger.debug("Comparing" + str(new_prefix) + " " + str(prefix['prefix']))
               if(prefix['prefix'].Contains( new_prefix )):
                 in_port = port
                 dpid = datapath_id
@@ -404,8 +404,8 @@ class SciPass:
       for domain_name in self.config[dpid]:
           domain = self.config[dpid][domain_name]
           # loop through sensors
-          for group in domain.get('sensor_port_groups'):
-            sensors = domain.get('sensor_port_groups')[group];
+          for group in domain.get('sensor_groups'):
+            sensors = domain.get('sensor_groups')[group];
             for sensor in sensors:
               # return sensor info if we've found our port
               if(str(sensor.get('of_port_id')) == str(port_id)):
@@ -639,6 +639,7 @@ class SciPass:
                                               priority     = int(priority / 2))
 
       for prefix in in_port['prefixes']:
+        self.config[dpid][domain_name]['balancer'].addPrefix(prefix['prefix'])
         prefixes.append(prefix['prefix'])
         #specific prefix forwarding rules
         #FW LAN to specific LAN PORT
@@ -705,7 +706,7 @@ class SciPass:
     actions = []
     actions.append({"type": "output",
                     "port": int(ports['wan'][0]['port_id'])})
-    self.logger.error("FW WAN -> WAN: ")
+    self.logger.debug("FW WAN -> WAN: ")
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             domain       = domain_name,
                                             header       = header,
@@ -721,7 +722,7 @@ class SciPass:
     actions = []
     actions.append({"type": "output",
                     "port": int(ports['fw_wan'][0]['port_id'])})
-    self.logger.error("WAN -> FW WAN")
+    self.logger.debug("WAN -> FW WAN")
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             domain       = domain_name,
                                             header       = header,
@@ -732,7 +733,8 @@ class SciPass:
                                             priority     = int(priority))
 
     #ok now that we have that done... start balancing!!!
-    self.config[dpid][domain_name]['balancer'].distributePrefixes(prefixes)
+    self.logger.info("Distributing Prefixes!")
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
     
 
   def _setupInlineIDS(self, dpid = None, domain_name = None):
@@ -746,6 +748,7 @@ class SciPass:
     in_port = ports['lan'][0]
 
     for prefix in in_port['prefixes']:
+      self.config[dpid][domain_name]['balancer'].addPrefix(prefix['prefix'])
       prefixes.append(prefix['prefix'])
 
     #LAN to WAN
@@ -770,7 +773,7 @@ class SciPass:
     actions = []
     actions.append({"type": "output",
                     "port": int(ports['lan'][0]['port_id'])})
-    self.logger.error("FW WAN -> WAN: ")
+    self.logger.debug("FW WAN -> WAN: ")
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             domain       = domain_name,
                                             header       = header,
@@ -781,7 +784,8 @@ class SciPass:
                                             priority     = int(priority / 3))
 
     #ok now that we have that done... start balancing!!!
-    self.config[dpid][domain_name]['balancer'].distributePrefixes(prefixes)
+    self.logger.info("Distributing Prefixes!")
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
 
   def _setupBalancer(self, dpid = None, domain_name = None):
     self.logger.debug("balancer rule init")
@@ -791,9 +795,11 @@ class SciPass:
     for port in ports['lan']:
       in_port = port
       for prefix in in_port['prefixes']:
+        self.config[dpid][domain_name]['balancer'].addPrefix(prefix['prefix'])
         prefixes.append(prefix['prefix'])
 
-    self.config[dpid][domain_name]['balancer'].distributePrefixes(set(prefixes))
+    self.logger.info("Distributing Prefixes!")
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
         
   def addPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None, priority=None):
     #self.logger.error("Add Prefix " + str(domain_name) + " " + str(group_id) + " " + str(prefix))
