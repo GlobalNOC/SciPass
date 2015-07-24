@@ -405,7 +405,7 @@ class TestBalance(unittest.TestCase):
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net2,500,500)
         self.assertTrue(res == 1)
-        self.balancer.balanceByNetBytes( )
+        self.balancer.balanceByNetBytes([] )
 
     def test_balance_by_load(self):
         self.balancer = SimpleBalancer( ignoreSensorLoad = 0,
