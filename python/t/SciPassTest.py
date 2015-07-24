@@ -255,6 +255,8 @@ class TestFunctionality(unittest.TestCase):
         flows = []
         self.api.bad_flow({"nw_src": "10.0.20.2/32", "nw_dst":"156.56.6.1/32", "tp_src":1, "tp_dst":2})
         self.assertEquals(len(flows),2)
+        print flows[0]
+        print flows[1]
         flow = flows[0]
         self.assertEqual(int(flow['hard_timeout']),0)
         self.assertEqual(int(flow['idle_timeout']),90)
