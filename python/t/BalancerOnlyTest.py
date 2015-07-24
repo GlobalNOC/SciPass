@@ -19,6 +19,137 @@ class BalancerInitTest(unittest.TestCase):
     def setUp(self):
         self.api = SciPass( logger = logging.getLogger(__name__),
                           config = str(os.getcwd()) + "/t/etc/SciPass_balancer_only.xml" )
+
+    def test_bad_flow(self):
+        #first setup the handler to get all the flows that were sent                                                                                                       
+        flows = []
+        def flowSent(dpid = None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
+            obj = {'dpid': dpid, 'header': header,
+                   'actions': actions, 'command': command,
+                   'priority': priority,
+                   'idle_timeout': idle_timeout,
+                   'hard_timeout': hard_timeout}
+            flows.append(obj)
+            logging.error(obj)
+
+
+        self.api.registerForwardingStateChangeHandler(flowSent)
+
+        datapath = Mock(id=1)
+        self.api.switchJoined(datapath)
+        self.assertTrue( len(flows) == 1132)
+        flows = []
+        
+        self.api.bad_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2})
+        self.assertEquals(len(flows),2)
+        print flows[0]
+        print flows[1]
+        flow = flows[0]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),90)
+        self.assertEqual(flow['actions'],[])
+        self.assertEqual(flow['header'],{'phys_port': 10, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_src': 167777282, 'tp_dst': 2, 'tp_src': 1, 'nw_dst': 134744072})
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+        flow = flows[1]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),90)
+        self.assertEqual(flow['actions'],[])
+        self.assertEqual(flow['header'],{'phys_port': 9, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_src': 167777282, 'tp_dst': 2, 'tp_src': 1, 'nw_dst': 134744072})
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+
+
+        flows = []
+        self.api.bad_flow({"nw_dst": "10.0.20.2/32", "nw_src":"8.8.8.8/32", "tp_src":2, "tp_dst":1})
+        self.assertEquals(len(flows),2)
+        print flows[0]
+        print flows[1]
+        flow = flows[0]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),90)
+        self.assertEqual(flow['actions'],[])
+        self.assertEqual(flow['header'],{'phys_port': 10, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_src': 167777282, 'tp_dst': 2, 'tp_src': 1, 'nw_dst': 134744072})
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+        flow = flows[1]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),90)
+        self.assertEqual(flow['actions'],[])
+        self.assertEqual(flow['header'],{'phys_port': 9, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_src': 167777282, 'tp_dst': 2, 'tp_src': 1, 'nw_dst': 134744072})
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+
+
+
+    def test_good_flow(self):
+        #first setup the handler to get all the flows that were sent         
+        flows = []
+        def flowSent(dpid = None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
+            obj = {'dpid': dpid, 'header': header,
+                   'actions': actions, 'command': command,
+                   'priority': priority,
+                   'idle_timeout': idle_timeout,
+                   'hard_timeout': hard_timeout}
+            flows.append(obj)
+            logging.error(obj)
+
+
+        self.api.registerForwardingStateChangeHandler(flowSent)
+
+        datapath = Mock(id=1)
+        self.api.switchJoined(datapath)
+        self.assertTrue( len(flows) == 1132)
+        flows = []
+
+        self.api.good_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2})
+        self.assertEquals(len(flows),2)
+        print flows[0]
+        print flows[1]
+        flow = flows[0]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),90)
+        self.assertEqual(flow['actions'],[])
+        self.assertEqual(flow['header'],{'phys_port': 10, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_src': 167777282, 'tp_dst': 2, 'tp_src': 1, 'nw_dst': 134744072})
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+        flow = flows[1]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),90)
+        self.assertEqual(flow['actions'],[])
+        self.assertEqual(flow['header'],{'phys_port': 9, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_src': 167777282, 'tp_dst': 2, 'tp_src': 1, 'nw_dst': 134744072})
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+
+        flows = []
+        self.api.good_flow({"nw_dst": "10.0.20.2/32", "nw_src":"8.8.8.8/32", "tp_src":2, "tp_dst":1})
+        self.assertEquals(len(flows),2)
+        print flows[0]
+        print flows[1]
+        flow = flows[0]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),90)
+        self.assertEqual(flow['actions'],[])
+        self.assertEqual(flow['header'],{'phys_port': 10, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_src': 167777282, 'tp_dst': 2, 'tp_src': 1, 'nw_dst': 134744072})
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+        flow = flows[1]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),90)
+        self.assertEqual(flow['actions'],[])
+        self.assertEqual(flow['header'],{'phys_port': 9, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_src': 167777282, 'tp_dst': 2, 'tp_src': 1, 'nw_dst': 134744072})
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+
+        
         
     def testInit(self):
 

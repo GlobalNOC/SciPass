@@ -50,7 +50,7 @@ rm -rf $RPM_BUILD_ROOT
 %{python_sitelib}/SciPass/*
 %{perl_vendorlib}/*
 
-%defattr(754, root, root, -)
+%defattr(755, root, root, -)
 /usr/bin/scipass-cli.pl
 
 %doc

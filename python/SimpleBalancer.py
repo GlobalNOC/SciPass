@@ -666,7 +666,7 @@ class SimpleBalancer:
     else:
         self.logger.debug("everything is fine")
 
-  def balanceByNetBytes(self):
+  def balanceByNetBytes(self, ignored_groups):
     """Balance by network traffic with no regard to sensor load"""
     minLoad         = 100
     minGroup       = ""
@@ -678,80 +678,96 @@ class SimpleBalancer:
     totalBW  = 0
     groupBW = defaultdict(float)
     for group in self.groups:
-      # don't include disabled sensors
-      if(not self.getGroupStatus(group)): continue
-      self.logger.debug("Group: " + str(group))
-      self.logger.debug("Group Prefixes: {0}".format(self.groups[group]['prefixes']))
-      for prefix in self.groups[group]['prefixes']:
+        if group in ignored_groups: continue
+        # don't include disabled sensors
+        if(not self.getGroupStatus(group)): continue
+        self.logger.debug("Group: " + str(group))
+        self.logger.debug("Group Prefixes: {0}".format(self.groups[group]['prefixes']))
+        for prefix in self.groups[group]['prefixes']:
         #--- figure out total amount of traffic going over each sensor
-          self.logger.debug("Prefix: " + str(prefix) + " BW: " + str((prefixBW[prefix]/1000/1000)) + "Mbps")
-          totalBW  = totalBW + prefixBW[prefix]
-          groupBW[group] = groupBW[group] + prefixBW[prefix]
-      self.groups[group]['bandwidth'] = groupBW[group]
+            self.logger.debug("Prefix: " + str(prefix) + " BW: " + str((prefixBW[prefix]/1000/1000)) + "Mbps")
+            totalBW  = totalBW + prefixBW[prefix]
+            groupBW[group] = groupBW[group] + prefixBW[prefix]
+        self.groups[group]['bandwidth'] = groupBW[group]
 
     for group in self.groups:
-      # don't include disabled sensors
-      if(not self.getGroupStatus(group)): continue
+        if group in ignored_groups: continue
+        # don't include disabled sensors
+        if(not self.getGroupStatus(group)): continue
 
-      self.logger.debug("Group: " + str(group) + " bw " + str((groupBW[group]/1000/1000)) + "Mbps")
+        self.logger.debug("Group: " + str(group) + " bw " + str((groupBW[group]/1000/1000)) + "Mbps")
 
-      if(totalBW > 0):
-        load =groupBW[group] / float(totalBW)
-      else:
-        load = 0
+        if(totalBW > 0):
+            load =groupBW[group] / float(totalBW)
+        else:
+            load = 0
 
-      self.logger.debug("Group: " + str(group) + " load "+ str(load))
+        self.logger.debug("Group: " + str(group) + " load "+ str(load))
 
-      if(load > maxLoad):
-        maxLoad = load
-        maxGroup = group
+        if(load > maxLoad):
+            maxLoad = load
+            maxGroup = group
 
-      if(load < minLoad):
-        minLoad = load
-        minGroup = group;
+        if(load < minLoad):
+            minLoad = load
+            minGroup = group;
 
     loadDelta = maxLoad - minLoad;
 
     #---
-   
     self.logger.debug("max sensor = '"+str(maxGroup)+"' load "+str(maxLoad))
     self.logger.debug("loadminthreshold = " + str(self.sensorLoadMinThreshold))
     self.logger.debug("load delta = "+str(loadDelta)+" max "+str(maxGroup)+" min "+str(minGroup))
 
     if( maxLoad >= self.sensorLoadMinThreshold ):
-      if(loadDelta >= self.sensorLoadDeltaThreshold):
-        #-- a sensor is above balance threshold and the delta is large enough to consider balancing
-        #--- get the prefix with largest esitmated load from maxSensor
-	tmpDict = defaultdict(float)
-        for prefix in self.groups[maxGroup]['prefixes']:
-          tmpDict[prefix] = prefixBW[prefix]
+        if(loadDelta >= self.sensorLoadDeltaThreshold):
+            #-- a sensor is above balance threshold and the delta is large enough to consider balancing
+            #--- get the prefix with largest esitmated load from maxSensor
+            tmpDict = defaultdict(float)
+            for prefix in self.groups[maxGroup]['prefixes']:
+                tmpDict[prefix] = prefixBW[prefix]
 
-        #--- see if we can move a prefix first 
-        for candidatePrefix in sorted(tmpDict,key=tmpDict.get,reverse=True):
-          estPrefixLoad = prefixBW[candidatePrefix]/float(totalBW)
-          estNewGroupLoad = estPrefixLoad+minLoad;
+            candidatePrefixes = sorted(tmpDict,key=tmpDict.get,reverse=True)
+            #--- see if we can move a prefix first 
+            for candidatePrefix in candidatePrefixes:
+                estPrefixLoad = prefixBW[candidatePrefix]/float(totalBW)
+                estNewGroupLoad = estPrefixLoad+minLoad;
 
-          #--- check if it will fit on minSensor and if the new sensor will have less load than max sensor 
-          if(estNewGroupLoad <=  1  and estNewGroupLoad < (maxLoad-estPrefixLoad)):
-            #--- it will fit on minsensor and provides a better balance, move it to minsensor
-            self.moveGroupPrefix(maxGroup,minGroup,candidatePrefix)
-            return
+                #--- check if it will fit on minSensor and if the new sensor will have less load than max sensor 
+                if(estNewGroupLoad <= 1 and estNewGroupLoad < (maxLoad-estPrefixLoad)):
+                    #--- it will fit on minsensor and provides a better balance, move it to minsensor
+                    self.moveGroupPrefix(maxGroup,minGroup,candidatePrefix)
+                    self.logger.info("Sensor prefix moved successfully")
+                    return
 
 
-        #--- could not move something, consider splitting a prefix 
-        for candidatePrefix in sorted(tmpDict,key=tmpDict.get,reverse=True):
-          if(self.splitSensorPrefix(maxGroup,candidatePrefix)):
-              #--- success
-              self.logger.info("Sensor prefix successfully split")
-              break
-          else:
-              self.logger.error("Sensor prefix not successfully split")
-              continue
-      else:
-          self.logger.warn("below load Delta Threshold")
+            #--- could not move something, consider splitting a prefix 
+            for candidatePrefix in candidatePrefixes:
+                if(self.splitSensorPrefix(maxGroup,candidatePrefix)):
+                    #--- success
+                    self.logger.info("Sensor prefix successfully split")
+                    return
+                else:
+                    self.logger.error("Sensor prefix not successfully split")
+                    #this sensor is max but we can't break the prefix down any further
+                    #does this sensor only have 1 prefix?
+                    if len(self.groups[group]['prefixes']) == 1:
+                        #we have to ignore this sensor and balance everything else instead
+                        self.logger.error("Could not split the prefix, and no prefixes to move, ignoring sensor and rebalancing")
+                        ignored_groups.append(maxGroup)
+                        self.balanceByNetBytes(ignored_groups)
+                        return
+                    else:
+                        #lets just move the smallest prefix
+                        candidatePrefixes = sorted(tmpDict,key=tmpDict.get,reverse=False)
+                        self.moveGroupPrefix(maxGroup,minGroup,candidatePrefixes[0])
+                        self.logger.error("Could not split the large prefix, so moved the smallest")
+                        
+        else:
+            self.logger.warn("below load Delta Threshold")
 
     else:
-      self.logger.warn("below sensorLoadMinThreshold") 
+        self.logger.warn("below sensorLoadMinThreshold") 
  
 
   def balance(self):
@@ -770,7 +786,7 @@ class SimpleBalancer:
 
       #balance by network traffic
       if(self.ignoreSensorLoad):
-          return self.balanceByNetBytes()
+          return self.balanceByNetBytes([])
 
       prefixBW = self.prefixBW
 
