@@ -244,9 +244,11 @@ class SciPass:
               actions = []
 
               #build a header based on what was sent
-              header = self._build_header(obj,False)            
-              #set the port of the header
-              header['phys_port'] = int(port['port_id'])
+              header = self._build_header(obj,False) 
+              
+              if not self.config[datapath_id][name]['mode'] == "SimpleBalancer":
+                #set the port of the header
+                header['phys_port'] = int(port['port_id'])
 
               self.logger.debug("Header: " + str(header))
               self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
@@ -278,8 +280,11 @@ class SciPass:
               actions = []
               #build a header based on what was setn
               header = self._build_header(obj,True)
-              #set the port
-              header['phys_port'] = int(port['port_id'])
+              
+              if not self.config[datapath_id][name]['mode'] == "SimpleBalancer":
+                #set the port
+                header['phys_port'] = int(port['port_id'])
+
               self.logger.debug("Header: " + str(header))
               self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
                                                       domain       = name,
