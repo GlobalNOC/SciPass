@@ -53,339 +53,254 @@ class SciPass:
     self.switchForwardingChangeHandlers.append(handler)
 
   def good_flow(self, obj):
+    """process a good flow message and changes the forwarding state to reflect that"""
+    #turn this into a 
     #presumes that we get a nw_src, nw_dst, tcp_src_port, tcp_dst_port
     #we need to do verification here or conversion depending on what we get from the sensors
-    in_port = None
-    out_port = None
-    dpid = None
-    domain = None
-    reverse = False
-    new_prefix = ipaddr.IPv4Network(obj['nw_src'])
 
-    #need to figure out the lan and wan ports
-    for datapath_id in self.config:
-      for name in self.config[datapath_id]:
-        for port in self.config[datapath_id][name]['ports']['lan']:
+    #this case is a little bit more complicated than the bad_flow case
+    #it is possible for there to be an interesting case where there are either multiple LAN
+    #or multiple WAN ports
+
+    #build our prefixes
+    src_prefix = ipaddr.IPv4Network(obj['nw_src'])
+    dst_prefix = ipaddr.IPv4Network(obj['nw_dst'])
+
+    #find the switch, domain, lan, wan ports
+    for dpid in self.config:
+      for name in self.config[dpid]:
+        
+        used_wan_ports = []
+        wan_action = []
+        lan_action = []
+        #set these now they are cheap and it makes the rest of it cleaner
+        idle_timeout = 0
+        priority = 0
+        if(not obj.has_key('idle_timeout')):
+          idle_timeout  = self.config[dpid][name]['idle_timeout']
+        else:
+          idle_timeout = obj['idle_timeout']
+          
+        if(not obj.has_key('priority')):
+          priority = self.config[dpid][name]['default_whitelist_priority']
+        else:
+          priority = obj['priority']
+
+        #step one figure out the actions :)
+        #lets just calculate the wan ports involved here
+        if len(self.config[dpid][name]['ports']['wan']) > 1:
+          for port in self.config[dpid][name]['ports']['wan']:
             for prefix in port['prefixes']:
-              self.logger.debug("Comparing" + str(new_prefix) + " " + str(prefix['prefix']))
-              if(prefix['prefix'].Contains( new_prefix )):
-                in_port = port
-                dpid = datapath_id
-                domain = name
-                
-    if(in_port == None):
-      new_prefix = ipaddr.IPv4Network(obj['nw_dst'])
-      #do the same but look for the dst instead of the src
-      for datapath_id in self.config:
-        for name in self.config[datapath_id]:
-          for port in self.config[datapath_id][name]['ports']['lan']:
-            for prefix in port['prefixes']:
-              if(prefix['prefix'].Contains( new_prefix )):
-                in_port = port
-                dpid = datapath_id
-                domain = name
-                reverse = True
+              if prefix['prefix'].Contains( src_prefix ):
+                used_wan_ports.append(port['port_id'])
+                wan_action.append({"type": "output",
+                                   "port": port['port_id']})
+                if prefix['prefix'].Contains( dst_prefix ):
+                  used_wan_ports.append(port['port_id'])
+                  wan_action.append({"type": "output",
+                                     "port": port['port_id']})
+        #if you only have 1 wan we don't require prefixes
+        elif len(self.config[dpid][name]['ports']['wan']) == 1:
+          used_wan_ports.append(self.config[dpid][name]['ports']['wan'][0]['port_id'])
+          wan_action.append({"type": "output",
+                             "port": self.config[dpid][name]['ports']['wan'][0]['port_id']})
 
-    if(in_port == None):
-      self.logger.error("unable to find either an output or an input port")
-      return
+        #lets just calculate the wan ports involved here
+        for port in self.config[dpid][name]['ports']['lan']:
+          for prefix in port['prefixes']:
+            if prefix['prefix'].Contains( src_prefix ):
+              lan_action.append({"type": "output",
+                                 "port": port['port_id']})
+            if prefix['prefix'].Contains( dst_prefix ):
+              lan_action.append({"type": "output",
+                                 "port": port['port_id']})
 
-    obj['phys_port'] = int(in_port['port_id'])
 
-    actions = [{"type": "output", 
-                "port": self.config[dpid][name]['ports']['wan'][0]['port_id']}]
 
-    idle_timeout = None
-    priority     = self.config[dpid][name]['default_whitelist_priority']
-    self.logger.debug("Idle Timeout: %d", int(self.config[dpid][name]['idle_timeout']))
-    self.logger.debug("Priority: %d", int(priority))
-    
-    header = {}
-    if(not obj.has_key('idle_timeout')):
-      idle_timeout  = self.config[dpid][name]['idle_timeout']
-    else:
-      idle_timeout = obj['idle_timeout']
-      
-    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
+        #first lets process the LAN ports
+        for port in self.config[dpid][name]['ports']['lan']:
+          for prefix in port['prefixes']:
+            #ok we'll see if the src matches
+            if(prefix['prefix'].Contains( src_prefix )):
+              header = self._build_header(obj,False)    
+              header['phys_port'] = int(port['port_id'])
+              self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                      domain       = name,
+                                                      header       = header,
+                                                      actions      = wan_action,
+                                                      command      = "ADD",
+                                                      idle_timeout = idle_timeout,
+                                                      hard_timeout = 0,
+                                                      priority     = priority )
 
-    if(not obj.has_key('priority')):
-      priority = self.config[dpid][name]['default_whitelist_priority']
-    else:
-      priority = obj['priority']
+              #now do the wan side (there might be multiple)
+              for wan in used_wan_ports:
+                header = self._build_header(obj,True)
+                header['phys_port'] = int(wan)
+                self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                        domain       = name,
+                                                        header       = header,
+                                                        actions      = lan_action,
+                                                        command      = "ADD",
+                                                        idle_timeout = idle_timeout,
+                                                        hard_timeout = 0,
+                                                        priority     = priority )
+            
 
-    if(obj.has_key('nw_src')):
-      if(reverse):
-        prefix = ipaddr.IPv4Network(obj['nw_src'])
-        header['nw_dst'] = int(prefix)
-        header['nw_dst_mask'] = int(prefix.prefixlen)
-      else:
-        prefix = ipaddr.IPv4Network(obj['nw_src'])
-        header['nw_src'] = int(prefix)
-        header['nw_src_mask'] = int(prefix.prefixlen)
+            #check the other dir          
+            if(prefix['prefix'].Contains( dst_prefix )):
+              header = self._build_header(obj,True)
+              header['phys_port'] = int(port['port_id'])
+              self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                      domain       = name,
+                                                      header       = header,
+                                                      actions      = wan_action,
+                                                      command      = "ADD",
+                                                      idle_timeout = idle_timeout,
+                                                      hard_timeout = 0,
+                                                      priority     = priority)
 
-    if(obj.has_key('nw_dst')):
-      if(reverse):
-        prefix = ipaddr.IPv4Network(obj['nw_dst'])
-        header['nw_src'] = int(prefix)
-        header['nw_src_mask'] = int(prefix.prefixlen)
-      else:
-        prefix = ipaddr.IPv4Network(obj['nw_dst'])
-        header['nw_dst'] = int(prefix)
-        header['nw_dst_mask'] = int(prefix.prefixlen)
-
-    if(obj.has_key('tp_src')):
-      if(reverse):
-        header['tp_dst'] = int(obj['tp_src'])
-      else:
-        header['tp_src'] = int(obj['tp_src'])
-
-    if(obj.has_key('tp_dst')):
-      if(reverse):
-        header['tp_src'] = int(obj['tp_dst'])
-      else:
-        header['tp_dst'] = int(obj['tp_dst'])
-
-    if not self.config[dpid][name]['mode'] == "SimpleBalancer":
-      header['phys_port'] = int(in_port['port_id'])
-
-    self.logger.debug("Header: " + str(header))
-
-    
-
-    self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            domain       = domain,
-                                            header       = header,
-                                            actions      = actions,
-                                            command      = "ADD",
-                                            idle_timeout = idle_timeout,
-                                            hard_timeout = 0,
-                                            priority     = priority)
-      
-
-    header = {}
-    if(not obj.has_key('idle_timeout')):
-      idle_timeout  = self.config[dpid][name]['idle_timeout']
-    else:
-      idle_timeout = obj['idle_timeout']
-
-    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
-
-    if(not obj.has_key('priority')):
-      priority = self.config[dpid][name]['default_whitelist_priority']
-    else:
-      priority = obj['priority']
-
-    if(obj.has_key('nw_src')):
-      if(reverse):
-        prefix = ipaddr.IPv4Network(obj['nw_src'])
-        header['nw_src'] = int(prefix)
-        header['nw_src_mask'] = int(prefix.prefixlen)
-      else:
-        prefix = ipaddr.IPv4Network(obj['nw_src'])
-        header['nw_dst'] = int(prefix)
-        header['nw_dst_mask'] = int(prefix.prefixlen)
-    if(obj.has_key('nw_dst')):
-      if(reverse):
-        prefix = ipaddr.IPv4Network(obj['nw_dst'])
-        header['nw_dst'] = int(prefix)
-        header['nw_dst_mask'] = int(prefix.prefixlen)
-      else:
-        prefix = ipaddr.IPv4Network(obj['nw_dst'])
-        header['nw_src'] = int(prefix)
-        header['nw_src_mask'] = int(prefix.prefixlen)
-
-    if(obj.has_key('tp_src')):
-      if(reverse):
-        header['tp_src'] = int(obj['tp_src'])
-      else:
-        header['tp_dst'] = int(obj['tp_src'])
-
-    if(obj.has_key('tp_dst')):
-      if(reverse):
-        header['tp_dst'] = int(obj['tp_dst'])
-      else:
-        header['tp_src'] = int(obj['tp_dst'])
-
-    if not self.config[dpid][name]['mode'] == "SimpleBalancer":
-      header['phys_port'] = int(self.config[dpid][name]['ports']['wan'][0]['port_id'])
-      
-    actions = [{"type": "output",
-                "port": in_port['port_id']}]
-    
-    self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            domain       = domain,
-                                            header       = header,
-                                            actions      = actions,
-                                            command      = "ADD",
-                                            idle_timeout = idle_timeout,
-                                            hard_timeout = 0,
-                                            priority     = priority)
-    
+              #now do the wan side (there might be multiple)
+              for wan in used_wan_ports:
+                header = self._build_header(obj,True)
+                header['phys_port'] = int(wan)
+                self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                        domain       = name,
+                                                        header       = header,
+                                                        actions      = lan_action,
+                                                        command      = "ADD",
+                                                        idle_timeout = idle_timeout,
+                                                        hard_timeout = 0,
+                                                        priority     = priority )
     results = {}
     results['success'] = 1
     return results
+
+  def _build_header(self, obj, reverse):
+    header = {}
+    
+    if(obj.has_key('nw_src')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_src'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+        
+    if(obj.has_key('nw_dst')):
+      if(reverse):
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_src'] = int(prefix)
+        header['nw_src_mask'] = int(prefix.prefixlen)
+      else:
+        prefix = ipaddr.IPv4Network(obj['nw_dst'])
+        header['nw_dst'] = int(prefix)
+        header['nw_dst_mask'] = int(prefix.prefixlen)
+
+    if(obj.has_key('tp_src')):
+      if(reverse):
+        header['tp_dst'] = int(obj['tp_src'])
+      else:
+        header['tp_src'] = int(obj['tp_src'])
+
+    if(obj.has_key('tp_dst')):
+      if(reverse):
+        header['tp_src'] = int(obj['tp_dst'])
+      else:
+        header['tp_dst'] = int(obj['tp_dst'])
+   
+    return header
 
   def bad_flow(self, obj):
     #turn this into a
     #presumes that we get a nw_src, nw_dst, tcp_src_port, tcp_dst_port
     #we need to do verification here or conversion depending on what we get from the sensors
-    in_port = None
-    out_port = None
-    dpid = None
-    domain = None
-    reverse = False
 
-    new_prefix = ipaddr.IPv4Network(obj['nw_src'])
-    self.logger.debug("New preifx: " + str(new_prefix))
-    #need to figure out the lan and wan ports
+    src_prefix = ipaddr.IPv4Network(obj['nw_src'])
+    dst_prefix = ipaddr.IPv4Network(obj['nw_dst'])
+
+    #find all the lan ports
     for datapath_id in self.config:
       for name in self.config[datapath_id]:
+        #just so we don't have to do this constantly!
+        idle_timeout = 0
+        if(not obj.has_key('idle_timeout')):
+          idle_timeout  = self.config[datapath_id][name]['idle_timeout']
+        else:
+          idle_timeout = obj['idle_timeout']
+        priority = 65535
+        if(not obj.has_key('priority')):
+          priority = self.config[datapath_id][name]['default_whitelist_priority']
+        else:
+          priority = obj['priority']
+
         for port in self.config[datapath_id][name]['ports']['lan']:
-            for prefix in port['prefixes']:
-              if(prefix['prefix'].Contains( new_prefix )):
-                in_port = port
-                dpid = datapath_id
-                domain = name
+          for prefix in port['prefixes']:
+            
+            if(prefix['prefix'].Contains( src_prefix )):
+              #actions drop
+              actions = []
 
-    if(in_port == None):
-      new_prefix = ipaddr.IPv4Network(obj['nw_dst'])
-      #do the same but look for the dst instead of the src                                                             
-      for datapath_id in self.config:
-        for name in self.config[datapath_id]:
-          for port in self.config[datapath_id][name]['ports']['lan']:
-            for prefix in port['prefixes']:
-              if(prefix['prefix'].Contains( new_prefix )):
-                in_port = port
-                dpid = datapath_id
-                domain = name
-                reverse = True
+              #build a header based on what was sent
+              header = self._build_header(obj,False)            
+              #set the port of the header
+              header['phys_port'] = int(port['port_id'])
 
-    if(in_port == None):
-      self.logger.debug("unable to find either an output or an input port")
-      return
+              self.logger.debug("Header: " + str(header))
+              self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
+                                                      domain       = name,
+                                                      header       = header,
+                                                      actions      = actions,
+                                                      command      = "ADD",
+                                                      idle_timeout = idle_timeout,
+                                                      priority     = priority)
+              
+              for wan in self.config[datapath_id][name]['ports']['wan']:
+                #build a header based on what was set
+                header = self._build_header(obj,True)
+                #set the port
+                header['phys_port'] = int(wan['port_id'])
+                self.logger.debug("Header: " + str(header))
+                self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
+                                                        domain       = name,
+                                                        header       = header,
+                                                        actions      = actions,
+                                                        command      = "ADD",
+                                                        idle_timeout = idle_timeout,
+                                                        priority     = priority)
+                
 
-    obj['phys_port'] = int(in_port['port_id'])
 
-    #actions = drop
-    actions = []
-
-    idle_timeout = None
-    hard_timeout = None
-    priority     = self.config[dpid][name]['default_blacklist_priority']
-
-    header = {}
-    if(not obj.has_key('idle_timeout')):
-      idle_timeout  = self.config[dpid][name]['idle_timeout']
-    else:
-      idle_timeout = obj['idle_timeout']
-
-    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
-
-    if(not obj.has_key('priority')):
-      priority = self.config[dpid][name]['default_whitelist_priority']
-    else:
-      priority = obj['priority']
-
-    if(obj.has_key('nw_src')):
-      if(reverse):
-        prefix = ipaddr.IPv4Network(obj['nw_src'])
-        header['nw_dst'] = int(prefix)
-        header['nw_dst_mask'] = int(prefix.prefixlen)
-      else:
-        prefix = ipaddr.IPv4Network(obj['nw_src'])
-        header['nw_src'] = int(prefix)
-        header['nw_src_mask'] = int(prefix.prefixlen)
-    if(obj.has_key('nw_dst')):
-      if(reverse):
-        prefix = ipaddr.IPv4Network(obj['nw_dst'])
-        header['nw_src'] = int(prefix)
-        header['nw_src_mask'] = int(prefix.prefixlen)
-      else:
-        prefix = ipaddr.IPv4Network(obj['nw_dst'])
-        header['nw_dst'] = int(prefix)
-        header['nw_dst_mask'] = int(prefix.prefixlen)
-
-    if(obj.has_key('tp_src')):
-      if(reverse):
-        header['tp_dst'] = int(obj['tp_src'])
-      else:
-        header['tp_src'] = int(obj['tp_src'])
-
-    if(obj.has_key('tp_dst')):
-      if(reverse):
-        header['tp_src'] = int(obj['tp_dst'])
-      else:
-        header['tp_dst'] = int(obj['tp_dst'])
-
-    header['phys_port'] = int(in_port['port_id'])
-
-    self.logger.debug("Header: " + str(header))
-
-    self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            domain       = domain,
-                                            header       = header,
-                                            actions      = actions,
-                                            command      = "ADD",
-                                            idle_timeout = idle_timeout,
-                                            priority     = priority)
-
-    header = {}
-    if(not obj.has_key('idle_timeout')):
-      idle_timeout  = self.config[dpid][name]['idle_timeout']
-    else:
-      idle_timeout = obj['idle_timeout']
-
-    self.logger.debug("Selected Idle Timeout: " + str(idle_timeout))
-
-    if(not obj.has_key('priority')):
-      priority = self.config[dpid][name]['default_whitelist_priority']
-    else:
-      priority = obj['priority']
-
-    if(obj.has_key('nw_src')):
-      if(reverse):
-        prefix = ipaddr.IPv4Network(obj['nw_src'])
-        header['nw_src'] = int(prefix)
-        header['nw_src_mask'] = int(prefix.prefixlen)
-      else:
-        prefix = ipaddr.IPv4Network(obj['nw_src'])
-        header['nw_dst'] = int(prefix)
-        header['nw_dst_mask'] = int(prefix.prefixlen)
-    if(obj.has_key('nw_dst')):
-      if(reverse):
-        prefix = ipaddr.IPv4Network(obj['nw_dst'])
-        header['nw_dst'] = int(prefix)
-        header['nw_dst_mask'] = int(prefix.prefixlen)
-      else:
-        prefix = ipaddr.IPv4Network(obj['nw_dst'])
-        header['nw_src'] = int(prefix)
-        header['nw_src_mask'] = int(prefix.prefixlen)
-    if(obj.has_key('tp_src')):
-      if(reverse):
-        header['tp_src'] = int(obj['tp_src'])
-      else:
-        header['tp_dst'] = int(obj['tp_src'])
-
-    if(obj.has_key('tp_dst')):
-      if(reverse):
-        header['tp_dst'] = int(obj['tp_dst'])
-      else:
-        header['tp_src'] = int(obj['tp_dst'])
-
-    header['phys_port'] = int(self.config[dpid][name]['ports']['wan'][0]['port_id'])
-
-    #actions = drop
-    actions = []
-
-    self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                            domain       = domain,
-                                            header       = header,
-                                            actions      = actions,
-                                            command      = "ADD",
-                                            idle_timeout = idle_timeout,
-                                            hard_timeout = 0,
-                                            priority     = priority)
-
+            if(prefix['prefix'].Contains( dst_prefix )):
+              #actions drop
+              actions = []
+              #build a header based on what was setn
+              header = self._build_header(obj,True)
+              #set the port
+              header['phys_port'] = int(port['port_id'])
+              self.logger.debug("Header: " + str(header))
+              self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
+                                                      domain       = name,
+                                                      header       = header,
+                                                      actions      = actions,
+                                                      command      = "ADD",
+                                                      idle_timeout = idle_timeout,
+                                                      priority     = priority)
+              for wan in self.config[datapath_id][name]['ports']['wan']:
+                #build a header based on what was set
+                header = self._build_header(obj,False)
+                #set the port
+                header['phys_port'] = int(wan['port_id'])
+                self.logger.debug("Header: " + str(header))
+                self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
+                                                        domain       = name,
+                                                        header       = header,
+                                                        actions      = actions,
+                                                        command      = "ADD",
+                                                        idle_timeout = idle_timeout,
+                                                        priority     = priority)
 
     results = {}
     results['success'] = 1
