@@ -139,7 +139,7 @@ class TestInit(unittest.TestCase):
         self.assertEquals(flow['header'], {'phys_port': 10, 'dl_type': None})
         self.assertEquals(flow['priority'], 10)
         flow = flows[15]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '27'}, {'type': 'output', 'port': '26'}, {'type': 'output', 'port': '5'}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': 27}, {'type': 'output', 'port': 26}, {'type': 'output', 'port': 5}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 1, 'nw_src': 167776512, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 500)
@@ -149,7 +149,7 @@ class TestInit(unittest.TestCase):
         self.assertEquals(flow['header'], {'phys_port': 10, 'nw_dst': 167776512, 'nw_dst_mask': 24})
         self.assertEquals(flow['priority'], 500)
         flow = flows[17]
-        self.assertEquals(flow['actions'],[{'type': 'output', 'port': '21'}, {'type': 'output', 'port': '20'}, {'type': 'output', 'port': '5'}])
+        self.assertEquals(flow['actions'],[{'type': 'output', 'port': 21}, {'type': 'output', 'port': 20}, {'type': 'output', 'port': 5}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 1, 'nw_src': 167776768, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 600)
@@ -159,7 +159,7 @@ class TestInit(unittest.TestCase):
         self.assertEquals(flow['header'], {'nw_dst_mask': 24, 'phys_port': 10, 'nw_dst': 167776768})
         self.assertEquals(flow['priority'], 600)
         flow = flows[19]
-        self.assertEquals(flow['actions'], [{'type': 'output', 'port': '25'}, {'type': 'output', 'port': '24'}, {'type': 'output', 'port': '5'}])
+        self.assertEquals(flow['actions'], [{'type': 'output', 'port': 25}, {'type': 'output', 'port': 24}, {'type': 'output', 'port': 5}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 2, 'nw_src': 167777024, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 700)
@@ -169,7 +169,7 @@ class TestInit(unittest.TestCase):
         self.assertEquals(flow['header'],  {'nw_dst_mask': 24, 'phys_port': 10, 'nw_dst': 167777024})
         self.assertEquals(flow['priority'], 700)
         flow = flows[21]
-        self.assertEquals(flow['actions'], [{'type': 'output', 'port': '23'}, {'type': 'output', 'port': '22'}, {'type': 'output', 'port': '5'}])
+        self.assertEquals(flow['actions'], [{'type': 'output', 'port': 23}, {'type': 'output', 'port': 22}, {'type': 'output', 'port': 5}])
         self.assertEquals(flow['command'],"ADD")
         self.assertEquals(flow['header'], {'phys_port': 2, 'nw_src': 167777280, 'nw_src_mask': 24})
         self.assertEquals(flow['priority'], 800)
