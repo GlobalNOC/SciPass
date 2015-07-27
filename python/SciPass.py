@@ -53,7 +53,6 @@ class SciPass:
     self.switchForwardingChangeHandlers.append(handler)
 
   def good_flow(self, obj):
-    #turn this into a 
     #presumes that we get a nw_src, nw_dst, tcp_src_port, tcp_dst_port
     #we need to do verification here or conversion depending on what we get from the sensors
     in_port = None
@@ -146,7 +145,8 @@ class SciPass:
       else:
         header['tp_dst'] = int(obj['tp_dst'])
 
-    header['phys_port'] = int(in_port['port_id'])
+    if not self.config[dpid][name]['mode'] == "SimpleBalancer":
+      header['phys_port'] = int(in_port['port_id'])
 
     self.logger.debug("Header: " + str(header))
 
@@ -206,8 +206,9 @@ class SciPass:
       else:
         header['tp_src'] = int(obj['tp_dst'])
 
-    header['phys_port'] = int(self.config[dpid][name]['ports']['wan'][0]['port_id'])
-    
+    if not self.config[dpid][name]['mode'] == "SimpleBalancer":
+      header['phys_port'] = int(self.config[dpid][name]['ports']['wan'][0]['port_id'])
+      
     actions = [{"type": "output",
                 "port": in_port['port_id']}]
     
