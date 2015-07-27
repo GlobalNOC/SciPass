@@ -870,9 +870,9 @@ class SimpleBalancer:
                       try:
                           subnets = self.splitPrefix(candidatePrefix);
                           for prefix in subnets:
-                              self.addSensorPrefix(maxSensor,prefix)
+                              self.addGroupPrefix(maxSensor,prefix)
                               
-                          self.delSensorPrefix(maxSensor,candidatePrefix)
+                          self.delGroupPrefix(maxSensor,candidatePrefix)
                       except MaxPrefixlenError as e:
                           self.logger.warn( "at max prefix length limit" )
            
