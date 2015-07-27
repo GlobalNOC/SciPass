@@ -172,7 +172,6 @@ class SciPass:
                                                         idle_timeout = idle_timeout,
                                                         hard_timeout = 0,
                                                         priority     = priority )
-    
     results = {}
     results['success'] = 1
     return results
@@ -245,9 +244,11 @@ class SciPass:
               actions = []
 
               #build a header based on what was sent
-              header = self._build_header(obj,False)            
-              #set the port of the header
-              header['phys_port'] = int(port['port_id'])
+              header = self._build_header(obj,False) 
+              
+              if not self.config[datapath_id][name]['mode'] == "SimpleBalancer":
+                #set the port of the header
+                header['phys_port'] = int(port['port_id'])
 
               self.logger.debug("Header: " + str(header))
               self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
@@ -279,8 +280,11 @@ class SciPass:
               actions = []
               #build a header based on what was setn
               header = self._build_header(obj,True)
-              #set the port
-              header['phys_port'] = int(port['port_id'])
+              
+              if not self.config[datapath_id][name]['mode'] == "SimpleBalancer":
+                #set the port
+                header['phys_port'] = int(port['port_id'])
+
               self.logger.debug("Header: " + str(header))
               self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
                                                       domain       = name,
@@ -484,6 +488,10 @@ class SciPass:
     doc.freeDoc()
     ctxt.xpathFreeContext()
 
+  def switchLeave(self, datapath):
+    if datapath in self.switches:
+      self.switches.remove(datapath)
+
   def switchJoined(self, datapath):
     #check to see if we are suppose to operate on this switch
     self.switches.append(datapath)
@@ -509,7 +517,7 @@ class SciPass:
           #need to install the default rules forwarding through the switch
           #then install the balancing rules for our defined prefixes
           self._setupInlineIDS(dpid = dpid, domain_name = domain_name)
-        elif(domain['mode'] == "Balancer"):
+        elif(domain['mode'] == "Balancer" or domain['mode'] == "SimpleBalancer"):
           #just balancer no other forwarding
           self.logger.info("Mode is Balancer")
           #just install the balance rules, no forwarding
@@ -718,14 +726,60 @@ class SciPass:
     self.logger.info("Distributing Prefixes!")
     self.config[dpid][domain_name]['balancer'].pushToSwitch()
         
+
   def addPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None, priority=None):
     #self.logger.error("Add Prefix " + str(domain_name) + " " + str(group_id) + " " + str(prefix))
     #find the north and south port
 
+    if self.config[dpid][domain_name]['mode'] == "SimpleBalancer":
+      header = {}
+      if(prefix._version != 4):
+        header = {"dl_type": 34525}
+      else:
+        header = {"nw_src":      int(prefix),
+                  "nw_src_mask": int(prefix.prefixlen)}
+        
+      actions = []
+      #output to sensor (basically this is the IDS balance case)
+      sensors = self.config[dpid][domain_name]['sensor_groups'][group_id]['sensors']
+      for sensor in sensors:
+        self.logger.debug("output: " + str(sensors[sensor]));
+        actions.append({"type": "output",
+                        "port": int(sensors[sensor]['port_id'])})
+
+      self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                              domain       = domain_name,
+                                              header       = header,
+                                              actions      = actions,
+                                              command      = "ADD",
+                                              idle_timeout = 0,
+                                              hard_timeout = 0,
+                                              priority     = priority)
+
+
+      if(prefix._version != 4):
+        header = {"dl_type": 34525}
+      else:
+        header = {"nw_dst": int(prefix),
+                  "nw_dst_mask": int(prefix.prefixlen)}
+        
+      self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                              domain       = domain_name,
+                                              header       = header,
+                                              actions      = actions,
+                                              command      = "ADD",
+                                              idle_timeout = 0,
+                                              hard_timeout = 0,
+                                              priority     = priority)
+      return
+    ##END SIMPLE BALANCER CASE
+    
     in_port  = None
     out_port = None
     fw_lan   = None
     fw_wan   = None
+
+    #end simple balancer
     #need to figure out the lan and wan ports
 
     ports = self.config[dpid][domain_name]['ports']
@@ -751,16 +805,16 @@ class SciPass:
           for sensor in sensors:
             self.logger.debug("output: " + str(sensors[sensor]));
             actions.append({"type": "output",
-                            "port": sensors[sensor]['port_id']})
+                            "port": int(sensors[sensor]['port_id'])})
           
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
           #append the FW or other destination
             if(ports.has_key('fw_lan') and len(ports['fw_lan']) > 0):
               actions.append({"type": "output",
-                              "port": ports['fw_lan'][0]['port_id']})
+                              "port": int(ports['fw_lan'][0]['port_id'])})
             else:
               actions.append({"type": "output",
-                              "port": ports['wan'][0]['port_id']})
+                              "port": int(ports['wan'][0]['port_id'])})
 
           self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                   domain       = domain_name,
@@ -816,6 +870,41 @@ class SciPass:
 
   def delPrefix(self, dpid=None, domain_name=None, group_id=None, prefix=None, priority=None):
     self.logger.debug("Remove Prefix")
+
+    if self.config[dpid][domain_name]['mode'] == "SimpleBalancer":
+      header = {}
+      if(prefix._version != 4):
+        header = {"dl_type": 34525}
+      else:
+        header = {"nw_src":      int(prefix),
+                  "nw_src_mask": int(prefix.prefixlen)}
+
+      actions = []
+      #output to sensor (basically this is the IDS balance case)                                                                                                
+      self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                              domain       = domain_name,
+                                              header       = header,
+                                              actions      = actions,
+                                              command      = "DELETE_STRICT",
+                                              idle_timeout = 0,
+                                              hard_timeout = 0,
+                                              priority     = priority)
+      
+      if(prefix._version != 4):
+        header = {"dl_type": 34525}
+      else:
+        header = {"nw_dst": int(prefix),
+                  "nw_dst_mask": int(prefix.prefixlen)}
+
+      self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                              domain       = domain_name,
+                                              header       = header,
+                                              actions      = actions,
+                                              command      = "DELETE_STRICT",
+                                              idle_timeout = 0,
+                                              hard_timeout = 0,
+                                              priority     = priority)
+      return
 
     in_port  = None
     out_port = None

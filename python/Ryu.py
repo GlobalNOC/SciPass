@@ -401,6 +401,7 @@ class Ryu(app_manager.RyuApp):
             dpid = "%016x" % datapath.id
             if dpid in self.datapaths:
                 self.logger.error('datapath leave: %016x', datapath.id)
+                self.api.switchLeave(datapath)
                 del self.datapaths[dpid]
             else:
                 self.logger.error("unregistered node left!@!@!@!")
