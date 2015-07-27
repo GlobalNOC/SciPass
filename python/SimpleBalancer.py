@@ -734,15 +734,22 @@ class SimpleBalancer:
     #sort the groups by their bandwidth
     sortedLoadGroups = sorted(self.groups.items(),key=lambda (k,v): v['load'] ,reverse=True)
 
-    maxGroup = sortedLoadGroups[0][1]['group_id']
-    minGroup = sortedLoadGroups[len(sortedLoadGroups)-1][1]['group_id']
+    maxGroup = None
+    minGroup = None
+
+    for group in sortedLoadGroups:
+        if group[1]['group_id'] in ignored_groups: continue
+        if not self.getGroupStatus(group[1]['group_id']): continue
+        if maxGroup is None:
+            maxGroup = group[1]['group_id']
+        minGroup = group[1]['group_id']
 
     loadDelta = self.groups[maxGroup]['load'] - self.groups[minGroup]['load']
 
-    self.logger.debug("max sensor = '" + str(maxGroup) + "' load " + str(self.groups[maxGroup]['load']))
-    self.logger.debug("min sensor = '" + str(self.groups[minGroup]) + "' load " + str(self.groups[minGroup]['load']))
+    self.logger.error("max sensor = '" + str(maxGroup) + "' load " + str(self.groups[maxGroup]['load']))
+    self.logger.error("min sensor = '" + str(minGroup) + "' load " + str(self.groups[minGroup]['load']))
     self.logger.debug("loadminthreshold = " + str(self.sensorLoadMinThreshold))
-    self.logger.debug("load delta = "+str(loadDelta)+" max " + str(maxGroup) + " min " + str(minGroup))
+    self.logger.error("load delta = "+str(loadDelta)+" max " + str(maxGroup) + " min " + str(minGroup))
     
     if(  self.groups[maxGroup]['load'] >= self.sensorLoadMinThreshold ):
         if(loadDelta >= self.sensorLoadDeltaThreshold):
@@ -764,22 +771,30 @@ class SimpleBalancer:
             sortedPrefixes = sorted(tmpDict,key=tmpDict.get,reverse=True)
 
     
+            moved = False
             for prefix in sortedPrefixes:
-                estPrefixLoad = self.prefixBW[prefix]/totalBW
+                estPrefixLoad = self.prefixBW[prefix] / totalBW
                 estNewGroupLoad = estPrefixLoad + self.groups[minGroup]['load']
                 if(estNewGroupLoad <= 1 and estNewGroupLoad < (self.groups[maxGroup]['load'] - estPrefixLoad)):
                     self.moveGroupPrefix(maxGroup, minGroup, prefix)
                     sortedPrefixes.remove(prefix)
                     self.logger.info("Moved Prefix %s from group %s to group %s",str(prefix), str(maxGroup), str(minGroup))
-                    #we only want to move 1 prefix at a time
-                    break
-
-            #now attempt to split a prefix
-            for prefix in sortedPrefixes:
-                if self.splitSensorPrefix(maxGroup, prefix):
-                    self.logger.info("Sensor prefix %s on sensor %s was successfully split",str(prefix), str(maxGroup))
-                    break
-                  
+                    self.groups[maxGroup]['load'] = self.groups[maxGroup]['load'] - estPrefixLoad
+                    self.groups[minGroup]['load'] = self.groups[minGroup]['load'] + estPrefixLoad
+                    moved = True
+                else:
+                    self.logger.debug("Could not move prefix %s from group %s to group %s because new load %f vs %f and prefix load=%f",
+                                      str(prefix),str(maxGroup),str(minGroup),estNewGroupLoad,self.groups[maxGroup]['load'],estPrefixLoad)
+                    
+            if moved:
+                return
+            else:
+                for prefix in sortedPrefixes:
+                    if self.splitSensorPrefix(maxGroup, prefix):
+                        self.logger.info("Sensor prefix %s on sensor %s was successfully split",str(prefix), str(maxGroup))
+                        return
+            
+            
         else:
             self.logger.warn("below load Delta Threshold")
 
