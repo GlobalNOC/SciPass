@@ -315,46 +315,43 @@ sub build_command_list {
     my $tt  = Template->new() || die $Template::ERROR;
     
     foreach my $command (@$possible_commands){
-	foreach my $switch (@{$self->{'config'}->get('/SciPass/switch')}) {
-	    $self->{'switches'}->{$switch->{'dpid'}} = {name => $switch->{'name'}, dpid => $switch->{'dpid'}};
-	    
-	    $self->{'switch_names'}->{$switch->{'name'}}->{'dpid'} = $switch->{'dpid'};
-	    if(ref($switch->{'domain'}) ne 'ARRAY'){
-		my @domain = keys (%{$switch->{'domain'}});
-		$switch->{'domain'}->{$domain[0]}->{'name'} = $domain[0];
-		$switch->{'domain'} = [ $switch->{'domain'}->{$domain[0]} ];
-	    }
-	    foreach my $domain ( @{ $switch->{'domain'} }){
-		push(@{$self->{'switches'}->{$switch->{'dpid'}}->{'domains'}},$domain);
+        foreach my $switch (@{$self->{'config'}->get('/SciPass/switch')}) {
+            $self->{'switches'}->{$switch->{'dpid'}} = {name => $switch->{'name'}, dpid => $switch->{'dpid'}};
+            $self->{'switch_names'}->{$switch->{'name'}}->{'dpid'} = $switch->{'dpid'};
 
-		foreach my $group (keys (% {$domain->{'sensor_group'}})){
-		    
-		    my $vars;
-		    $vars->{'sw_name'} = $switch->{'name'};
-		    $vars->{'domain_name'} = $domain->{'name'};
-		    $vars->{'group_id'} = $domain->{'sensor_group'}->{$group}->{'group_id'};
-		    #warn Data::Dumper::Dumper($domain->{'sensor_group'}->{$group});
-		    foreach my $sensor (@{$domain->{'sensor_group'}->{$group}->{'sensor'}}){
-			my $vars;
-			$vars->{'sw_name'} = $switch->{'name'};
-			$vars->{'domain_name'} = $domain->{'name'};
-			$vars->{'group_id'} = $domain->{'sensor_group'}->{$group}->{'group_id'};
-			$vars->{'sensor_id'} = $sensor->{'sensor_id'};
-			
-			my $new_command;
-			$tt->process(\$command, $vars, \$new_command) || die $tt->error() . "\n";
-			push(@{$self->{'possible_commands'}}, $new_command);
-			
-			$new_command = "";
-			$vars->{'sw_name'} = $switch->{'dpid'};
-			$tt->process(\$command, $vars, \$new_command) || die $tt->error() . "\n";
-			push(@{$self->{'possible_commands'}}, $new_command);
-		    }
-		}
-	    }
-	}
+            foreach my $domain_name (keys %{$switch->{"domain"}}) {
+                # $domain = { "name" => "IUPUI", "hard_timeout" => "300", ... }
+                my $domain = $switch->{'domain'}->{$domain_name};
+                $domain->{'name'} = $domain_name;
+                push(@{$self->{'switches'}->{$switch->{'dpid'}}->{'domains'}}, $domain);
+                # warn Data::Dumper::Dumper($domain);
+
+		foreach my $group (keys %{$domain->{'sensor_group'}}) {
+                    my $vars;
+                    $vars->{'sw_name'} = $switch->{'name'};
+                    $vars->{'domain_name'} = $domain->{'name'};
+                    $vars->{'group_id'} = $domain->{'sensor_group'}->{$group}->{'group_id'};
+                    #warn Data::Dumper::Dumper($domain->{'sensor_group'}->{$group});
+                    foreach my $sensor (@{$domain->{'sensor_group'}->{$group}->{'sensor'}}){
+                        my $vars;
+                        $vars->{'sw_name'} = $switch->{'name'};
+                        $vars->{'domain_name'} = $domain->{'name'};
+                        $vars->{'group_id'} = $domain->{'sensor_group'}->{$group}->{'group_id'};
+                        $vars->{'sensor_id'} = $sensor->{'sensor_id'};
+
+                        my $new_command;
+                        $tt->process(\$command, $vars, \$new_command) || die $tt->error() . "\n";
+                        push(@{$self->{'possible_commands'}}, $new_command);
+
+                        $new_command = "";
+                        $vars->{'sw_name'} = $switch->{'dpid'};
+                        $tt->process(\$command, $vars, \$new_command) || die $tt->error() . "\n";
+                        push(@{$self->{'possible_commands'}}, $new_command);
+                    }
+                }
+            }
+        }
     }
-
     return;
 }
 
