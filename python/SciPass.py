@@ -322,19 +322,15 @@ class SciPass:
     # loop through dpids
     for dpid in self.config:
       # loop through domains
-      for domain_name in self.config[dpid]:
-          domain = self.config[dpid][domain_name]
-          # loop through sensors
-          for group in domain.get('sensor_groups'):
-            sensors = domain.get('sensor_groups')[group];
-            for sensor in sensors:
-              # return sensor info if we've found our port
-              if(str(sensor.get('of_port_id')) == str(port_id)):
-                return {
-                  'dpid':   dpid,
-                  'domain': domain_name,
-                  'group': group,
-                  'sensor_info': sensor
+      for domain_name, domain in self.config[dpid].iteritems():
+        for group in self.config[dpid][domain_name]['sensor_groups']:
+          for sensor in self.config[dpid][domain_name]['sensor_groups'][group]['sensors']:
+            if (self.config[dpid][domain_name]['sensor_groups'][group]['sensors'][sensor]['port_id'] == port_id):
+              return {
+                "dpid": dpid,
+                "domain": domain_name,
+                "group": group,
+                "sensor_info": self.config[dpid][domain_name]['sensor_groups'][group]['sensors'][sensor]
                 }
 
   def setSensorStatus(self, port_id, status):
