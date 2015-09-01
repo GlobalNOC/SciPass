@@ -124,6 +124,7 @@ class SciPass:
             if(prefix['prefix'].Contains( src_prefix )):
               header = self._build_header(obj,False)    
               header['phys_port'] = int(port['port_id'])
+              #good_flow = {}
               self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                       domain       = name,
                                                       header       = header,
@@ -132,7 +133,10 @@ class SciPass:
                                                       idle_timeout = idle_timeout,
                                                       hard_timeout = 0,
                                                       priority     = priority )
-
+              good_flow = {'dpid' : dpid, 'domain': name, 'header' : header,
+                        'action' : wan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                        'priority' : priority}
+              self.whiteList.append(good_flow)
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
                 header = self._build_header(obj,True)
@@ -146,7 +150,10 @@ class SciPass:
                                                         hard_timeout = 0,
                                                         priority     = priority )
             
-
+                good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                             'action' : lan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                             'priority' : priority}
+                self.whiteList.append(good_flow)
             #check the other dir          
             if(prefix['prefix'].Contains( dst_prefix )):
               header = self._build_header(obj,True)
@@ -159,7 +166,10 @@ class SciPass:
                                                       idle_timeout = idle_timeout,
                                                       hard_timeout = 0,
                                                       priority     = priority)
-
+              good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                           'action' : wan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                           'priority' : priority}
+              self.whiteList.append(good_flow)
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
                 header = self._build_header(obj,True)
@@ -172,6 +182,11 @@ class SciPass:
                                                         idle_timeout = idle_timeout,
                                                         hard_timeout = 0,
                                                         priority     = priority )
+                good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                             'action' : lan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                             'priority' : priority}
+                self.whiteList.append(good_flow)
+    print self.whiteList
     results = {}
     results['success'] = 1
     return results
@@ -311,11 +326,11 @@ class SciPass:
     results['success'] = 1
     return results
 
-  def get_bad_flow(self):
-    return self.whiteList
-
-  def get_good_flow(self):
+  def get_bad_flows(self):
     return self.blackList
+
+  def get_good_flows(self):
+    return self.whiteList
 
   # gets the config info for a sensor along with its dpid and domain
   def _getSensorInfo(self, port_id):
@@ -483,6 +498,7 @@ class SciPass:
     self.config = config      
     doc.freeDoc()
     ctxt.xpathFreeContext()
+    #print config
 
   def switchLeave(self, datapath):
     if datapath in self.switches:
