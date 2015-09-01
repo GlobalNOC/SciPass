@@ -52,7 +52,7 @@ class SciPassRest(ControllerBase):
     def __init__(self, req, link, data, **config):
         super(SciPassRest, self).__init__(req, link, data, **config)
         self.api = data['api']
-
+        self.logger = logging.getLogger(__name__)
     #POST /scipass/flows/good_flow
     @route('scipass', '/scipass/flows/good_flow', methods=['PUT'])
     def good_flow(self, req):
