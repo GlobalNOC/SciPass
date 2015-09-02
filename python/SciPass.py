@@ -981,9 +981,18 @@ class SciPass:
     self.delPrefix(dpid, domain_name, old_group_id, prefix, priority)
     self.addPrefix(dpid, domain_name, new_group_id, prefix, priority)
 
-  def remove_flow(self, ev):
+  def remove_flow(self, flow):
     self.logger.debug("remove flow")
-    
+    for white in self.whiteList:
+      if ((cmp(flow.match, white['header']) == 0) and (cmp(flow.priority, white['priority'])== 0)):
+        """ if a good flow times out, remove it"""
+        self.whiteList.remove(white)
+
+    for black in self.blackList:
+      if ((cmp(flow.match, black['header']) == 0) and (cmp(flow.priority, black['priority'])== 0)):
+        """ if a bad flow times out, remove it"""
+        self.blackList.remove(black)
+
   def port_status(self, ev):
     self.logger.debug("port status handler")
 
@@ -1208,8 +1217,7 @@ class SciPass:
                                                   actions      = flow['actions'],
                                                   command      = "DELETE_STRICT",
                                                   priority     = flow['priority'])
-        
-        self.hardTimeouts.remove(flow)
+          self.hardTimeouts.remove(flow)
 
     #need to improve this! its a O(n^2)
     for flow in flows:
@@ -1242,4 +1250,5 @@ class SciPass:
                                                   actions      = flow['actions'],
                                                   command      = "DELETE_STRICT",
                                                   priority     = flow['priority'])
+          
           self.idleTimeouts.remove(flow)
