@@ -272,7 +272,10 @@ class Ryu(app_manager.RyuApp):
             command = ofp.OFPFC_DELETE_STRICT
         else:
             command = -1
-
+         
+        flags = 0
+        if command == ofp.OFPFC_ADD:
+            flags = ofp.OFPFF_SEND_FLOW_REM 
         #self.logger.error("Sending flow mod with command: " + str(command))
         #self.logger.error("Datpath: " + str(datapath))
 
@@ -283,7 +286,8 @@ class Ryu(app_manager.RyuApp):
                                  command      = command,
                                  idle_timeout = int(idle_timeout),
                                  hard_timeout = int(hard_timeout),
-                                 actions      = of_actions)
+                                 actions      = of_actions,
+                                 flags        = flags)
 
         if(datapath.is_active == True):
             datapath.send_msg(mod)
