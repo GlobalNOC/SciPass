@@ -63,6 +63,8 @@ class SciPassRest(ControllerBase):
             return Response(status=400)
 
         result = self.api.good_flow(obj)
+        if result['success'] == 0:
+            return Response(body=json.dumps(result),status=403)
         return Response(content_type='application/json',body=json.dumps(result))
 
     #POST /scipass/flows/bad_flow

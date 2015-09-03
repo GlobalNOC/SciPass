@@ -46,6 +46,7 @@ class SciPass:
     self.idleTimeouts = []
     self.hardTimeouts = []
     self.switches     = []
+    self.flowCount = 0
     self.switchForwardingChangeHandlers = []
     self._processConfig(self.configFile)
 
@@ -73,6 +74,8 @@ class SciPass:
         used_wan_ports = []
         wan_action = []
         lan_action = []
+        flows = []
+        results = {}
         #set these now they are cheap and it makes the rest of it cleaner
         idle_timeout = 0
         priority = 0
@@ -124,55 +127,109 @@ class SciPass:
             if(prefix['prefix'].Contains( src_prefix )):
               header = self._build_header(obj,False)    
               header['phys_port'] = int(port['port_id'])
-              self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                      domain       = name,
-                                                      header       = header,
-                                                      actions      = wan_action,
-                                                      command      = "ADD",
-                                                      idle_timeout = idle_timeout,
-                                                      hard_timeout = 0,
-                                                      priority     = priority )
-
+              status = self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                               domain       = name,
+                                                               header       = header,
+                                                               actions      = wan_action,
+                                                               command      = "ADD",
+                                                               idle_timeout = idle_timeout,
+                                                               hard_timeout = 0,
+                                                               priority     = priority )
+              if status != 1:
+                self.logger.error("Max flow limit reached.Could not add good flow")
+                results['success'] = 0
+                return results
+              else:
+                obj = { 'dpid' : dpid, 'domain' : name, 'header' : header,
+                        'actions' : wan_action,'priority' : priority }
+                flows.append(obj)
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
                 header = self._build_header(obj,True)
                 header['phys_port'] = int(wan)
-                self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                        domain       = name,
-                                                        header       = header,
-                                                        actions      = lan_action,
-                                                        command      = "ADD",
-                                                        idle_timeout = idle_timeout,
-                                                        hard_timeout = 0,
-                                                        priority     = priority )
+                status = self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                                 domain       = name,
+                                                                 header       = header,
+                                                                 actions      = lan_action,
+                                                                 command      = "ADD",
+                                                                 idle_timeout = idle_timeout,
+                                                                 hard_timeout = 0,
+                                                                 priority     = priority )
+                if status != 1:
+                  self.logger.error("Max flow limit reached.Could not add good flow")
+                  #Delete the prev installed flows for this good flow.
+                  for flow in flows:
+                    self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
+                                                            domain = flow['name'],
+                                                            header = flow['header'],
+                                                            command = "DELETE_STRICT",
+                                                            actions = flow['actions'],
+                                                            priority = flow['priority'] )
+                    results['success'] = 0
+                    return result
+                else:
+                  obj = { 'dpid' : dpid, 'domain' : name,'header': header,
+                          'actions' : wan_action,'priority' : priority }
+                  flows.append(obj)
             
 
             #check the other dir          
             if(prefix['prefix'].Contains( dst_prefix )):
               header = self._build_header(obj,True)
               header['phys_port'] = int(port['port_id'])
-              self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                      domain       = name,
-                                                      header       = header,
-                                                      actions      = wan_action,
-                                                      command      = "ADD",
-                                                      idle_timeout = idle_timeout,
-                                                      hard_timeout = 0,
-                                                      priority     = priority)
+              status = self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                               domain       = name,
+                                                               header       = header,
+                                                               actions      = wan_action,
+                                                               command      = "ADD",
+                                                               idle_timeout = idle_timeout,
+                                                               hard_timeout = 0,
+                                                               priority     = priority)
+              if status != 1:
+                self.logger.error("Max flow limit reached.Could not add good flow")
+                for flow in flows:
+                  self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
+                                                          domain = flow['name'],
+                                                          header = flow['header'],
+                                                          command = "DELETE_STRICT",
+                                                          actions = flow['actions'],
+                                                          priority = flow['priority'] )
+                  results['success'] = 0
+                  return results
+                else:
+                  obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
+                          'actions' : wan_action,'priority' : priority }
+                  flows.append(obj)
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
                 header = self._build_header(obj,True)
                 header['phys_port'] = int(wan)
-                self.fireForwardingStateChangeHandlers( dpid         = dpid,
-                                                        domain       = name,
-                                                        header       = header,
-                                                        actions      = lan_action,
-                                                        command      = "ADD",
-                                                        idle_timeout = idle_timeout,
-                                                        hard_timeout = 0,
-                                                        priority     = priority )
-    results = {}
+                status = self.fireForwardingStateChangeHandlers( dpid         = dpid,
+                                                                 domain       = name,
+                                                                 header       = header,
+                                                                 actions      = lan_action,
+                                                                 command      = "ADD",
+                                                                 idle_timeout = idle_timeout,
+                                                                 hard_timeout = 0,
+                                                                 priority     = priority )
+                if status != 1:
+                  self.logger.error("Max flow limit reached.Could not add good flow")
+                  for flow in flows:
+                    self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
+                                                            domain = flow['name'],
+                                                            header = flow['header'],
+                                                            command = "DELETE_STRICT",
+                                                            actions = flow['actions'],
+                                                            priority = flow['priority'] )
+                    results['success'] = 0
+                    return results
+                  else:
+                    obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
+                            'actions' : wan_action,'priority' : priority }
+                    flows.append(obj)
+                    
+    
     results['success'] = 1
     return results
 
@@ -992,17 +1049,22 @@ class SciPass:
     now = time.time()
 
     if(command == "ADD"):
-      self.config[dpid][domain]['flows'].append({'dpid': dpid,
-                                                 'header': header,
-                                                 'actions': actions,
-                                                 'priority': priority
-                                                 })
+      if self.flowCount < config[dpid][name]['max_flow_count']:
+        self.config[dpid][domain]['flows'].append({'dpid': dpid,
+                                                   'header': header,
+                                                   'actions': actions,
+                                                   'priority': priority
+                                                   })
+        self.flow_count += 1
+      else:
+        return 0
 
     if(command == "DELETE" or command == "DELETE_STRICT"):
       for flow in self.config[dpid][domain]['flows']:
         if(flow['header'] == header and flow['priority'] == priority):
           self.config[dpid][domain]['flows'].remove(flow)
-
+          self.flowCount -= 1
+    
     if(idle_timeout):
       timeout = now + int(idle_timeout) 
       self.idleTimeouts.append({'timeout': timeout,
@@ -1032,6 +1094,7 @@ class SciPass:
                idle_timeout = idle_timeout,
                hard_timeout = hard_timeout,
                priority = priority)
+    return 1
 
   def updatePrefixBW(self,dpid, prefix, tx, rx):
     self.logger.debug("updating prefix bw")
