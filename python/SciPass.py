@@ -372,6 +372,7 @@ class SciPass:
         sensorLoadDeltaThreshhold = domain.prop("sensor_load_delta_threshold")
         ignore_sensor_load = domain.prop("ignore_sensor_load")
         ignore_prefix_bw = domain.prop("ignore_prefix_bw")
+        max_flow_count = domain.prop("max_flow_count")
         self.logger.debug("Adding Domain: name: %s, mode: %s, status: %s", name, mode, status)
 
         config[dpid][name] = {}
@@ -386,7 +387,7 @@ class SciPass:
         config[dpid][name]['default_whitelist_priority'] = default_whitelist_priority
         config[dpid][name]['sensor_load_min_threshold'] = sensorLoadMinThreshold
         config[dpid][name]['sensor_load_delta_threshold'] = sensorLoadDeltaThreshhold
-
+        config[dpid][name]['max_flow_count'] = max_flow_count
         if(ignore_prefix_bw == "true"):
           config[dpid][name]['ignore_prefix_bw'] = 1
         else:
