@@ -507,7 +507,7 @@ class SciPass:
                       "sensor_id": sensor.prop("sensor_id")}
             config[dpid][name]['sensor_groups'][group_info['group_id']]['sensors'][sensor['sensor_id']] = sensor
           config[dpid][name]['balancer'].addSensorGroup(group_info)
-    print config[dpid][name]["sensor_groups"]
+    
     self.config = config      
     doc.freeDoc()
     ctxt.xpathFreeContext()
