@@ -20,6 +20,9 @@ import ipaddr
 import pprint
 import copy
 import libxml2
+import lxml
+import sys                                                                     
+from lxml import etree
 from SimpleBalancer import SimpleBalancer
 
 class SciPass:
@@ -39,7 +42,11 @@ class SciPass:
       self.configFile = _kwargs['config']
     else:
       self.configFile = "/etc/SciPass/SciPass.xml"
-
+      
+    if(_kwargs.has_key('schema')):
+      self.configFile = _kwargs['schema']
+    else:
+      self.schemaFile = "/etc/SciPass/SciPass.xsd"
 
     self.whiteList    = []
     self.blackList    = []
@@ -47,6 +54,7 @@ class SciPass:
     self.hardTimeouts = []
     self.switches     = []
     self.switchForwardingChangeHandlers = []
+    self._validateConfig(self.configFile, self.schemaFile)
     self._processConfig(self.configFile)
 
   def registerForwardingStateChangeHandler(self, handler):
@@ -342,6 +350,26 @@ class SciPass:
         status
     )
 
+  def _validateConfig(self, xmlFile, schema):
+    self.logger.debug("validating Config File")
+    with open(schema) as f:                                                
+        doc = etree.parse(f)  
+    try:
+      schema = etree.XMLSchema(doc)
+    except lxml.etree.XMLSchemaParseError as e:
+      self.logger.error("Error Parsing schema" + str(e))
+      sys.exit(1)
+
+    with open(xmlFile) as f:
+      config = etree.parse(f)
+    try:
+      schema.assertValid(config)
+    except lxml.etree.DocumentInvalid as e:
+      self.logger.error("Could not validate xml file against schema" + str(e))
+      sys.exit(1)
+    self.logger.debug("Completed Validation of config File...")
+      
+
   def _processConfig(self, xmlFile):
     self.logger.debug("Processing Config file")
     doc = libxml2.parseFile(xmlFile)
@@ -479,7 +507,7 @@ class SciPass:
                       "sensor_id": sensor.prop("sensor_id")}
             config[dpid][name]['sensor_groups'][group_info['group_id']]['sensors'][sensor['sensor_id']] = sensor
           config[dpid][name]['balancer'].addSensorGroup(group_info)
-        
+    print config[dpid][name]["sensor_groups"]
     self.config = config      
     doc.freeDoc()
     ctxt.xpathFreeContext()
