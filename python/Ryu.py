@@ -327,19 +327,25 @@ class Ryu(app_manager.RyuApp):
 
     def defaultDrop(self, dpid):
         # installs a default priority 1 drop rule
+        if(not self.datapaths.has_key(dpid)):
+            self.logger.error("unable to find switch with dpid " + dpid)
+            return
+        
         datapath = self.datapaths[dpid]
         ofp = datapath.ofproto
         parser = datapath.ofproto_parser
         command = ofp.OFPFC_ADD
         priority = 1
+        cookie = 0
         match = parser.OFPMatch()
         mod = parser.OFPFlowMod(datapath=datapath, 
                                 match=match,
                                 priority=priority,
-                                command = command)
+                                command=command,
+                                cookie=cookie)
 
         if(datapath.is_active == True):
-            self.logging.info("Installing a default drop rule for switch with dpid " + dpid)
+            self.logger.info("Installing a default drop rule for switch with dpid " + dpid)
             datapath.send_msg(mod)
         else:
             self.logging.error("Unable to find switch with dpid {0}"
