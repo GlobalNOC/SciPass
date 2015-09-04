@@ -136,7 +136,7 @@ class SciPass:
                                                                hard_timeout = 0,
                                                                priority     = priority )
               if status != 1:
-                self.logger.error("Max flow limit reached.Could not add good flow")
+                self.logger.error("Max flow limit reached.Could not add flow")
                 results['success'] = 0
                 return results
               else:
@@ -156,17 +156,11 @@ class SciPass:
                                                                  hard_timeout = 0,
                                                                  priority     = priority )
                 if status != 1:
-                  self.logger.error("Max flow limit reached.Could not add good flow")
+                  self.logger.error("Max flow limit reached.Could not add flow")
                   #Delete the prev installed flows for this good flow.
-                  for flow in flows:
-                    self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
-                                                            domain = flow['name'],
-                                                            header = flow['header'],
-                                                            command = "DELETE_STRICT",
-                                                            actions = flow['actions'],
-                                                            priority = flow['priority'] )
-                    results['success'] = 0
-                    return result
+                  self.delete_flows(flows)
+                  results['success'] = 0
+                  return results
                 else:
                   obj = { 'dpid' : dpid, 'domain' : name,'header': header,
                           'actions' : wan_action,'priority' : priority }
@@ -186,20 +180,14 @@ class SciPass:
                                                                hard_timeout = 0,
                                                                priority     = priority)
               if status != 1:
-                self.logger.error("Max flow limit reached.Could not add good flow")
-                for flow in flows:
-                  self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
-                                                          domain = flow['name'],
-                                                          header = flow['header'],
-                                                          command = "DELETE_STRICT",
-                                                          actions = flow['actions'],
-                                                          priority = flow['priority'] )
-                  results['success'] = 0
-                  return results
-                else:
-                  obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
-                          'actions' : wan_action,'priority' : priority }
-                  flows.append(obj)
+                self.logger.error("Max flow limit reached.Could not add flow")
+                self.delete_flows(flows)
+                results['success'] = 0
+                return results
+              else:
+                obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
+                        'actions' : wan_action,'priority' : priority }
+                flows.append(obj)
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
@@ -214,22 +202,15 @@ class SciPass:
                                                                  hard_timeout = 0,
                                                                  priority     = priority )
                 if status != 1:
-                  self.logger.error("Max flow limit reached.Could not add good flow")
-                  for flow in flows:
-                    self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
-                                                            domain = flow['name'],
-                                                            header = flow['header'],
-                                                            command = "DELETE_STRICT",
-                                                            actions = flow['actions'],
-                                                            priority = flow['priority'] )
-                    results['success'] = 0
-                    return results
-                  else:
-                    obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
-                            'actions' : wan_action,'priority' : priority }
-                    flows.append(obj)
+                  self.logger.error("Max flow limit reached.Could not add  flow")
+                  self.delete_flows(flows)
+                  results['success'] = 0
+                  return results
+                else:
+                  obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
+                          'actions' : wan_action,'priority' : priority }
+                  flows.append(obj)
                     
-    
     results['success'] = 1
     return results
 
@@ -317,7 +298,7 @@ class SciPass:
                                                                idle_timeout = idle_timeout,
                                                                priority     = priority)
               if status != 1:
-                  self.logger.error("Max flow limit reached.Could not add good flow")
+                  self.logger.error("Max flow limit reached.Could not add flow")
                   results['success'] = 0
                   return results
               else:
@@ -340,20 +321,14 @@ class SciPass:
                                                                  priority     = priority)
                 
                 if status != 1:
-                  self.logger.error("Max flow limit reached.Could not add good flow")
-                  for flow in flows:
-                    self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
-                                                            domain = flow['name'],
-                                                            header = flow['header'],
-                                                            command = "DELETE_STRICT",
-                                                            actions = flow['actions'],
-                                                            priority = flow['priority'] )
-                    results['success'] = 0
-                    return results
-                  else:
-                    obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
-                            'actions' : wan_action,'priority' : priority }
-                    flows.append(obj)
+                  self.logger.error("Max flow limit reached.Could not add  flow")
+                  self.delete_flows(flows)
+                  results['success'] = 0
+                  return results
+                else:
+                  obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
+                          'actions' : wan_action,'priority' : priority }
+                  flows.append(obj)
 
             if(prefix['prefix'].Contains( dst_prefix )):
               #actions drop
@@ -387,23 +362,28 @@ class SciPass:
                                                                  idle_timeout = idle_timeout,
                                                                  priority     = priority)
                 if status != 1:
-                  self.logger.error("Max flow limit reached.Could not add good flow")
-                  for flow in flows:
-                    self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
-                                                            domain = flow['name'],
-                                                            header = flow['header'],
-                                                            command = "DELETE_STRICT",
-                                                            actions = flow['actions'],
-                                                            priority = flow['priority'] )
-                    results['success'] = 0
-                    return results
-                  else:
-                    obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
-                            'actions' : wan_action,'priority' : priority }
-                    flows.append(obj)
+                  self.logger.error("Max flow limit reached.Could not add flow")
+                  self.delete_flows(flows)
+                  results['success'] = 0
+                  return results
+                else:
+                  obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
+                          'actions' : wan_action,'priority' : priority }
+                  flows.append(obj)
 
     results['success'] = 1
     return results
+
+  def delete_flows(self, flows):
+    if flows: 
+      for flow in flows:
+        self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
+                                                domain = flow['name'],
+                                                header = flow['header'],
+                                                command = "DELETE_STRICT",
+                                                actions = flow['actions'],
+                                                priority = flow['priority'] )
+       
 
   def get_bad_flow(self):
     return self.whiteList
