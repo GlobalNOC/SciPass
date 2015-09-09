@@ -65,7 +65,7 @@ class SciPass:
     #build our prefixes
     src_prefix = ipaddr.IPv4Network(obj['nw_src'])
     dst_prefix = ipaddr.IPv4Network(obj['nw_dst'])
-
+    
     #find the switch, domain, lan, wan ports
     for dpid in self.config:
       for name in self.config[dpid]:
@@ -271,7 +271,10 @@ class SciPass:
                                                       command      = "ADD",
                                                       idle_timeout = idle_timeout,
                                                       priority     = priority)
-              
+              bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                           'actions' : actions , 'idle_timeout' :  idle_timeout,
+                           'priority' : priority}
+              self.blackList.append(bad_flow)
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,True)
@@ -285,8 +288,10 @@ class SciPass:
                                                         command      = "ADD",
                                                         idle_timeout = idle_timeout,
                                                         priority     = priority)
-                
-
+                bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                           'actions' : actions , 'idle_timeout' :  idle_timeout,
+                           'priority' : priority}
+                self.blackList.append(bad_flow)
 
             if(prefix['prefix'].Contains( dst_prefix )):
               #actions drop
@@ -306,6 +311,10 @@ class SciPass:
                                                       command      = "ADD",
                                                       idle_timeout = idle_timeout,
                                                       priority     = priority)
+              bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                          'actions' : actions , 'idle_timeout' :  idle_timeout,
+                          'priority' : priority}
+              self.blackList.append(bad_flow)
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,False)
@@ -320,6 +329,10 @@ class SciPass:
                                                         idle_timeout = idle_timeout,
                                                         priority     = priority)
 
+                bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                            'actions' : actions , 'idle_timeout' :  idle_timeout,
+                            'priority' : priority}
+                self.blackList.append(bad_flow)
     results = {}
     results['success'] = 1
     return results
@@ -726,7 +739,7 @@ class SciPass:
     self.logger.info("Distributing Prefixes!")
     self.config[dpid][domain_name]['balancer'].pushToSwitch()
 
-  def _setupBalancer(self, dpid = None, domain_name = None):
+  def _setupBalancers(self, dpid = None, domain_name = None):
     self.logger.debug("balancer rule init")
     #ok now that we have that done... start balancing!!!
     prefixes = []
@@ -981,16 +994,18 @@ class SciPass:
     self.delPrefix(dpid, domain_name, old_group_id, prefix, priority)
     self.addPrefix(dpid, domain_name, new_group_id, prefix, priority)
 
-  def remove_flow(self, flow):
+  def remove_flow(self, header, priority):
     self.logger.debug("remove flow")
     for white in self.whiteList:
-      if ((cmp(flow.match, white['header']) == 0) and (cmp(flow.priority, white['priority'])== 0)):
+      if ((cmp(header, white['header']) == 0) and (cmp(priority, white['priority'])== 0)):
         """ if a good flow times out, remove it"""
+        self.logger.error("Removing good flow due to timeout")
         self.whiteList.remove(white)
 
     for black in self.blackList:
-      if ((cmp(flow.match, black['header']) == 0) and (cmp(flow.priority, black['priority'])== 0)):
+      if ((cmp(header, black['header']) == 0) and (cmp(priority, black['priority'])== 0)):
         """ if a bad flow times out, remove it"""
+        self.logger.error("Removing bad flow due to timeout")
         self.blackList.remove(black)
 
   def port_status(self, ev):
