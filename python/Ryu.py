@@ -64,7 +64,7 @@ class SciPassRest(ControllerBase):
 
         result = self.api.good_flow(obj)
         if result['success'] == 0:
-            return Response(body=json.dumps(result),status=403)
+            return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
 
     #POST /scipass/flows/bad_flow
@@ -76,6 +76,8 @@ class SciPassRest(ControllerBase):
             self.logger.error("Syntax Error processing bad_flow signal %s", req.body)
             return Response(status=400)
         result = self.api.bad_flow(obj)
+        if result['success'] == 0:
+            return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
 
     #GET /scipass/flows/get_good_flows

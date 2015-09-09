@@ -302,8 +302,8 @@ class SciPass:
                   results['success'] = 0
                   return results
               else:
-                obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
-                        'actions' : wan_action,'priority' : priority }
+                obj = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
+                        'actions' : actions,'priority' : priority }
                 flows.append(obj)
 
               for wan in self.config[datapath_id][name]['ports']['wan']:
@@ -326,8 +326,8 @@ class SciPass:
                   results['success'] = 0
                   return results
                 else:
-                  obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
-                          'actions' : wan_action,'priority' : priority }
+                  obj = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
+                          'actions' : actions,'priority' : priority }
                   flows.append(obj)
 
             if(prefix['prefix'].Contains( dst_prefix )):
@@ -341,13 +341,23 @@ class SciPass:
                 header['phys_port'] = int(port['port_id'])
 
               self.logger.debug("Header: " + str(header))
-              self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
-                                                      domain       = name,
-                                                      header       = header,
-                                                      actions      = actions,
-                                                      command      = "ADD",
-                                                      idle_timeout = idle_timeout,
-                                                      priority     = priority)
+              status = self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
+                                                               domain       = name,
+                                                               header       = header,
+                                                               actions      = actions,
+                                                               command      = "ADD",
+                                                               idle_timeout = idle_timeout,
+                                                               priority     = priority)
+              if status != 1:
+                self.logger.error("Max flow limit reached.Could not add  flow")
+                self.delete_flows(flows)
+                results['success'] = 0
+                return results
+              else:
+                obj = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
+                        'actions' : actions,'priority' : priority }
+                flows.append(obj)
+
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,False)
@@ -367,8 +377,8 @@ class SciPass:
                   results['success'] = 0
                   return results
                 else:
-                  obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
-                          'actions' : wan_action,'priority' : priority }
+                  obj = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
+                          'actions' : actions,'priority' : priority }
                   flows.append(obj)
 
     results['success'] = 1
@@ -378,7 +388,7 @@ class SciPass:
     if flows: 
       for flow in flows:
         self.fireForwardingStateChangeHandlers( dpid = flow['dpid'],
-                                                domain = flow['name'],
+                                                domain = flow['domain'],
                                                 header = flow['header'],
                                                 command = "DELETE_STRICT",
                                                 actions = flow['actions'],
@@ -1066,13 +1076,13 @@ class SciPass:
     now = time.time()
 
     if(command == "ADD"):
-      if self.flowCount < config[dpid][name]['max_flow_count']:
+      if int(self.flowCount) < int(self.config[dpid][domain]['max_flow_count']):
         self.config[dpid][domain]['flows'].append({'dpid': dpid,
                                                    'header': header,
                                                    'actions': actions,
                                                    'priority': priority
                                                    })
-        self.flow_count += 1
+        self.flowCount += 1
       else:
         return 0
 
