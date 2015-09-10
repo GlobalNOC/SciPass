@@ -9,9 +9,6 @@
                 <xs:complexType>
                   <xs:sequence>
                     <xs:element name="port" maxOccurs="unbounded" minOccurs="0">
-                      <xs:annotation>
-                        <xs:documentation>this is my main wan port</xs:documentation>
-                      </xs:annotation>
                       <xs:complexType mixed="true">
                         <xs:sequence>
                           <xs:element name="prefix" maxOccurs="unbounded" minOccurs="0">
@@ -42,7 +39,7 @@
                                 </xs:extension>
                               </xs:simpleContent>
                             </xs:complexType>
-                          </xs:element>
+                          </xs:element>	
                         </xs:sequence>
                         <xs:attribute type="xs:string" name="bw" use="required"/>
                         <xs:attribute type="xs:string" name="group_id" use="required"/>
@@ -51,23 +48,23 @@
                       </xs:complexType>
                     </xs:element>
                   </xs:sequence>
-                  <xs:attribute type="xs:string" name="name"/>
-                  <xs:attribute type="xs:string" name="mode"/>
-                  <xs:attribute type="xs:string" name="admin_status"/>
-                  <xs:attribute type="xs:byte" name="least_specific_prefix_len"/>
-                  <xs:attribute type="xs:byte" name="most_specific_prefix_len"/>
-                  <xs:attribute type="xs:short" name="blacklist_priority"/>
-                  <xs:attribute type="xs:short" name="whitelist_priority"/>
-                  <xs:attribute type="xs:float" name="sensor_min_load_threshold"/>
-                  <xs:attribute type="xs:float" name="sensor_load_delta_threshold"/>
-                  <xs:attribute type="xs:short" name="max_prefixes"/>
-                  <xs:attribute type="xs:short" name="max_flow_count"/>
-                  <xs:attribute type="xs:byte" name="idle_timeout"/>
-                  <xs:attribute type="xs:short" name="hard_timeout"/>
+                  <xs:attribute type="xs:string" name="name" use="optional"/>
+                  <xs:attribute type="xs:string" name="mode" use="required"/>
+                  <xs:attribute type="xs:string" name="admin_status" use="required"/>
+                  <xs:attribute type="xs:byte" name="least_specific_prefix_len" use="required"/>
+                  <xs:attribute type="xs:byte" name="most_specific_prefix_len" use="required"/>
+                  <xs:attribute type="xs:short" name="blacklist_priority" use="optional"/>
+                  <xs:attribute type="xs:short" name="whitelist_priority" use="optional"/>
+                  <xs:attribute type="xs:float" name="sensor_min_load_threshold" use="required"/>
+                  <xs:attribute type="xs:float" name="sensor_load_delta_threshold" use="optional"/>
+                  <xs:attribute type="xs:short" name="max_prefixes" use="required"/>
+                  <xs:attribute type="xs:short" name="max_flow_count" use="required"/>
+                  <xs:attribute type="xs:byte" name="idle_timeout" use="optional"/>
+                  <xs:attribute type="xs:short" name="hard_timeout" use="optional"/>
                 </xs:complexType>
               </xs:element>
             </xs:sequence>
-            <xs:attribute type="xs:byte" name="dpid"/>
+            <xs:attribute type="xs:byte" name="dpid" use="required"/>
           </xs:complexType>
         </xs:element>
       </xs:sequence>
