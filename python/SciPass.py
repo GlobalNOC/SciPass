@@ -133,8 +133,8 @@ class SciPass:
                                                       hard_timeout = 0,
                                                       priority     = priority )
               good_flow = {'dpid' : dpid, 'domain': name, 'header' : header,
-                        'actions' : wan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
-                        'priority' : priority}
+                           'actions' : wan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                           'priority' : priority}
               self.whiteList.append(good_flow)
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
@@ -513,7 +513,7 @@ class SciPass:
     self.config = config      
     doc.freeDoc()
     ctxt.xpathFreeContext()
-    #print config
+    
 
   def switchLeave(self, datapath):
     if datapath in self.switches:
@@ -739,7 +739,7 @@ class SciPass:
     self.logger.info("Distributing Prefixes!")
     self.config[dpid][domain_name]['balancer'].pushToSwitch()
 
-  def _setupBalancers(self, dpid = None, domain_name = None):
+  def _setupBalancer(self, dpid = None, domain_name = None):
     self.logger.debug("balancer rule init")
     #ok now that we have that done... start balancing!!!
     prefixes = []

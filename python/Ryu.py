@@ -452,7 +452,6 @@ class Ryu(app_manager.RyuApp):
     def process_flow_removed(self, flow, dp):
         self.logger.debug("flow removed processor")
         ofproto = dp.ofproto
-        match = flow.match.__dict__
         src_mask = 32 - ((flow.match.wildcards & ofproto.OFPFW_NW_SRC_MASK) >> ofproto.OFPFW_NW_SRC_SHIFT)
         dst_mask = 32 - ((flow.match.wildcards & ofproto.OFPFW_NW_DST_MASK) >> ofproto.OFPFW_NW_DST_SHIFT)
         if(src_mask > 0):
@@ -465,19 +464,16 @@ class Ryu(app_manager.RyuApp):
             dst_prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
         else:
             dst_prefix = ipaddr.IPv4Network(flow.match.nw_dst)
-        obj = { 'nw_src': src_prefix, 'nw_dst' : dst_prefix }
+        obj = { 'nw_src': src_prefix, 'nw_dst' : dst_prefix}
+        if flow.match.tp_src > 0:
+            obj['tp_src'] = flow.match.tp_src
+        if flow.match.tp_dst > 0:
+            obj['tp_dst'] = flow.match.tp_dst
         header =self.api._build_header(obj,False)
         header['phys_port'] = flow.match.in_port
         priority =  flow.priority
         self.api.remove_flow(header,priority)
         
-        """
-        for flow in self.flows:
-            if(flow.match == msg.match and flow.actions == msg.actions):
-                self.flows.delete(flow)
-                return
-        """ 
-        self.logger.error("A flow was removed but we didn't know it was there!")
 
     def process_flow_stats(self, stats, dp):
         self.logger.debug("flow stat processor")
