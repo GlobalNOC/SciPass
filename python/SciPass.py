@@ -164,7 +164,7 @@ class SciPass:
                   return results
                 else:
                   obj = { 'dpid' : dpid, 'domain' : name,'header': header,
-                          'actions' : wan_action,'priority' : priority }
+                          'actions' : lan_action,'priority' : priority }
                   flows.append(obj)
             
 
@@ -209,7 +209,7 @@ class SciPass:
                   return results
                 else:
                   obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
-                          'actions' : wan_action,'priority' : priority }
+                          'actions' : lan_action,'priority' : priority }
                   flows.append(obj)
                     
     results['success'] = 1
