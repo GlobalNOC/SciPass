@@ -502,9 +502,11 @@ class SimpleBalancer:
           
           incrementer = priority['total'] / len(subnets)
           cur_priority = priority['priority']
+          prefixes = []
           #--- first, add the more specific rules
           for prefix in subnets:
               #--- set a guess that each of the 2 subnets gets half of the traffic
+              prefix.append(prefix)
               try:
                   prefixBw = bw / 2.0
               except ZeroDivisionError:
@@ -519,7 +521,8 @@ class SimpleBalancer:
               except MaxFlowCountError:
                   self.logger.error("Max Flow Count Reached")
                   self.addGroupPrefix(group, candidatePrefix)
-                  self.prefixPriorities.delete(prefix)
+                  for prefix in prefixes:
+                      self.prefixPriorities.delete(prefix)
               cur_priority += incrementer
 
               #--- now remove the less specific and now redundant rule
