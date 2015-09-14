@@ -506,7 +506,7 @@ class SimpleBalancer:
           #--- first, add the more specific rules
           for prefix in subnets:
               #--- set a guess that each of the 2 subnets gets half of the traffic
-              prefix.append(prefix)
+              prefixes.append(prefix)
               try:
                   prefixBw = bw / 2.0
               except ZeroDivisionError:
