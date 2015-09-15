@@ -50,6 +50,9 @@ class DuplicatePrefixError(Exception):
 class MaxFlowCountError(Exception):
     """Raised when attempt to split a prefix will exceed max flow count limit"""
 
+    def __init__(self, msg):
+        self.msg = msg
+
 class SimpleBalancer:
   """A simple balancer using only OpenFlow"""
   def __init__(  self,
