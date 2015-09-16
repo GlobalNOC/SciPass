@@ -325,6 +325,32 @@ class Ryu(app_manager.RyuApp):
              for mod in self.flowmods:
                  datapath.send_msg(mod)
 
+    def defaultDrop(self, dpid):
+        # installs a default priority 1 drop rule
+        if(not self.datapaths.has_key(dpid)):
+            self.logger.error("unable to find switch with dpid " + dpid)
+            return
+        
+        datapath = self.datapaths[dpid]
+        ofp = datapath.ofproto
+        parser = datapath.ofproto_parser
+        command = ofp.OFPFC_ADD
+        priority = 1
+        cookie = 0
+        match = parser.OFPMatch()
+        mod = parser.OFPFlowMod(datapath=datapath, 
+                                match=match,
+                                priority=priority,
+                                command=command,
+                                cookie=cookie)
+
+        if(datapath.is_active == True):
+            self.logger.info("Installing a default drop rule for switch with dpid " + dpid)
+            datapath.send_msg(mod)
+        else:
+            self.logging.error("Unable to find switch with dpid {0}"
+                               " to install a default drop rule".format(dpid))
+
     def _stats_loop(self):
          while 1:
           #--- send stats request
@@ -390,8 +416,9 @@ class Ryu(app_manager.RyuApp):
                 self.datapaths[dpid] = datapath
                 if(not self.flowmods.has_key(dpid)):
                     self.flowmods[dpid] = []
-
-            self.flushRules(dpid)
+            
+            self.flushRules(dpid) 
+            self.defaultDrop(dpid)
             #--- start the balancing act
             self.api.switchJoined(datapath)
 
