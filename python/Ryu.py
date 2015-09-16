@@ -52,7 +52,7 @@ class SciPassRest(ControllerBase):
     def __init__(self, req, link, data, **config):
         super(SciPassRest, self).__init__(req, link, data, **config)
         self.api = data['api']
-
+        self.logger = logging.getLogger(__name__)
     #POST /scipass/flows/good_flow
     @route('scipass', '/scipass/flows/good_flow', methods=['PUT'])
     def good_flow(self, req):
@@ -264,15 +264,16 @@ class Ryu(app_manager.RyuApp):
         for action in actions:
             if(action['type'] == "output"):
                 of_actions.append(parser.OFPActionOutput(int(action['port']),0))
-                
+           
         #self.logger.error("Actions: " + str(of_actions))
+        flags = 0
         if(command == "ADD"):
             command = ofp.OFPFC_ADD
+            flags = ofp.OFPFF_SEND_FLOW_REM
         elif(command == "DELETE_STRICT"):
             command = ofp.OFPFC_DELETE_STRICT
         else:
             command = -1
-
         #self.logger.error("Sending flow mod with command: " + str(command))
         #self.logger.error("Datpath: " + str(datapath))
 
@@ -283,7 +284,8 @@ class Ryu(app_manager.RyuApp):
                                  command      = command,
                                  idle_timeout = int(idle_timeout),
                                  hard_timeout = int(hard_timeout),
-                                 actions      = of_actions)
+                                 actions      = of_actions,
+                                 flags        = flags)
 
         if(datapath.is_active == True):
             datapath.send_msg(mod)
@@ -389,14 +391,10 @@ class Ryu(app_manager.RyuApp):
     #handle the remove flow event so we know what to sync up when we do this
     @set_ev_cls(ofp_event.EventOFPFlowRemoved, MAIN_DISPATCHER)
     def _remove_flow_handler(self, ev):
-        msg = ev.msg
-        self.api.remove_flow(msg)
-        for flow in self.flows:
-            if(flow.match == msg.match and flow.actions == msg.actions):
-                self.flows.delete(flow)
-                return
-        self.logger.error("A flow was removed but we didn't know it was there!")
-
+        flow = ev.msg
+        datapath = ev.msg.datapath
+        self.process_flow_removed(flow, datapath)
+        
     @set_ev_cls(ofp_event.EventOFPStateChange,
                  [MAIN_DISPATCHER, DEAD_DISPATCHER])
     def _state_change_handler(self, ev):
@@ -478,7 +476,32 @@ class Ryu(app_manager.RyuApp):
             self.process_flow_stats(self.stats[ev.msg.datapath.id], ev.msg.datapath)
             self.stats[ev.msg.datapath.id] = []
         
-           
+    def process_flow_removed(self, flow, dp):
+        self.logger.debug("flow removed processor")
+        ofproto = dp.ofproto
+        src_mask = 32 - ((flow.match.wildcards & ofproto.OFPFW_NW_SRC_MASK) >> ofproto.OFPFW_NW_SRC_SHIFT)
+        dst_mask = 32 - ((flow.match.wildcards & ofproto.OFPFW_NW_DST_MASK) >> ofproto.OFPFW_NW_DST_SHIFT)
+        if(src_mask > 0):
+            id = ipaddr.IPv4Address(flow.match.nw_src)
+            src_prefix = ipaddr.IPv4Network(str(id)+"/"+str(src_mask))
+        else:
+            src_prefix = ipaddr.IPv4Network(flow.match.nw_src)
+        if(dst_mask > 0):
+            id = ipaddr.IPv4Address(flow.match.nw_dst)
+            dst_prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
+        else:
+            dst_prefix = ipaddr.IPv4Network(flow.match.nw_dst)
+        obj = { 'nw_src': src_prefix, 'nw_dst' : dst_prefix}
+        if flow.match.tp_src > 0:
+            obj['tp_src'] = flow.match.tp_src
+        if flow.match.tp_dst > 0:
+            obj['tp_dst'] = flow.match.tp_dst
+        header =self.api._build_header(obj,False)
+        header['phys_port'] = flow.match.in_port
+        priority =  flow.priority
+        self.api.remove_flow(header,priority)
+        
+
     def process_flow_stats(self, stats, dp):
         self.logger.debug("flow stat processor")
         self.logger.debug("flows stats: " + str(len(stats)))

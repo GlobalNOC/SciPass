@@ -65,7 +65,7 @@ class SciPass:
     #build our prefixes
     src_prefix = ipaddr.IPv4Network(obj['nw_src'])
     dst_prefix = ipaddr.IPv4Network(obj['nw_dst'])
-
+    
     #find the switch, domain, lan, wan ports
     for dpid in self.config:
       for name in self.config[dpid]:
@@ -132,7 +132,10 @@ class SciPass:
                                                       idle_timeout = idle_timeout,
                                                       hard_timeout = 0,
                                                       priority     = priority )
-
+              good_flow = {'dpid' : dpid, 'domain': name, 'header' : header,
+                           'actions' : wan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                           'priority' : priority}
+              self.whiteList.append(good_flow)
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
                 header = self._build_header(obj,True)
@@ -146,7 +149,10 @@ class SciPass:
                                                         hard_timeout = 0,
                                                         priority     = priority )
             
-
+                good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                             'actions' : lan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                             'priority' : priority}
+                self.whiteList.append(good_flow)
             #check the other dir          
             if(prefix['prefix'].Contains( dst_prefix )):
               header = self._build_header(obj,True)
@@ -159,7 +165,10 @@ class SciPass:
                                                       idle_timeout = idle_timeout,
                                                       hard_timeout = 0,
                                                       priority     = priority)
-
+              good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                           'actions' : wan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                           'priority' : priority}
+              self.whiteList.append(good_flow)
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
                 header = self._build_header(obj,True)
@@ -172,6 +181,10 @@ class SciPass:
                                                         idle_timeout = idle_timeout,
                                                         hard_timeout = 0,
                                                         priority     = priority )
+                good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                             'actions' : lan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                             'priority' : priority}
+                self.whiteList.append(good_flow)
     results = {}
     results['success'] = 1
     return results
@@ -258,7 +271,10 @@ class SciPass:
                                                       command      = "ADD",
                                                       idle_timeout = idle_timeout,
                                                       priority     = priority)
-              
+              bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                           'actions' : actions , 'idle_timeout' :  idle_timeout,
+                           'priority' : priority}
+              self.blackList.append(bad_flow)
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,True)
@@ -272,8 +288,10 @@ class SciPass:
                                                         command      = "ADD",
                                                         idle_timeout = idle_timeout,
                                                         priority     = priority)
-                
-
+                bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                           'actions' : actions , 'idle_timeout' :  idle_timeout,
+                           'priority' : priority}
+                self.blackList.append(bad_flow)
 
             if(prefix['prefix'].Contains( dst_prefix )):
               #actions drop
@@ -293,6 +311,10 @@ class SciPass:
                                                       command      = "ADD",
                                                       idle_timeout = idle_timeout,
                                                       priority     = priority)
+              bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                          'actions' : actions , 'idle_timeout' :  idle_timeout,
+                          'priority' : priority}
+              self.blackList.append(bad_flow)
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,False)
@@ -307,15 +329,23 @@ class SciPass:
                                                         idle_timeout = idle_timeout,
                                                         priority     = priority)
 
+                bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                            'actions' : actions , 'idle_timeout' :  idle_timeout,
+                            'priority' : priority}
+                self.blackList.append(bad_flow)
     results = {}
     results['success'] = 1
     return results
 
-  def get_bad_flow(self):
-    return self.whiteList
+  def get_bad_flows(self):
+    if self.blackList:
+      return self.blackList
+    return None
 
-  def get_good_flow(self):
-    return self.blackList
+  def get_good_flows(self):
+    if self.whiteList:
+      return self.whiteList
+    return None
 
   # gets the config info for a sensor along with its dpid and domain
   def _getSensorInfo(self, port_id):
@@ -483,6 +513,7 @@ class SciPass:
     self.config = config      
     doc.freeDoc()
     ctxt.xpathFreeContext()
+    
 
   def switchLeave(self, datapath):
     if datapath in self.switches:
@@ -963,9 +994,20 @@ class SciPass:
     self.delPrefix(dpid, domain_name, old_group_id, prefix, priority)
     self.addPrefix(dpid, domain_name, new_group_id, prefix, priority)
 
-  def remove_flow(self, ev):
+  def remove_flow(self, header, priority):
     self.logger.debug("remove flow")
-    
+    for white in self.whiteList:
+      if ((cmp(header, white['header']) == 0) and (cmp(priority, white['priority'])== 0)):
+        """ if a good flow times out, remove it"""
+        self.logger.error("Removing good flow due to timeout")
+        self.whiteList.remove(white)
+
+    for black in self.blackList:
+      if ((cmp(header, black['header']) == 0) and (cmp(priority, black['priority'])== 0)):
+        """ if a bad flow times out, remove it"""
+        self.logger.error("Removing bad flow due to timeout")
+        self.blackList.remove(black)
+
   def port_status(self, ev):
     self.logger.debug("port status handler")
 
@@ -1190,8 +1232,7 @@ class SciPass:
                                                   actions      = flow['actions'],
                                                   command      = "DELETE_STRICT",
                                                   priority     = flow['priority'])
-        
-        self.hardTimeouts.remove(flow)
+          self.hardTimeouts.remove(flow)
 
     #need to improve this! its a O(n^2)
     for flow in flows:
@@ -1224,4 +1265,5 @@ class SciPass:
                                                   actions      = flow['actions'],
                                                   command      = "DELETE_STRICT",
                                                   priority     = flow['priority'])
+          
           self.idleTimeouts.remove(flow)
