@@ -443,24 +443,24 @@ class SciPass:
                                                          ) 
         config[dpid][name]['flows'] = []
         #register the methods
-        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y, z : self.addPrefix(dpid = dpid,
-                                                                                               domain_name = name,
-                                                                                               group_id = x,
-                                                                                               prefix = y,
-                                                                                               priority = z))
+        config[dpid][name]['balancer'].registerAddPrefixHandler(lambda x, y, z, dpid=dpid, name=name: self.addPrefix(dpid = dpid,
+                                                                                                                     domain_name = name,
+                                                                                                                     group_id = x,
+                                                                                                                     prefix = y,
+                                                                                                                     priority = z))
         
-        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y, z : self.delPrefix(dpid = dpid,
-                                                                                               domain_name = name,
-                                                                                               group_id = x,
-                                                                                               prefix = y,
-                                                                                               priority = z))
+        config[dpid][name]['balancer'].registerDelPrefixHandler(lambda x, y, z, dpid=dpid, name=name : self.delPrefix(dpid = dpid,
+                                                                                                                      domain_name = name,
+                                                                                                                      group_id = x,
+                                                                                                                      prefix = y,
+                                                                                                                      priority = z))
         
-        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a : self.movePrefix(dpid = dpid,
-                                                                                                    domain_name = name,
-                                                                                                    old_group_id = x,
-                                                                                                    new_group_id = y,
-                                                                                                    prefix = z,
-                                                                                                    priority=a))
+        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a,dpid=dpid, name=name : self.movePrefix(dpid = dpid,
+                                                                                                                          domain_name = name,
+                                                                                                                          old_group_id = x,
+                                                                                                                          new_group_id = y,
+                                                                                                                          prefix = z,
+                                                                                                                          priority=a))
 
         ports = ctxt.xpathEval("port")
         sensor_groups = ctxt.xpathEval("sensor_group")
