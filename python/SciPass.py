@@ -170,7 +170,7 @@ class SciPass:
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
-                header = self._build_header(obj,True)
+                header = self._build_header(obj,False)
                 header['phys_port'] = int(wan)
                 self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                         domain       = name,
