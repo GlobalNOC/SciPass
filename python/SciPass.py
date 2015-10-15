@@ -440,9 +440,9 @@ class SciPass:
           with open(prevState) as data:    
             state = json.load(data)
             state = state[0]
+            data.close()
         except IOError:
           state = None
-          
         #create a simple balancer
         config[dpid][name]['balancer'] = SimpleBalancer( logger = self.logger,
                                                          maxPrefixes = max_prefixes,
