@@ -41,12 +41,12 @@ class SciPass:
     else:
       self.configFile = "/etc/SciPass/SciPass.xml"
 
-
     self.whiteList    = []
     self.blackList    = []
     self.idleTimeouts = []
     self.hardTimeouts = []
     self.switches     = []
+    
     self.switchForwardingChangeHandlers = []
     self._processConfig(self.configFile)
 
@@ -434,6 +434,15 @@ class SciPass:
         config[dpid][name]['ports']['wan'] = []
         config[dpid][name]['ports']['fw_lan'] = []
         config[dpid][name]['ports']['fw_wan'] = []
+        
+        prevState = "/var/run/" +  dpid +  name + ".json"
+        try:
+          with open(prevState) as data:    
+            state = json.load(data)
+            state = state[0]
+        except IOError:
+          state = None
+          
         #create a simple balancer
         config[dpid][name]['balancer'] = SimpleBalancer( logger = self.logger,
                                                          maxPrefixes = max_prefixes,
@@ -442,7 +451,8 @@ class SciPass:
                                                          mostSpecificPrefixLen = most_specific_len,
                                                          sensorLoadMinThresh = sensorLoadMinThreshold,
                                                          sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
-                                                         leastSpecificPrefixLen = least_specific_len
+                                                         leastSpecificPrefixLen = least_specific_len,
+                                                         state = state
                                                          ) 
         config[dpid][name]['flows'] = []
         #register the methods
@@ -546,6 +556,10 @@ class SciPass:
           #then install the balancing rules for our defined prefixes
           self._setupSciDMZRules(dpid = dpid,
                                  domain_name = domain_name)
+      
+          self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
+                                                                   domain_name=domain_name,
+                                                                   mode = "SciDMZ")
 
         elif(domain['mode'] == "InlineIDS"):
           #no firewall
