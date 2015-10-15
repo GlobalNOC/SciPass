@@ -147,15 +147,16 @@ class SciPassRest(ControllerBase):
 class Ryu(app_manager.RyuApp):
     OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
     _CONTEXTS = { 'wsgi': WSGIApplication }
-    
-    def __init__(self, *args, **kwargs):
+    def __init__(self,*args, **kwargs):
         super(Ryu,self).__init__(*args,**kwargs)
         #--- register for configuration options
-        self.CONF.register_opts([
-                cfg.StrOpt('SciPassConfig',default='/etc/SciPass/SciPass.xml',
-                           help='where to find the SciPass config file'),
-                ])
-        
+        SciPass_opts = [
+            cfg.StrOpt('SciPassConfig',default='/etc/SciPass/SciPass.xml',
+                       help='where to find the SciPass config file'),
+            cfg.BoolOpt('readState', default=False,
+                        help = 'Read previous state or not')
+            ]
+        self.CONF.register_opts(SciPass_opts, group='SciPass')
         self.logger.error("Starting SciPass")
         self.datapaths = {}
         self.isactive = 1
@@ -172,7 +173,8 @@ class Ryu(app_manager.RyuApp):
         self.flowmods = {}
         
         api = SciPass(logger = self.logger,
-                      config_file = self.CONF.SciPassConfig )
+                      config = self.CONF.SciPass.SciPassConfig,
+                      readState = self.CONF.SciPass.readState)
         
         api.registerForwardingStateChangeHandler(self.changeSwitchForwardingState)
 

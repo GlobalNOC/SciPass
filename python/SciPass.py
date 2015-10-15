@@ -41,6 +41,11 @@ class SciPass:
     else:
       self.configFile = "/etc/SciPass/SciPass.xml"
 
+    if(_kwargs.has_key('readState')):
+      self.readState = _kwargs['readState']
+    else:
+      self.readState = False
+
     self.whiteList    = []
     self.blackList    = []
     self.idleTimeouts = []
@@ -556,10 +561,10 @@ class SciPass:
           #then install the balancing rules for our defined prefixes
           self._setupSciDMZRules(dpid = dpid,
                                  domain_name = domain_name)
-      
-          self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
-                                                                   domain_name=domain_name,
-                                                                   mode = domain['mode'])
+          if self.readState:
+            self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
+                                                                     domain_name=domain_name,
+                                                                     mode = domain['mode'])
 
         elif(domain['mode'] == "InlineIDS"):
           #no firewall
@@ -567,17 +572,19 @@ class SciPass:
           #need to install the default rules forwarding through the switch
           #then install the balancing rules for our defined prefixes
           self._setupInlineIDS(dpid = dpid, domain_name = domain_name)
-          self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
-                                                                   domain_name=domain_name,
-                                                                   mode = domain['mode'])
+          if self.readState:
+            self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
+                                                                     domain_name=domain_name,
+                                                                     mode = domain['mode'])
         elif(domain['mode'] == "Balancer" or domain['mode'] == "SimpleBalancer"):
           #just balancer no other forwarding
           self.logger.info("Mode is Balancer")
           #just install the balance rules, no forwarding
           self._setupBalancer(dpid = dpid, domain_name = domain_name)
-          self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
-                                                                   domain_name=domain_name,
-                                                                   mode = domain['mode'])
+          if self.readState:
+            self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
+                                                                     domain_name=domain_name,
+                                                                     mode = domain['mode'])
         
           
   def _setupSciDMZRules(self, dpid = None, domain_name = None):
