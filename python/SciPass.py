@@ -39,7 +39,7 @@ class SciPass:
     if(_kwargs.has_key('config')):
       self.configFile = _kwargs['config']
     else:
-      self.configFile = "/etc/SciPass/SciPass-test.xml"
+      self.configFile = "/etc/SciPass/SciPass.xml"
 
     self.whiteList    = []
     self.blackList    = []
