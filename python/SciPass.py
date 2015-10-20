@@ -20,6 +20,7 @@ import ipaddr
 import pprint
 import copy
 import libxml2
+import json
 import lxml
 import sys                                                                     
 from lxml import etree
@@ -42,6 +43,11 @@ class SciPass:
       self.configFile = _kwargs['config']
     else:
       self.configFile = "/etc/SciPass/SciPass.xml"
+
+    if(_kwargs.has_key('readState')):
+      self.readState = _kwargs['readState']
+    else:
+      self.readState = False
       
     if(_kwargs.has_key('schema')):
       self.configFile = _kwargs['schema']
@@ -53,6 +59,7 @@ class SciPass:
     self.idleTimeouts = []
     self.hardTimeouts = []
     self.switches     = []
+    
     self.switchForwardingChangeHandlers = []
     self._validateConfig(self.configFile, self.schemaFile)
     self._processConfig(self.configFile)
@@ -73,7 +80,7 @@ class SciPass:
     #build our prefixes
     src_prefix = ipaddr.IPv4Network(obj['nw_src'])
     dst_prefix = ipaddr.IPv4Network(obj['nw_dst'])
-
+    
     #find the switch, domain, lan, wan ports
     for dpid in self.config:
       for name in self.config[dpid]:
@@ -140,7 +147,10 @@ class SciPass:
                                                       idle_timeout = idle_timeout,
                                                       hard_timeout = 0,
                                                       priority     = priority )
-
+              good_flow = {'dpid' : dpid, 'domain': name, 'header' : header,
+                           'actions' : wan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                           'priority' : priority}
+              self.whiteList.append(good_flow)
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
                 header = self._build_header(obj,True)
@@ -154,7 +164,10 @@ class SciPass:
                                                         hard_timeout = 0,
                                                         priority     = priority )
             
-
+                good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                             'actions' : lan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                             'priority' : priority}
+                self.whiteList.append(good_flow)
             #check the other dir          
             if(prefix['prefix'].Contains( dst_prefix )):
               header = self._build_header(obj,True)
@@ -167,7 +180,10 @@ class SciPass:
                                                       idle_timeout = idle_timeout,
                                                       hard_timeout = 0,
                                                       priority     = priority)
-
+              good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                           'actions' : wan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                           'priority' : priority}
+              self.whiteList.append(good_flow)
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
                 header = self._build_header(obj,False)
@@ -180,6 +196,10 @@ class SciPass:
                                                         idle_timeout = idle_timeout,
                                                         hard_timeout = 0,
                                                         priority     = priority )
+                good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
+                             'actions' : lan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
+                             'priority' : priority}
+                self.whiteList.append(good_flow)
     results = {}
     results['success'] = 1
     return results
@@ -266,7 +286,10 @@ class SciPass:
                                                       command      = "ADD",
                                                       idle_timeout = idle_timeout,
                                                       priority     = priority)
-              
+              bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                           'actions' : actions , 'idle_timeout' :  idle_timeout,
+                           'priority' : priority}
+              self.blackList.append(bad_flow)
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,True)
@@ -280,8 +303,10 @@ class SciPass:
                                                         command      = "ADD",
                                                         idle_timeout = idle_timeout,
                                                         priority     = priority)
-                
-
+                bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                           'actions' : actions , 'idle_timeout' :  idle_timeout,
+                           'priority' : priority}
+                self.blackList.append(bad_flow)
 
             if(prefix['prefix'].Contains( dst_prefix )):
               #actions drop
@@ -301,6 +326,10 @@ class SciPass:
                                                       command      = "ADD",
                                                       idle_timeout = idle_timeout,
                                                       priority     = priority)
+              bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                          'actions' : actions , 'idle_timeout' :  idle_timeout,
+                          'priority' : priority}
+              self.blackList.append(bad_flow)
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,False)
@@ -315,15 +344,23 @@ class SciPass:
                                                         idle_timeout = idle_timeout,
                                                         priority     = priority)
 
+                bad_flow = {'dpid' : datapath_id, 'domain': name, 'header' : header,
+                            'actions' : actions , 'idle_timeout' :  idle_timeout,
+                            'priority' : priority}
+                self.blackList.append(bad_flow)
     results = {}
     results['success'] = 1
     return results
 
-  def get_bad_flow(self):
-    return self.whiteList
+  def get_bad_flows(self):
+    if self.blackList:
+      return self.blackList
+    return None
 
-  def get_good_flow(self):
-    return self.blackList
+  def get_good_flows(self):
+    if self.whiteList:
+      return self.whiteList
+    return None
 
   # gets the config info for a sensor along with its dpid and domain
   def _getSensorInfo(self, port_id):
@@ -431,6 +468,15 @@ class SciPass:
         config[dpid][name]['ports']['wan'] = []
         config[dpid][name]['ports']['fw_lan'] = []
         config[dpid][name]['ports']['fw_wan'] = []
+        
+        prevState = "/var/run/" +  dpid +  name + ".json"
+        try:
+          with open(prevState) as data:    
+            state = json.load(data)
+            state = state[0]
+            data.close()
+        except IOError:
+          state = None
         #create a simple balancer
         config[dpid][name]['balancer'] = SimpleBalancer( logger = self.logger,
                                                          maxPrefixes = max_prefixes,
@@ -439,7 +485,8 @@ class SciPass:
                                                          mostSpecificPrefixLen = most_specific_len,
                                                          sensorLoadMinThresh = sensorLoadMinThreshold,
                                                          sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
-                                                         leastSpecificPrefixLen = least_specific_len
+                                                         leastSpecificPrefixLen = least_specific_len,
+                                                         state = state
                                                          ) 
         config[dpid][name]['flows'] = []
         #register the methods
@@ -455,6 +502,22 @@ class SciPass:
                                                                                                                       prefix = y,
                                                                                                                       priority = z))
         
+        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a : self.movePrefix(dpid = dpid,
+                                                                                                    domain_name = name,
+                                                                                                    old_group_id = x,
+                                                                                                    new_group_id = y,
+                                                                                                    prefix = z,
+                                                                                                    priority=a))
+        
+        #handler to save the state
+        config[dpid][name]['balancer'].registerStateChangeHandler(lambda x, y, z , dpid=dpid, name=name, mode=mode: self.saveState(dpid = dpid,
+                                                                                                                                   domain_name = name,
+                                                                                                                                   mode = mode,
+                                                                                                                                   groups = x,
+                                                                                                                                   prefix_list = y,
+                                                                                                                                   prefix_priorities =z
+                                                                                                                                   ))
+
         config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a,dpid=dpid, name=name : self.movePrefix(dpid = dpid,
                                                                                                                           domain_name = name,
                                                                                                                           old_group_id = x,
@@ -511,6 +574,7 @@ class SciPass:
     self.config = config      
     doc.freeDoc()
     ctxt.xpathFreeContext()
+    
 
   def switchLeave(self, datapath):
     if datapath in self.switches:
@@ -534,6 +598,10 @@ class SciPass:
           #then install the balancing rules for our defined prefixes
           self._setupSciDMZRules(dpid = dpid,
                                  domain_name = domain_name)
+          if self.readState:
+            self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
+                                                                     domain_name=domain_name,
+                                                                     mode = domain['mode'])
 
         elif(domain['mode'] == "InlineIDS"):
           #no firewall
@@ -541,11 +609,19 @@ class SciPass:
           #need to install the default rules forwarding through the switch
           #then install the balancing rules for our defined prefixes
           self._setupInlineIDS(dpid = dpid, domain_name = domain_name)
+          if self.readState:
+            self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
+                                                                     domain_name=domain_name,
+                                                                     mode = domain['mode'])
         elif(domain['mode'] == "Balancer" or domain['mode'] == "SimpleBalancer"):
           #just balancer no other forwarding
           self.logger.info("Mode is Balancer")
           #just install the balance rules, no forwarding
           self._setupBalancer(dpid = dpid, domain_name = domain_name)
+          if self.readState:
+            self.config[dpid][domain_name]['balancer'].pushPrevState(dpid=dpid,
+                                                                     domain_name=domain_name,
+                                                                     mode = domain['mode'])
         
           
   def _setupSciDMZRules(self, dpid = None, domain_name = None):
@@ -990,10 +1066,57 @@ class SciPass:
     #delete and add the prefix
     self.delPrefix(dpid, domain_name, old_group_id, prefix, priority)
     self.addPrefix(dpid, domain_name, new_group_id, prefix, priority)
-
-  def remove_flow(self, ev):
-    self.logger.debug("remove flow")
     
+  def saveState(self, dpid = None, domain_name = None, mode = None, groups = None, prefix_list = None, prefix_priorities = None):
+    self.logger.info("Saving State")
+    self.logger.debug(str(dpid))
+    self.logger.debug(str(domain_name))
+    self.logger.debug(str(mode))
+    self.logger.debug(str(groups))
+    self.logger.debug(str(prefix_list))
+    self.logger.debug(str(prefix_priorities))
+    fileName = str(dpid) + str(domain_name) + ".json"
+    
+    group = copy.deepcopy(groups)
+    prefixes = []
+    priorities = {}
+    for k, v in group.iteritems():
+      v['prefixes']= [str(i) for i in v["prefixes"]]
+
+    for prefix in prefix_list:
+      prefixes = [str(i) for i in prefix_list]
+     
+    for k, v in prefix_priorities.iteritems():
+      priorities[str(k)] = v
+
+    curr_state = {}
+    curr_state["switch"] = {}
+    curr_state["switch"][dpid] = {}
+    curr_state["switch"][dpid]["domain"] = {} 
+    curr_state["switch"][dpid]["domain"][domain_name] = {}
+    curr_state["switch"][dpid]["domain"][domain_name]["mode"] = {}
+    curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode] = {}
+    curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["groups"] = group
+    curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["prefixes"] = prefixes
+    curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["priorities"] = priorities
+    with open("/var/run/" +fileName, 'w') as fd:
+      json.dump([curr_state], fd)
+    fd.close()
+
+  def remove_flow(self, header, priority):
+    self.logger.debug("remove flow")
+    for white in self.whiteList:
+      if ((cmp(header, white['header']) == 0) and (cmp(priority, white['priority'])== 0)):
+        """ if a good flow times out, remove it"""
+        self.logger.error("Removing good flow due to timeout")
+        self.whiteList.remove(white)
+
+    for black in self.blackList:
+      if ((cmp(header, black['header']) == 0) and (cmp(priority, black['priority'])== 0)):
+        """ if a bad flow times out, remove it"""
+        self.logger.error("Removing bad flow due to timeout")
+        self.blackList.remove(black)
+
   def port_status(self, ev):
     self.logger.debug("port status handler")
 
@@ -1218,8 +1341,7 @@ class SciPass:
                                                   actions      = flow['actions'],
                                                   command      = "DELETE_STRICT",
                                                   priority     = flow['priority'])
-        
-        self.hardTimeouts.remove(flow)
+          self.hardTimeouts.remove(flow)
 
     #need to improve this! its a O(n^2)
     for flow in flows:
@@ -1252,4 +1374,5 @@ class SciPass:
                                                   actions      = flow['actions'],
                                                   command      = "DELETE_STRICT",
                                                   priority     = flow['priority'])
+          
           self.idleTimeouts.remove(flow)

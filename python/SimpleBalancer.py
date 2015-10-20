@@ -58,8 +58,9 @@ class SimpleBalancer:
  		 leastSpecificPrefixLen	= 24,
      		 sensorLoadMinThresh	= .02,
 		 sensorLoadDeltaThresh	= .05,
+                 state                  = None,
                  logger                 = None):
-          
+      
       if(logger == None):
           logging.basicConfig()
           self.logger = logging.getLogger(__name__)
@@ -83,11 +84,12 @@ class SimpleBalancer:
       
       #--- prefix bandwidth in GigaBits/sec
       self.prefixBW		       = defaultdict(float)
-
+      #--- previous State
+      self.state = state
       self.addPrefixHandlers  = []
       self.delPrefixHandlers  = []
       self.movePrefixHandlers = []
-      
+      self.saveStateChangeHandlers = []
       self.prefix_list = []
       self.initialized = False
       return
@@ -111,8 +113,49 @@ class SimpleBalancer:
           self.pushAllPrefixes()
       else:
           self.distributePrefixes(self.prefix_list)
+          self.fireSaveState()
           self.initialized = True
       self.logger.info("Switch Initialized")
+
+  def pushPrevState(self, dpid=None, domain_name=None, mode=None):
+      #Assumes no change in configuration from previous configuration
+      if not self.state:
+          return
+      
+      if  self.state["switch"][dpid]["domain"][domain_name]["mode"].has_key(mode):
+          self.logger.info("Pushing Previous State") 
+          newPrefixes = []
+          delPrefixes = []
+          prevPrefixes = []
+          
+          #calculate previous prefixes
+          for prefix in self.state["switch"][dpid]["domain"][domain_name]["mode"][mode]["prefixes"]:
+              try:
+                  prevPrefixes.append(ipaddr.IPv4Network(prefix))
+              except:
+                  prevPrefixes.append(ipaddr.IPv6Network(prefix))
+                  
+          
+          previous = set(prevPrefixes)
+          current  = set(self.prefix_list)
+          
+          #calculate del prefixes
+          delPrefixes = current.difference(previous)
+          #calculate new prefixes
+          newPrefixes = previous.difference(current)
+          
+                        
+          #delete the old prefixes from sensor group
+          if delPrefixes:
+              for delPrefix in delPrefixes:
+                  group = self.getPrefixGroup(delPrefix)
+                  if group:
+                      self.delGroupPrefix(group, delPrefix)
+
+          #distribute the new prefixes to the sensor groups
+          if newPrefixes:
+              self.distributePrefixes(list(newPrefixes))  
+
 
   def getConfig(self):
       obj = {}
@@ -233,6 +276,7 @@ class SimpleBalancer:
           for prefix in self.groups[group]['prefixes']:
               priority = self.getPrefixPriority(prefix)
               self.fireAddPrefix(group, prefix, priority['priority'])
+              self.fireSaveState()
 
   def addSensorGroup(self, group):
     """adds sensor, inits to load 0, sets status to 1"""
@@ -382,6 +426,10 @@ class SimpleBalancer:
     """used to register a handler for del prefix events"""
     self.movePrefixHandlers.append(handler)
 
+  def registerStateChangeHandler(self, handler):
+      """used to register a handler for save state events"""
+      self.saveStateChangeHandlers.append(handler)
+
   def fireAddPrefix(self,group,prefix, priority):
     """When called will fire each of the registered add prefix handlers"""
     for handler in self.addPrefixHandlers:
@@ -397,6 +445,10 @@ class SimpleBalancer:
     for handler in self.movePrefixHandlers:
       handler(oldGroup,newGroup,prefix, priority)
 
+  def fireSaveState(self):
+      """when called will fire each of the registered save state handlers"""
+      for handler in self.saveStateChangeHandlers:
+          handler(self.groups, self.prefix_list, self.prefixPriorities)
 
   def delGroupPrefix(self,group,targetPrefix):
     """looks for prefix and removes it if its associated with the sensor"""
@@ -415,10 +467,18 @@ class SimpleBalancer:
         #--- remove from list
         prefixList.pop(x)
         self.prefixCount = self.prefixCount -1
+        if targetPrefix in self.prefix_list:
+            self.prefix_list.remove(targetPrefix)
         if(self.prefixBW.has_key(targetPrefix)):
             del self.prefixBW[targetPrefix]
+        if(targetPrefix in self.groups[group]['prefixes']):
+            self.groups[group]['prefixes'].remove(targetPrefix)
+        if(self.prefixPriorities.has_key(targetPrefix)):
+            del self.prefixPriorities[targetPrefix]
+        if(self.initialized):
+            self.fireSaveState()
             return 1
-      x = x+1
+        x = x+1
     return 0
 
   def addGroupPrefix(self,group,targetPrefix,bw=0):
@@ -438,26 +498,29 @@ class SimpleBalancer:
         self.prefixPriorities[targetPrefix] = {'priority': self.curr_priority, 'total': 100, 'bandwidth': 0}
         priority = self.prefixPriorities[targetPrefix]
         self.curr_priority += 100
-        
+    
     x = 0;
     for prefix in prefixList:
-      if(targetPrefix == prefix):
+        if(targetPrefix == prefix):
         #--- already in list
-        raise DuplicatePrefixError("Prefix already in list")
-        return 0;
-      elif(targetPrefix.Contains(prefix)):
-          raise DuplicatePrefixError("Prefix is already contained by something else")
-          return 0
-      elif(prefix.Contains(targetPrefix)):
-          raise DuplicatePrefixError("Prefix is already contained by something else")
-          return 0
+            raise DuplicatePrefixError("Prefix already in list")
+            return 0;
+        elif(targetPrefix.Contains(prefix)):
+            raise DuplicatePrefixError("Prefix is already contained by something else")
+            return 0
+        elif(prefix.Contains(targetPrefix)):
+            raise DuplicatePrefixError("Prefix is already contained by something else")
+            return 0
 
     #--- call function to add this to the switch
     self.fireAddPrefix(group,targetPrefix, priority['priority'])
     self.groups[group]['prefixes'].append(targetPrefix)
     self.prefixCount = self.prefixCount + 1
     self.prefixBW[targetPrefix] = bw
-
+    if targetPrefix not in self.prefix_list:
+        self.prefix_list.append(targetPrefix)
+    if(self.initialized):
+        self.fireSaveState()
     return 1;
 
   def moveGroupPrefix(self,oldGroup,newGroup,targetPrefix):
@@ -475,8 +538,12 @@ class SimpleBalancer:
         #--- found
         prefixList.pop(x)
         self.groups[newGroup]['prefixes'].append(prefix)
+        if(prefix in self.groups[oldGroup]['prefixes']):
+            self.groups[oldGroup]['prefixes'].remove(targetPrefix)
         self.fireMovePrefix(oldGroup,newGroup,targetPrefix, priority['priority'])
-        return 1
+        if(self.initialized):
+            self.fireSaveState()
+            return 1
       x = x+1 
     return 0
 
