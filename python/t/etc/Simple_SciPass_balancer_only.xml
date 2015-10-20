@@ -3,7 +3,7 @@
    <switch dpid="0000000000000001" name="IUPUI-SW">
     <domain name="IUPUI" mode="SimpleBalancer" admin_status="active" least_specific_prefix_len="16" most_specific_prefix_len="24" 
 	    ignore_sensor_load="true" blacklist_priority="1000" whitelist_priority="900" sensor_min_load_threshold="0.1" 
-	    sensor_load_delta_threshold="0.05" max_prefixes="200" idle_timeout="90" hard_timeout="300" >
+	    sensor_load_delta_threshold="0.05" max_prefixes="200" idle_timeout="90" hard_timeout="300" max_flow_count="1000">
 
       <port of_port_id="10" type="lan" name="17" description="lan int">
         <prefix type="v4">10.0.0.0/8</prefix>
@@ -109,42 +109,42 @@
 	<prefix type="v6">::/128</prefix>
       </port> -->
 
-     <sensor_group bw="10G" name="Group 1" group_id="group1" admin_status="active" description="Group 1">
+     <sensor_group bw="10G" name="Group 1" group_id="group1" admin_state="active" description="Group 1">
        <sensor of_port_id="1" sensor_id="bro1"   />
        <sensor of_port_id="2" sensor_id="snort1" />
      </sensor_group>
 
-     <sensor_group bw="10G" name="Group 2" group_id="group2" admin_status="active" description="Group 2">
+     <sensor_group bw="10G" name="Group 2" group_id="group2" admin_state="active" description="Group 2">
        <sensor of_port_id="3" sensor_id="bro2"   />
        <sensor of_port_id="4" sensor_id="snort1" />
      </sensor_group>
 
-     <sensor_group bw="10G" name="Group 3" group_id="group3" admin_status="active" description="Group 3">
+     <sensor_group bw="10G" name="Group 3" group_id="group3" admin_state="active" description="Group 3">
        <sensor of_port_id="5" sensor_id="bro3"   />
        <sensor of_port_id="6" sensor_id="snort2" />
      </sensor_group>
 
-     <sensor_group bw="10G" name="Group 4" group_id="group4" admin_status="active" description="Group 4">
+     <sensor_group bw="10G" name="Group 4" group_id="group4" admin_state="active" description="Group 4">
        <sensor of_port_id="7" sensor_id="bro4"   />
        <sensor of_port_id="8" sensor_id="snort2" />
      </sensor_group>
 
-     <sensor_group bw="10G" name="Group 5" group_id="group5" admin_status="active" description="Group 5">
+     <sensor_group bw="10G" name="Group 5" group_id="group5" admin_state="active" description="Group 5">
        <sensor of_port_id="34" sensor_id="bro5"   />
        <sensor of_port_id="44" sensor_id="snort3" />
      </sensor_group>
 
-     <sensor_group bw="10G" name="Group 6" group_id="group6" admin_status="active" description="Group 6">
+     <sensor_group bw="10G" name="Group 6" group_id="group6" admin_state="active" description="Group 6">
        <sensor of_port_id="36" sensor_id="bro6"   />
        <sensor of_port_id="44" sensor_id="snort4" />
      </sensor_group>
 
-     <sensor_group bw="10G" name="Group 7" group_id="group7" admin_status="active" description="Group 7">
+     <sensor_group bw="10G" name="Group 7" group_id="group7" admin_state="active" description="Group 7">
        <sensor of_port_id="38" sensor_id="bro7"   />
        <sensor of_port_id="46" sensor_id="snort4" />
      </sensor_group>
 
-     <sensor_group bw="10G" name="Group 8" group_id="group8" admin_status="active" description="Group 8">
+     <sensor_group bw="10G" name="Group 8" group_id="group8" admin_state="active" description="Group 8">
        <sensor of_port_id="48" sensor_id="bro8"   />
        <sensor of_port_id="46" sensor_id="snort5" />
      </sensor_group>
