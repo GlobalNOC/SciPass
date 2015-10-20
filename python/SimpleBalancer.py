@@ -47,6 +47,11 @@ class DuplicatePrefixError(Exception):
     def __init__(self, msg):
       self.msg = msg
 
+class MaxFlowCountError(Exception):
+    """Raised when attempt to split a prefix will exceed max flow count limit"""
+
+    def __init__(self, msg):
+        self.msg = msg
 
 class SimpleBalancer:
   """A simple balancer using only OpenFlow"""
@@ -256,6 +261,8 @@ class SimpleBalancer:
                       self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
                   except DuplicatePrefixError:
                       self.logger.debug("Already have prefix: " + str(prefix))
+                  except MaxFlowCountError:
+                      self.logger.debug("Max Flow Count Error")
                   group_index += 1
                   if(group_index >= len(self.groups)):
                       group_index = 0
@@ -267,6 +274,8 @@ class SimpleBalancer:
                   self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
               except DuplicatePrefixError:
                   self.logger.debug("Already have prefix: " + str(prefix))
+              except MaxFlowCountError:
+                  self.logger.debug("Max Flow Count Error")
               group_index += 1
               if(group_index >= len(self.groups)):
                   group_index = 0
@@ -513,7 +522,10 @@ class SimpleBalancer:
             return 0
 
     #--- call function to add this to the switch
-    self.fireAddPrefix(group,targetPrefix, priority['priority'])
+    try:
+        self.fireAddPrefix(group,targetPrefix, priority['priority'])
+    except MaxFlowCountError:
+        return 0
     self.groups[group]['prefixes'].append(targetPrefix)
     self.prefixCount = self.prefixCount + 1
     self.prefixBW[targetPrefix] = bw
@@ -560,9 +572,11 @@ class SimpleBalancer:
           
           incrementer = priority['total'] / len(subnets)
           cur_priority = priority['priority']
+          prefixes = []
           #--- first, add the more specific rules
           for prefix in subnets:
               #--- set a guess that each of the 2 subnets gets half of the traffic
+              prefixes.append(prefix)
               try:
                   prefixBw = bw / 2.0
               except ZeroDivisionError:
@@ -571,7 +585,14 @@ class SimpleBalancer:
               self.logger.debug( "  -- "+str(prefix)+" bw "+str((prefixBw / 1000 / 1000)) + "Mbps" )
               self.delGroupPrefix(group, candidatePrefix)
               self.prefixPriorities[prefix] = {'priority': cur_priority, 'total': incrementer}
-              self.addGroupPrefix(group, prefix, prefixBw)
+              
+              try:
+                  self.addGroupPrefix(group, prefix, prefixBw)
+              except MaxFlowCountError:
+                  self.logger.error("Max Flow Count Reached")
+                  self.addGroupPrefix(group, candidatePrefix)
+                  for prefix in prefixes:
+                      self.prefixPriorities.delete(prefix)
               cur_priority += incrementer
 
               #--- now remove the less specific and now redundant rule
@@ -942,7 +963,8 @@ class SimpleBalancer:
                           self.delGroupPrefix(maxSensor,candidatePrefix)
                       except MaxPrefixlenError as e:
                           self.logger.warn( "at max prefix length limit" )
-           
+                      except MaxFlowCountError:
+                          self.logger.warn("Max Flow Count is reached")
               else:
                   self.logger.warn("below load Delta Threshold")
 
