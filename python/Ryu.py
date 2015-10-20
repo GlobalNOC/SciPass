@@ -169,7 +169,7 @@ class Ryu(app_manager.RyuApp):
         
         self.ports = defaultdict(dict);
         self.prefix_bytes = defaultdict(lambda: defaultdict(int))
-        self.lastStatsTime = None
+        self.lastStatsTime = {}
         self.flowmods = {}
         
         api = SciPass(logger = self.logger,
@@ -513,15 +513,17 @@ class Ryu(app_manager.RyuApp):
         flows = []
         dpid = dp.id
         ofproto = dp.ofproto
-        old_time = self.lastStatsTime
+        old_time = None
+        if (self.lastStatsTime.has_key(dpid)):
+            old_time = self.lastStatsTime[dpid]
         now = int(time.time())
 
         stats_et = None
         if(old_time != None):
             stats_et = now - old_time
 
-        self.lastStatsTime = now
-
+        self.lastStatsTime[dpid] = now
+        
         for stat in stats:
             
             dur_sec = stat.duration_sec
