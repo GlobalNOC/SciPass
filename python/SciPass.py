@@ -156,9 +156,9 @@ class SciPass:
                 results['success'] = 0
                 return results
               else:
-                obj = { 'dpid' : dpid, 'domain' : name, 'header' : header,
+                flow = { 'dpid' : dpid, 'domain' : name, 'header' : header,
                         'actions' : wan_action,'priority' : priority }
-                flows.append(obj)
+                flows.append(flow)
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
@@ -179,9 +179,9 @@ class SciPass:
                   results['success'] = 0
                   return results
                 else:
-                  obj = { 'dpid' : dpid, 'domain' : name,'header': header,
+                  flow = { 'dpid' : dpid, 'domain' : name,'header': header,
                           'actions' : lan_action,'priority' : priority }
-                  flows.append(obj)
+                  flows.append(flow)
             
                 good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
                              'actions' : lan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
@@ -206,9 +206,9 @@ class SciPass:
                 results['success'] = 0
                 return results
               else:
-                obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
+                flow = { 'dpid' : dpid, 'domain' : name,'header' : header,
                         'actions' : wan_action,'priority' : priority }
-                flows.append(obj)
+                flows.append(flow)
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
@@ -229,9 +229,9 @@ class SciPass:
                   results['success'] = 0
                   return results
                 else:
-                  obj = { 'dpid' : dpid, 'domain' : name,'header' : header,
+                  flow = { 'dpid' : dpid, 'domain' : name,'header' : header,
                           'actions' : lan_action,'priority' : priority }
-                  flows.append(obj)
+                  flows.append(flow)
                     
     results['success'] = 1
     return results
@@ -325,13 +325,14 @@ class SciPass:
                   results['success'] = 0
                   return results
               else:
-                obj = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
+                flow = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
                         'actions' : actions,'priority' : priority }
-                flows.append(obj)
-
+                flows.append(flow)
+              
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,True)
+                
                 #set the port
                 header['phys_port'] = int(wan['port_id'])
                 self.logger.debug("Header: " + str(header))
@@ -350,9 +351,9 @@ class SciPass:
                   results['success'] = 0
                   return results
                 else:
-                  obj = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
+                  flow = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
                           'actions' : actions,'priority' : priority }
-                  flows.append(obj)
+                  flows.append(flow)
 
             if(prefix['prefix'].Contains( dst_prefix )):
               #actions drop
@@ -379,9 +380,9 @@ class SciPass:
                 results['success'] = 0
                 return results
               else:
-                obj = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
+                flow = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
                         'actions' : actions,'priority' : priority }
-                flows.append(obj)
+                flows.append(flow)
 
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
@@ -402,9 +403,9 @@ class SciPass:
                   results['success'] = 0
                   return results
                 else:
-                  obj = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
+                  flow = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
                           'actions' : actions,'priority' : priority }
-                  flows.append(obj)
+                  flows.append(flow)
 
     results['success'] = 1
     return results
@@ -535,15 +536,16 @@ class SciPass:
         config[dpid][name]['ports']['wan'] = []
         config[dpid][name]['ports']['fw_lan'] = []
         config[dpid][name]['ports']['fw_wan'] = []
-        
-        prevState = "/var/run/" +  dpid +  name + ".json"
-        try:
-          with open(prevState) as data:    
-            state = json.load(data)
-            state = state[0]
-            data.close()
-        except IOError:
-          state = None
+        state = None
+        if self.readState:
+          prevState = "/var/run/" +  dpid +  name + ".json"
+          try:
+            with open(prevState) as data:    
+              state = json.load(data)
+              state = state[0]
+              data.close()
+          except IOError:
+            state = None
         #create a simple balancer
         config[dpid][name]['balancer'] = SimpleBalancer( logger = self.logger,
                                                          maxPrefixes = max_prefixes,
@@ -569,12 +571,12 @@ class SciPass:
                                                                                                                       prefix = y,
                                                                                                                       priority = z))
         
-        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a : self.movePrefix(dpid = dpid,
-                                                                                                    domain_name = name,
-                                                                                                    old_group_id = x,
-                                                                                                    new_group_id = y,
-                                                                                                    prefix = z,
-                                                                                                    priority=a))
+        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a, dpid=dpid, name=name: self.movePrefix(dpid = dpid,
+                                                                                                                         domain_name = name,
+                                                                                                                         old_group_id = x,
+                                                                                                                         new_group_id = y,
+                                                                                                                         prefix = z,
+                                                                                                                         priority=a))
         
         #handler to save the state
         config[dpid][name]['balancer'].registerStateChangeHandler(lambda x, y, z , dpid=dpid, name=name, mode=mode: self.saveState(dpid = dpid,
@@ -584,13 +586,6 @@ class SciPass:
                                                                                                                                    prefix_list = y,
                                                                                                                                    prefix_priorities =z
                                                                                                                                    ))
-
-        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a,dpid=dpid, name=name : self.movePrefix(dpid = dpid,
-                                                                                                                          domain_name = name,
-                                                                                                                          old_group_id = x,
-                                                                                                                          new_group_id = y,
-                                                                                                                          prefix = z,
-                                                                                                                          priority=a))
 
         ports = ctxt.xpathEval("port")
         sensor_groups = ctxt.xpathEval("sensor_group")

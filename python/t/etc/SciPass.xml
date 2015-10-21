@@ -4,7 +4,7 @@
     <domain name="R&amp;E" mode="SciDMZ" admin_status="active" 
 	    least_specific_prefix_len="24" most_specific_prefix_len="32" 
 	    sensor_min_load_threshold="0.1" sensor_load_delta_threshold="0.1"
-	    max_prefixes="200" idle_timeout="90" hard_timeout="300" >
+	    max_prefixes="200" idle_timeout="90" hard_timeout="300" max_flow_count="1000">
 
       <port of_port_id="1" type="lan" name="foo8" description="lan int">
         <prefix type="v4">10.0.17.0/24</prefix>
@@ -24,19 +24,19 @@
      <port of_port_id="5" type="fw_lan" name="foo10" description="fw lan" />
      <port of_port_id="6" type="fw_wan" name="foo11" description="fw_wan" />
 
-     <sensor_group bw="10G" group_id="group1" admin_status="active" description="some host">
+     <sensor_group bw="10G" group_id="group1" admin_state="active" description="some host">
        <sensor of_port_id="20" sensor_id="Bro_1" />
        <sensor of_port_id="21" sensor_id="SNORT_1" />
      </sensor_group>
-     <sensor_group bw="10G" group_id="group2" admin_status="active" description="some host">
+     <sensor_group bw="10G" group_id="group2" admin_state="active" description="some host">
        <sensor of_port_id="22" sensor_id="Bro_2" />
        <sensor of_port_id="23" sensor_id="SNORT_2" />
      </sensor_group>
-     <sensor_group bw="10G" group_id="group3" admin_status="disabled" description="some host" >
+     <sensor_group bw="10G" group_id="group3" admin_state="disabled" description="some host" >
        <sensor of_port_id="24" sensor_id="Bro_3" />
        <sensor of_port_id="25" sensor_id="SNORT_3" />
      </sensor_group>
-     <sensor_group bw="10G" group_id="group4" admin_status="spare" description="some host" >
+     <sensor_group bw="10G" group_id="group4" admin_state="spare" description="some host" >
        <sensor of_port_id="26" sensor_id="Bro_spare" />
        <sensor of_port_id="27" sensor_id="SNOART_SPARE" />
      </sensor_group>
