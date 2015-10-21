@@ -536,6 +536,7 @@ class SciPass:
         config[dpid][name]['ports']['wan'] = []
         config[dpid][name]['ports']['fw_lan'] = []
         config[dpid][name]['ports']['fw_wan'] = []
+        state = None
         if self.readState:
           prevState = "/var/run/" +  dpid +  name + ".json"
           try:
