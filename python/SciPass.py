@@ -570,7 +570,7 @@ class SciPass:
                                                                                                                       prefix = y,
                                                                                                                       priority = z))
         
-        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a dpid=dpid, name=name: self.movePrefix(dpid = dpid,
+        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a, dpid=dpid, name=name: self.movePrefix(dpid = dpid,
                                                                                                                          domain_name = name,
                                                                                                                          old_group_id = x,
                                                                                                                          new_group_id = y,
