@@ -598,6 +598,7 @@ class SimpleBalancer:
                   self.addGroupPrefix(group, candidatePrefix)
                   for prefix in prefixes:
                       self.prefixPriorities.delete(prefix)
+                  return 0
               cur_priority += incrementer
 
               #--- now remove the less specific and now redundant rule

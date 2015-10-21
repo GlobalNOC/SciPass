@@ -536,15 +536,15 @@ class SciPass:
         config[dpid][name]['ports']['wan'] = []
         config[dpid][name]['ports']['fw_lan'] = []
         config[dpid][name]['ports']['fw_wan'] = []
-        
-        prevState = "/var/run/" +  dpid +  name + ".json"
-        try:
-          with open(prevState) as data:    
-            state = json.load(data)
-            state = state[0]
-            data.close()
-        except IOError:
-          state = None
+        if self.readState:
+          prevState = "/var/run/" +  dpid +  name + ".json"
+          try:
+            with open(prevState) as data:    
+              state = json.load(data)
+              state = state[0]
+              data.close()
+          except IOError:
+            state = None
         #create a simple balancer
         config[dpid][name]['balancer'] = SimpleBalancer( logger = self.logger,
                                                          maxPrefixes = max_prefixes,
@@ -585,13 +585,6 @@ class SciPass:
                                                                                                                                    prefix_list = y,
                                                                                                                                    prefix_priorities =z
                                                                                                                                    ))
-
-        config[dpid][name]['balancer'].registerMovePrefixHandler(lambda x, y, z, a,dpid=dpid, name=name : self.movePrefix(dpid = dpid,
-                                                                                                                          domain_name = name,
-                                                                                                                          old_group_id = x,
-                                                                                                                          new_group_id = y,
-                                                                                                                          prefix = z,
-                                                                                                                          priority=a))
 
         ports = ctxt.xpathEval("port")
         sensor_groups = ctxt.xpathEval("sensor_group")
