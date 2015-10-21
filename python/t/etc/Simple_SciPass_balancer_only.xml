@@ -136,7 +136,7 @@
 
      <sensor_group bw="10G" name="Group 6" group_id="group6" admin_state="active" description="Group 6">
        <sensor of_port_id="36" sensor_id="bro6"   />
-       <sensor of_port_id="44" sensor_id="snort4" />
+       <sensor of_port_id="45" sensor_id="snort4" />
      </sensor_group>
 
      <sensor_group bw="10G" name="Group 7" group_id="group7" admin_state="active" description="Group 7">

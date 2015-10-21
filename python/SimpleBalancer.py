@@ -238,7 +238,7 @@ class SimpleBalancer:
   #this is not going to be event but it is at least a start
   def distributePrefixes(self, prefix_array):
       self.logger.debug("Distributing prefixes: " + str(prefix_array))
-
+      prefix_array = list(prefix_array)
       group_index = 0
       for prefix in prefix_array:
           
@@ -486,8 +486,8 @@ class SimpleBalancer:
             del self.prefixPriorities[targetPrefix]
         if(self.initialized):
             self.fireSaveState()
-            return 1
-        x = x+1
+        return 1
+      x = x+1
     return 0
 
   def addGroupPrefix(self,group,targetPrefix,bw=0):
@@ -500,6 +500,11 @@ class SimpleBalancer:
     if(self.prefixCount >= self.maxPrefixes):
         raise MaxPrefixesError("prefix greater than max prefixes")
     
+    if targetPrefix in self.prefix_list:
+        sensor = self.getPrefixGroup(targetPrefix)
+        if sensor:
+            self.logger.error(str(targetPrefix) + " already contained in " + str(sensor))
+            return 0
     prefixList = list(self.groups[group]['prefixes'])
     priority = self.getPrefixPriority(targetPrefix)
 
@@ -555,7 +560,7 @@ class SimpleBalancer:
         self.fireMovePrefix(oldGroup,newGroup,targetPrefix, priority['priority'])
         if(self.initialized):
             self.fireSaveState()
-            return 1
+        return 1
       x = x+1 
     return 0
 
