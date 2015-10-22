@@ -159,6 +159,7 @@ class SciPass:
                 flow = { 'dpid' : dpid, 'domain' : name, 'header' : header,
                         'actions' : wan_action,'priority' : priority }
                 flows.append(flow)
+                self.whiteList.append(flow)
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
@@ -182,11 +183,8 @@ class SciPass:
                   flow = { 'dpid' : dpid, 'domain' : name,'header': header,
                           'actions' : lan_action,'priority' : priority }
                   flows.append(flow)
-            
-                good_flow = {'dpid' : dpid, 'domain': name, 'header': header,
-                             'actions' : lan_action , 'idle_timeout' :  idle_timeout, 'hard_timeout' : 0,
-                             'priority' : priority}
-                self.whiteList.append(good_flow)
+                  self.whiteList.append(flow)
+                
             #check the other dir          
             if(prefix['prefix'].Contains( dst_prefix )):
               header = self._build_header(obj,True)
@@ -209,6 +207,7 @@ class SciPass:
                 flow = { 'dpid' : dpid, 'domain' : name,'header' : header,
                         'actions' : wan_action,'priority' : priority }
                 flows.append(flow)
+                self.whiteList.append(flow)
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
@@ -232,7 +231,7 @@ class SciPass:
                   flow = { 'dpid' : dpid, 'domain' : name,'header' : header,
                           'actions' : lan_action,'priority' : priority }
                   flows.append(flow)
-                    
+                  self.whiteList.append(flow)
     results['success'] = 1
     return results
 
@@ -328,7 +327,8 @@ class SciPass:
                 flow = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
                         'actions' : actions,'priority' : priority }
                 flows.append(flow)
-              
+                self.blackList.append(flow)
+
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
                 header = self._build_header(obj,True)
@@ -354,6 +354,7 @@ class SciPass:
                   flow = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
                           'actions' : actions,'priority' : priority }
                   flows.append(flow)
+                  self.blackList.append(flow)
 
             if(prefix['prefix'].Contains( dst_prefix )):
               #actions drop
@@ -383,6 +384,7 @@ class SciPass:
                 flow = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
                         'actions' : actions,'priority' : priority }
                 flows.append(flow)
+                self.blackList.append(flow)
 
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
@@ -406,7 +408,7 @@ class SciPass:
                   flow = { 'dpid' : datapath_id, 'domain' : name,'header' : header,
                           'actions' : actions,'priority' : priority }
                   flows.append(flow)
-
+                  self.blackList.append(flow)
     results['success'] = 1
     return results
 
@@ -421,8 +423,10 @@ class SciPass:
                                                 priority = flow['priority'] )
        
 
-  def get_bad_flow(self):
-    return self.whiteList
+  def get_bad_flows(self):
+    if self.blackList:
+      return self.blackList
+    return None
 
   def get_good_flows(self):
     if self.whiteList:
