@@ -60,13 +60,13 @@
                   <xs:attribute type="xs:float" name="sensor_min_load_threshold" use="optional"/>
                   <xs:attribute type="xs:float" name="sensor_load_delta_threshold" use="optional"/>
                   <xs:attribute type="xs:short" name="max_prefixes" use="required"/>
-                  <xs:attribute type="xs:short" name="max_flow_count" use="optional"/>
+                  <xs:attribute type="xs:short" name="max_flow_count" use="required"/>
                   <xs:attribute type="xs:byte" name="idle_timeout" use="optional"/>
                   <xs:attribute type="xs:short" name="hard_timeout" use="optional"/>
                 </xs:complexType>
               </xs:element>
             </xs:sequence>
-		<xs:attribute type="xs:byte" name="dpid" use="required"/>
+		<xs:attribute type="xs:string" name="dpid" use="required"/>
              	<xs:attribute type="xs:string" name="name" use="optional"/>
 	  </xs:complexType>
         </xs:element>
