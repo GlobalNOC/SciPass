@@ -604,8 +604,8 @@ class SciPass:
                                                          sensorLoadMinThresh = sensorLoadMinThreshold,
                                                          sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
                                                          leastSpecificPrefixLen = least_specific_len,
-                                                         ipv6leastSpecificPrefixLen = ipv6least_specific_len,
-                                                         ipv6mostSpecificPrefixLen = ipv6most_specific_len,
+                                                         ipv6LeastSpecificPrefixLen = ipv6least_specific_len,
+                                                         ipv6MostSpecificPrefixLen = ipv6most_specific_len,
                                                          state = state
                                                          ) 
         config[dpid][name]['flows'] = []

@@ -61,8 +61,8 @@ class SimpleBalancer:
 		 maxPrefixes		= 32,
   		 mostSpecificPrefixLen	= 29,
  		 leastSpecificPrefixLen	= 24,
-                 ipv6mostSpecificPrefixLen  = 96,
-                 ipv6leastSpecificPrefixLen = 128,
+                 ipv6MostSpecificPrefixLen  = 96,
+                 ipv6LeastSpecificPrefixLen = 128,
      		 sensorLoadMinThresh	= .02,
 		 sensorLoadDeltaThresh	= .05,
                  state                  = None,
@@ -79,8 +79,8 @@ class SimpleBalancer:
       self.prefixPriorities           = defaultdict(list)
       self.mostSpecificPrefixLen       = int(mostSpecificPrefixLen)
       self.leastSpecificPrefixLen      = int(leastSpecificPrefixLen)
-      self.ipv6mostSpecificPrefixLen       = int(ipv6mostSpecificPrefixLen)
-      self.ipv6leastSpecificPrefixLen      = int(ipv6leastSpecificPrefixLen)
+      self.ipv6MostSpecificPrefixLen       = int(ipv6MostSpecificPrefixLen)
+      self.ipv6LeastSpecificPrefixLen      = int(ipv6LeastSpecificPrefixLen)
       self.ignoreSensorLoad	       = ignoreSensorLoad
       self.sensorLoadMinThreshold      = float(sensorLoadMinThresh)
       self.sensorLoadDeltaThreshold    = float(sensorLoadDeltaThresh)
