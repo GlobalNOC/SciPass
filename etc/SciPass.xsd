@@ -54,6 +54,8 @@
                   <xs:attribute type="xs:string" name="admin_status" use="required"/>
                   <xs:attribute type="xs:int" name="least_specific_prefix_len" use="required"/>
                   <xs:attribute type="xs:int" name="most_specific_prefix_len" use="required"/>
+		  <xs:attribute type="xs:int" name="ipv6least_specific_prefix_len" use="required"/>
+                  <xs:attribute type="xs:int" name="ipv6most_specific_prefix_len" use="required"/>
                   <xs:attribute type="xs:int" name="blacklist_priority" use="optional"/>
                   <xs:attribute type="xs:int" name="whitelist_priority" use="optional"/>
 		  <xs:attribute type="xs:string" name="ignore_sensor_load" use="optional"/>
