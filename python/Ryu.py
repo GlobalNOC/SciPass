@@ -857,7 +857,9 @@ class Ryu(app_manager.RyuApp):
                     if not w or int(w, 16) == 0: break
                     count += bitCount.index(int(w, 16))
             except:
-                raise SyntaxError('Bad NetMask')
+                self.logger.info("Bad netmask")
+                return 0
+                
             return count
 
         def ipv6Prefix(addr):
@@ -865,6 +867,8 @@ class Ryu(app_manager.RyuApp):
             prefix = None
             if type(addr) is tuple:
                 mask = getCIDR(str(addr[1]))
+                if mask == 0:
+                    prefix = ipaddr.IPv4Network(str(addr[0]))
                 prefix = ipaddr.IPv6Network(str(addr[0]) + "/" + str(mask))
             elif type(addr) is str:
                 prefix = ipaddr.IPv6Network(str(addr))
