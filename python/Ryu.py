@@ -244,22 +244,16 @@ class Ryu(app_manager.RyuApp):
             
         if(header.has_key('nw_src')):
             obj['nw_src'] = int(header['nw_src'])
+            obj['nw_src_mask'] = int(header['nw_src'].prefixlen)
         else:
             obj['nw_src'] = None
-             
-        if(header.has_key('nw_src_mask')):
-            obj['nw_src_mask'] = int(header['nw_src_mask'])
-        else:
             obj['nw_src_mask'] = None
          
         if(header.has_key('nw_dst')):
             obj['nw_dst'] = int(header['nw_dst'])
+            obj['nw_dst_mask'] = int(header['nw_dst'].prefixlen)
         else:
             obj['nw_dst'] = None
-
-        if(header.has_key('nw_dst_mask')):
-            obj['nw_dst_mask'] = int(header['nw_dst_mask'])
-        else:
             obj['nw_dst_mask'] = None
 
         if(header.has_key('tp_src')):
@@ -273,26 +267,10 @@ class Ryu(app_manager.RyuApp):
             obj['tp_dst'] = None
 
         if(obj['dl_type'] == None):
-            match = parser.OFPMatch( in_port     = obj['in_port'],
-                                     nw_dst      = obj['nw_dst'],
-                                     nw_dst_mask = obj['nw_dst_mask'],
-                                     nw_src      = obj['nw_src'],
-                                     nw_src_mask = obj['nw_src_mask'],
-                                     tp_src      = obj['tp_src'],
-                                     tp_dst      = obj['tp_dst'])
-        else:
-            
-            match = parser.OFPMatch( in_port     = obj['in_port'],
-                                     nw_dst      = obj['nw_dst'],
-                                     nw_dst_mask = obj['nw_dst_mask'],
-                                     nw_src      = obj['nw_src'],
-                                     nw_src_mask = obj['nw_src_mask'],
-                                     dl_type     = obj['dl_type'],
-                                     tp_src      = obj['tp_src'],
-                                     tp_dst      = obj['tp_dst'])
-            
-        #self.logger.error("Match: " + str(match))
+            del obj['dl_type']
         
+        match = parser.OFPMatch(**obj)
+                        
         of_actions = []
         for action in actions:
             if(action['type'] == "output"):
@@ -304,6 +282,7 @@ class Ryu(app_manager.RyuApp):
         idle = {}
         hard =  {}
         now = time.time()
+        
         if int(idle_timeout) != 0:
             timeout = now + int(idle_timeout)
             idle   =      {'timeout': timeout,
@@ -331,17 +310,19 @@ class Ryu(app_manager.RyuApp):
         if(command == "ADD"):
             command = ofp.OFPFC_ADD
             flags = ofp.OFPFF_SEND_FLOW_REM
+            self.api.pushTimeouts(idle, hard)
         elif(command == "DELETE_STRICT"):
             command = ofp.OFPFC_DELETE_STRICT
         else:
             command = -1
         #self.logger.error("Sending flow mod with command: " + str(command))
         #self.logger.error("Datpath: " + str(datapath))
-
-        mod = parser.OFPFlowMod( datapath     = datapath,
+        
+        mod = parser.OFPFlowMod( datapath     = dp,
                                  priority     = int(priority),
                                  match        = match,
                                  cookie       = 0,
+                                 buffer_id    = ofp.OFP_NO_BUFFER,
                                  command      = command,
                                  idle_timeout = int(idle_timeout),
                                  hard_timeout = int(hard_timeout),
@@ -454,9 +435,9 @@ class Ryu(app_manager.RyuApp):
                 
         if obj['eth_type'] is None:
             del obj['eth_type']
+
         if obj['ip_proto'] is None:
             del obj['ip_proto']
-            
         
         match = parser.OFPMatch(**obj)
         of_actions = []
@@ -512,7 +493,8 @@ class Ryu(app_manager.RyuApp):
             command = ofp.OFPFC_DELETE
         
         #of_actions.append(parser.OFPActionOutput(int(action[1][1]),int(action[1][0])))
-
+        pprint.pprint(obj)
+        pprint.pprint(of_actions)
         inst = [parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS,
                                              of_actions)]
         mod = parser.OFPFlowMod( datapath = dp,
@@ -811,25 +793,33 @@ class Ryu(app_manager.RyuApp):
         ofproto = dp.ofproto
         src_mask = 32 - ((flow.match.wildcards & ofproto.OFPFW_NW_SRC_MASK) >> ofproto.OFPFW_NW_SRC_SHIFT)
         dst_mask = 32 - ((flow.match.wildcards & ofproto.OFPFW_NW_DST_MASK) >> ofproto.OFPFW_NW_DST_SHIFT)
-        if(src_mask > 0):
-            id = ipaddr.IPv4Address(flow.match.nw_src)
-            src_prefix = ipaddr.IPv4Network(str(id)+"/"+str(src_mask))
-        else:
-            src_prefix = ipaddr.IPv4Network(flow.match.nw_src)
-        if(dst_mask > 0):
-            id = ipaddr.IPv4Address(flow.match.nw_dst)
-            dst_prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
-        else:
-            dst_prefix = ipaddr.IPv4Network(flow.match.nw_dst)
-        obj = { 'nw_src': src_prefix, 'nw_dst' : dst_prefix}
+        obj = {}
+        if flow.match.nw_src > 0:
+            if(src_mask > 0):
+                id = ipaddr.IPv4Address(flow.match.nw_src)
+                src_prefix = ipaddr.IPv4Network(str(id)+"/"+str(src_mask))
+                obj['nw_src'] = str(src_prefix)
+            else:
+                src_prefix = ipaddr.IPv4Network(flow.match.nw_src)
+                obj['nw_src'] = str(src_prefix)
+        if flow.match.nw_dst > 0:
+            if(dst_mask > 0):
+                id = ipaddr.IPv4Address(flow.match.nw_dst)
+                dst_prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
+                obj['nw_dst'] = str(dst_prefix)
+            else:
+                dst_prefix = ipaddr.IPv4Network(flow.match.nw_dst)
+                obj['nw_dst'] = str(dst_prefix)
+        
         if flow.match.tp_src > 0:
             obj['tp_src'] = flow.match.tp_src
+        
         if flow.match.tp_dst > 0:
             obj['tp_dst'] = flow.match.tp_dst
-        header =self.api._build_header(obj,False)
-        header['phys_port'] = flow.match.in_port
+        
+        obj['phys_port'] = flow.match.in_port
         priority =  flow.priority
-        self.api.remove_flow(header,priority)
+        self.api.remove_flow(obj,priority)
         
 
     def process_flow_stats(self, stats, dp):
@@ -1045,8 +1035,8 @@ class Ryu(app_manager.RyuApp):
             
             dur_sec = stat.duration_sec
             in_port = stat.match.in_port
-            src_mask = 32 - ((stat.match.wildcards & ofproto.OFPFW_NW_SRC_MASK) >> ofproto.OFPFW_NW_SRC_SHIFT)
-            dst_mask = 32 - ((stat.match.wildcards & ofproto.OFPFW_NW_DST_MASK) >> ofproto.OFPFW_NW_DST_SHIFT)
+            src_mask = 32 - ((stat.match.wildcards & ofproto_v1_0.OFPFW_NW_SRC_MASK) >> ofproto_v1_0.OFPFW_NW_SRC_SHIFT)
+            dst_mask = 32 - ((stat.match.wildcards & ofproto_v1_0.OFPFW_NW_DST_MASK) >> ofproto_v1_0.OFPFW_NW_DST_SHIFT)
             if(stat.match.dl_type == 34525):
                 prefix = ipaddr.IPv6Network("::/128")
                 dir = "tx"
@@ -1077,9 +1067,36 @@ class Ryu(app_manager.RyuApp):
             wildcards = stat.match.wildcards
             del match['dl_dst']
             del match['dl_src']
-            del match['dl_type']
             del match['wildcards']
-
+            
+            if match['dl_type'] == 34525:
+                if  match['nw_src'] != 0:
+                    id = ipaddr.IPv6Address(stat.match.nw_src)
+                    if src_mask > 0:
+                        match['nw_src'] = ipaddr.IPv6Network(str(id)+"/"+str(src_mask))
+                    else:
+                        match['nw_src'] = ipaddr.IPv6Network(str(id))
+                if  match['nw_src'] != 0:
+                    id = ipaddr.IPv6Address(stat.match.nw_dst)
+                    if src_mask > 0:
+                        match['nw_dst'] = ipaddr.IPv6Network(str(id)+"/"+str(src_mask))
+                    else:
+                        match['nw_dst'] = ipaddr.IPv6Network(str(id))
+                
+            elif match['dl_type'] == 2048:
+                if match['nw_src'] != 0:
+                    id = ipaddr.IPv4Address(stat.match.nw_src)
+                    if src_mask > 0:
+                          match['nw_src'] = ipaddr.IPv4Network(str(id)+"/"+str(src_mask))
+                    else:
+                        match['nw_src'] = ipaddr.IPv4Network(str(id))
+                if match['nw_dst'] != 0:
+                    id = ipaddr.IPv4Address(stat.match.nw_dst)
+                    if dst_mask > 0:
+                        match['nw_dst'] = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
+                    else:
+                        match['nw_dst'] = ipaddr.IPv4Network(str(id))
+                del match['dl_type']
             if(match['dl_vlan_pcp'] == 0):
                 del match['dl_vlan_pcp']
 
@@ -1091,10 +1108,10 @@ class Ryu(app_manager.RyuApp):
 
             if(match['nw_tos'] == 0):
                 del match['nw_tos']
-
+                
             if(match['nw_src'] == 0):
                 del match['nw_src']
-
+            
             if(match['nw_dst'] == 0):
                 del match['nw_dst']
 
@@ -1109,15 +1126,8 @@ class Ryu(app_manager.RyuApp):
             else:
                 match['phys_port'] = int(match['in_port'])
                 del match['in_port']
-
-            mask = 32 - ((wildcards & ofproto_v1_0.OFPFW_NW_SRC_MASK)
-                         >> ofproto_v1_0.OFPFW_NW_SRC_SHIFT)
-            match['nw_src_mask'] = mask
-
-            mask = 32 - ((wildcards & ofproto_v1_0.OFPFW_NW_DST_MASK)
-                         >> ofproto_v1_0.OFPFW_NW_DST_SHIFT)
-            match['nw_dst_mask'] = mask
-
+                
+            
             flows.append({'match': match,
                           'wildcards': wildcards,
                           'packet_count': stat.packet_count

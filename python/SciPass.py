@@ -1430,18 +1430,21 @@ class SciPass:
           #need to compare the flow match to the header
           #self.logger.error(str(flow['match']))
           #self.logger.error(str(idle['header']))
-          if(cmp(flow['match'], idle['header']) == 0):
-            #compare the dicts and they are the same
-            #so update the flow count and the expires time
-            if(idle['pkt_count'] == flow['packet_count']):
+          try:
+            if(cmp(flow['match'], idle['header']) == 0):
+              #compare the dicts and they are the same
+              #so update the flow count and the expires time
+              if(idle['pkt_count'] == flow['packet_count']):
               #hasn't been updated since last time...
-              self.logger.debug("Flow has not been updated")
-            else:
-              self.logger.debug("Flow has been updated")
-              idle['timeout'] = time.time() + idle['idle_timeout']
-              self.logger.debug("New Timeout: " + str(idle['timeout']))
-              idle['pkt_count'] = flow['packet_count']
-    
+                self.logger.debug("Flow has not been updated")
+              else:
+                self.logger.debug("Flow has been updated")
+                idle['timeout'] = time.time() + idle['idle_timeout']
+                self.logger.debug("New Timeout: " + str(idle['timeout']))
+                idle['pkt_count'] = flow['packet_count']
+          except TypeError:
+            pass
+
     for flow in self.idleTimeouts:
       if(flow['dpid'] == dpid):
         self.logger.debug("Flows current timeout: " + str(flow['timeout']) + " now " + str(now))
