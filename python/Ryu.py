@@ -457,6 +457,7 @@ class Ryu(app_manager.RyuApp):
         idle = {}
         hard =  {}
         now = time.time()
+
         if int(idle_timeout) != 0:
             timeout = now + int(idle_timeout)
             idle   =      {'timeout': timeout,
@@ -962,11 +963,26 @@ class Ryu(app_manager.RyuApp):
             header = {}
             match = stat.match.__dict__
             header, prefix, d, _  = self.processStat(stat)
-            dur_sec = stat.duration_sec
+            if header.has_key('eth_type'):
+                if header['eth_type'] == 0x86dd:
+                    if header.has_key('ipv6_src'):
+                        header['nw_src'] = header['ipv6_src']
+                        del header['ipv6_src']
+                    if header.has_key('ipv6_dst'):
+                        header['nw_dst'] = header['ipv6_dst']
+                        del header['ipv6_dst']
+                elif header['eth_type'] == 0x800:
+                    if header.has_key('ipv4_src'):
+                        header['nw_src'] =header['ipv4_src']
+                        del header['ipv4_src']
+                    if header.has_key('ipv4_dst'):
+                        header['nw_dst'] = header['ipv4_dst']
+                        del header['ipv4_dst']
+            
             flows.append({'match': header,
                           'packet_count': stat.packet_count
                           })
-            
+            dur_sec = stat.duration_sec
             if not prefix:
                 continue
 
