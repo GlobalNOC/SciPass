@@ -492,9 +492,6 @@ class Ryu(app_manager.RyuApp):
         else:
             command = ofp.OFPFC_DELETE
         
-        #of_actions.append(parser.OFPActionOutput(int(action[1][1]),int(action[1][0])))
-        pprint.pprint(obj)
-        pprint.pprint(of_actions)
         inst = [parser.OFPInstructionActions(ofp.OFPIT_APPLY_ACTIONS,
                                              of_actions)]
         mod = parser.OFPFlowMod( datapath = dp,
