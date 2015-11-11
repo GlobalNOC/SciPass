@@ -939,7 +939,8 @@ class SciPass:
     if self.config[dpid][domain_name]['mode'] == "SimpleBalancer":
       header = {}
       if(prefix._version != 4):
-        header = {"dl_type": 34525}
+        header = {"dl_type": 34525,
+                  "nw_src" : prefix}
       else:
         header = {"nw_src": prefix}
         
@@ -959,8 +960,13 @@ class SciPass:
                                               idle_timeout = 0,
                                               hard_timeout = 0,
                                               priority     = priority)
-
-      header = {"nw_dst": prefix}
+      
+      if(prefix._version != 4):
+        header = {"dl_type": 34525,
+                  "nw_dst" : prefix}
+      else:
+        header = {"nw_dst": prefix}
+      
               
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain       = domain_name,
@@ -1078,7 +1084,11 @@ class SciPass:
 
     if self.config[dpid][domain_name]['mode'] == "SimpleBalancer":
       header = {}
-      header = {"nw_src":      prefix}
+      if(prefix._version != 4):
+        header = {"dl_type": 34525,
+                  "nw_src" : prefix}
+      else:
+        header = {"nw_src": prefix}
       actions = []
       #output to sensor (basically this is the IDS balance case)                                                                                                
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
@@ -1090,7 +1100,11 @@ class SciPass:
                                               hard_timeout = 0,
                                               priority     = priority)
       
-      header = {"nw_dst": prefix}
+      if(prefix._version != 4):
+        header = {"dl_type": 34525,
+                  "nw_dst" : prefix}
+      else:
+        header = {"nw_src": prefix}
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain       = domain_name,
                                               header       = header,
