@@ -24,7 +24,7 @@ class SimpleBalancerInitTest(unittest.TestCase):
 
         #first setup the handler to get all the flows that were sent
         flows = []
-        def flowSent(dpid = None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
+        def flowSent(dpid = None, domain=None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
             obj = {'dpid': dpid, 'header': header,
                    'actions': actions, 'command': command,
                    'priority': priority,
@@ -86,7 +86,7 @@ class SimpleBalancerInitTest(unittest.TestCase):
 
         #first setup the handler to get all the flows that were sent
         flows = []
-        def flowSent(dpid = None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
+        def flowSent(dpid = None,  domain=None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
             obj = {'dpid': dpid, 'header': header,
                    'actions': actions, 'command': command,
                    'priority': priority,
