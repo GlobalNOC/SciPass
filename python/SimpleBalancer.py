@@ -285,9 +285,9 @@ class SimpleBalancer:
                       self.logger.debug("Already have prefix: " + str(prefix))
                   except MaxFlowCountError:
                       self.logger.debug("Max Flow Count Error")
-                      group_index += 1
-                      if(group_index >= len(self.groups)):
-                          group_index = 0
+                  group_index += 1
+                  if(group_index >= len(self.groups)):
+                      group_index = 0
               
   def pushAllPrefixes(self):
       for group in self.groups:
