@@ -65,6 +65,7 @@ class SimpleBalancer:
                  ipv6LeastSpecificPrefixLen = 128,
      		 sensorLoadMinThresh	= .02,
 		 sensorLoadDeltaThresh	= .05,
+                 sensorConfigurableThresh = .05,
                  state                  = None,
                  logger                 = None):
       
@@ -84,6 +85,7 @@ class SimpleBalancer:
       self.ignoreSensorLoad	       = ignoreSensorLoad
       self.sensorLoadMinThreshold      = float(sensorLoadMinThresh)
       self.sensorLoadDeltaThreshold    = float(sensorLoadDeltaThresh)
+      self.sensorConfigurableThreshold = float(sensorConfigurableThresh)
       self.curr_priority               = 500
 
       self.ignorePrefixBW              = ignorePrefixBW
@@ -621,14 +623,17 @@ class SimpleBalancer:
 
   def mergeContiguousPrefixes(self,prefixList):
     """reviews a set of prefixes looking for 2 that are contiguous and merges them."""
-    subnetDict = {}
+    subnetDict = defaultdict(list)
     for prefix in prefixList:
-       if(prefix._prefixlen > self.leastSpecificPrefixLen):
-         supernet = prefix.Supernet()
-         if(not  subnetDict.has_key(supernet)):
-           subnetDict[supernet] = prefix
-
-    return subnetDict.keys()
+        if prefix.version == 4:
+            if(prefix._prefixlen > self.leastSpecificPrefixLen):
+                supernet = prefix.Supernet()
+                subnetDict[supernet].append(prefix)
+        elif prefix.version == 6:
+            if(prefix._prefixlen > self.ipv6LeastSpecificPrefixLen):
+                supernet = prefix.Supernet()
+                subnetDict[supernet].append(prefix)
+    return subnetDict
       
 
   def splitPrefix(self,prefix):
@@ -646,6 +651,7 @@ class SimpleBalancer:
             return prefix.Subnet()
         else:
             raise MaxPrefixlenError(prefix);
+
   def splitPrefixForSensors(self,prefix,numSensors):
     """splits a prefix into subnets for balancing across, it will go up to the power of 2 value that contains numSensors"""
     x = 0
@@ -730,7 +736,77 @@ class SimpleBalancer:
       else:
         return percentTotal
 
-  
+  # finds two prefixes that are next to each other
+  # when merged, bw is less than configurable threshold
+  # deletes the two prefixes and adds the candidate prefix
+  def balanceByMerge(self):
+      self.logger.debug("Balance By Merge")
+      subnetDict = self.mergeContiguousPrefixes(self.prefix_list)
+      if not subnetDict:
+          return
+
+      for candidatePrefix in subnetDict:
+          prefix_list = []
+          prefix_list = subnetDict[candidatePrefix]
+          
+          if len(prefix_list) != 2: continue
+          
+          prefix_a = prefix_list[0]
+          prefix_b = prefix_list[1]
+      
+          aggBW = (self.prefixBW[prefix_a]/1000/1000) + (self.prefixBW[prefix_b]/1000/1000)
+ 
+          self.logger.error("Prefixes :"  + str(prefix_a) + ", " + str(prefix_b) + " Aggregate BW : " + str(aggBW) + " Mbps" )
+          self.logger.error("Configurable Threshold :" + str(self.sensorConfigurableThreshold))
+
+          #if the bw is less than configurable threshold.
+          if aggBW < self.sensorConfigurableThreshold:
+              minLoad         = 100
+              minSensor       = ""
+
+              for group in self.groups.keys():
+
+                  if(not self.getGroupStatus(group)): continue
+
+              load = self.getGroupLoad(group)
+
+              if(load < minLoad):
+                  minLoad = load
+                  minSensor = group;
+
+              self.logger.debug("Min Group: " + str(minSensor))
+              group_a = self.getPrefixGroup(prefix_a)
+              group_b = self.getPrefixGroup(prefix_b)
+
+              if candidatePrefix.version == 4:
+                  if(candidatePrefix.prefixlen > self.mostSpecificPrefixLen):
+                      return
+              elif candidatePrefix.version == 6:
+                  if(candidatePrefix.prefixlen > self.ipv6MostSpecificPrefixLen):
+                      return
+              else:
+                  return
+
+              #delete the prefixes
+              self.logger.error("Merging Prefixes " + str(prefix_a) + ", " + str(prefix_b))
+              
+              self.delGroupPrefix(group_a,prefix_a)
+              self.delGroupPrefix(group_b,prefix_b)
+              
+              #add the candidate prefix to min sesnor with aggBW
+              self.logger.info("Adding Prefix : " + str(candidatePrefix) + " to " + str(minSensor) + " with bw " + str(aggBW) + "Mbps")
+              try:
+                  aggBW = aggBW*1000*1000
+                  self.addGroupPrefix(minSensor, candidatePrefix, aggBW)
+              except DuplicatePrefixError:
+                  self.logger.debug("Already have prefix: " + str(prefix))
+                  return
+              except MaxFlowCountError:
+                  self.logger.debug("Max Flow Count Error")
+                  return
+              return
+
+
   def balanceByIP(self):
     """method to balance based soly on IP space"""
      #--- calc load based on routable address space
@@ -902,9 +978,11 @@ class SimpleBalancer:
                 for prefix in sortedPrefixes:
                     if self.splitSensorPrefix(maxGroup, prefix):
                         self.logger.info("Sensor prefix %s on sensor %s was successfully split",str(prefix), str(maxGroup))
-                        return
+                        
             
-            
+            self.balanceByMerge()
+            return
+
         else:
             self.logger.warn("below load Delta Threshold")
 
