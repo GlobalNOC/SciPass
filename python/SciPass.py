@@ -549,6 +549,7 @@ class SciPass:
         default_whitelist_priority = 65535
         sensorLoadMinThreshold = domain.prop("sensor_min_load_threshold")
         sensorLoadDeltaThreshhold = domain.prop("sensor_load_delta_threshold")
+        sensorConfigurableThreshold = domain.prop("sensor_configurable_threshold")
         ignore_sensor_load = domain.prop("ignore_sensor_load")
         ignore_prefix_bw = domain.prop("ignore_prefix_bw")
         max_flow_count = domain.prop("max_flow_count")
@@ -568,6 +569,7 @@ class SciPass:
         config[dpid][name]['default_whitelist_priority'] = default_whitelist_priority
         config[dpid][name]['sensor_load_min_threshold'] = sensorLoadMinThreshold
         config[dpid][name]['sensor_load_delta_threshold'] = sensorLoadDeltaThreshhold
+        config[dpid][name]['sensor_configurable_threshold'] = sensorConfigurableThreshold
         config[dpid][name]['max_flow_count'] = max_flow_count
         if(ignore_prefix_bw == "true"):
           config[dpid][name]['ignore_prefix_bw'] = 1
@@ -603,6 +605,7 @@ class SciPass:
                                                          mostSpecificPrefixLen = most_specific_len,
                                                          sensorLoadMinThresh = sensorLoadMinThreshold,
                                                          sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
+                                                         sensorConfigurableThresh = sensorConfigurableThreshold,
                                                          leastSpecificPrefixLen = least_specific_len,
                                                          ipv6LeastSpecificPrefixLen = ipv6least_specific_len,
                                                          ipv6MostSpecificPrefixLen = ipv6most_specific_len,

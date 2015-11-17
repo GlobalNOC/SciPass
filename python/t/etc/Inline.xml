@@ -3,7 +3,7 @@
    <switch dpid="0000000000000001" name="IUPUI-SW">
     <domain name="IUPUI" mode="InlineIDS" admin_status="active" least_specific_prefix_len="8" most_specific_prefix_len="32" 
 	        blacklist_priority="1000" whitelist_priority="900" sensor_min_load_threshold="0.1" sensor_load_delta_threshold="0.1"
-	        ipv6least_specific_prefix_len="64" ipv6most_specific_prefix_len="128"
+	        ipv6least_specific_prefix_len="64" ipv6most_specific_prefix_len="128" sensor_configurable_threshold="100"
 	        max_prefixes="2000" idle_timeout="90" hard_timeout="300" max_flow_count="4500">
 
       <port of_port_id="17" type="lan" name="17" description="lan int">
