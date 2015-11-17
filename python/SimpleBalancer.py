@@ -739,9 +739,10 @@ class SimpleBalancer:
   # finds two prefixes that are next to each other
   # when merged, bw is less than configurable threshold
   # deletes the two prefixes and adds the candidate prefix
-  def balanceByMerge(self):
+  def merge(self):
       self.logger.debug("Balance By Merge")
       subnetDict = self.mergeContiguousPrefixes(self.prefix_list)
+      
       if not subnetDict:
           return
 
@@ -978,9 +979,8 @@ class SimpleBalancer:
                 for prefix in sortedPrefixes:
                     if self.splitSensorPrefix(maxGroup, prefix):
                         self.logger.info("Sensor prefix %s on sensor %s was successfully split",str(prefix), str(maxGroup))
-                        
-            
-            self.balanceByMerge()
+                                                
+            self.merge()
             return
 
         else:

@@ -174,7 +174,7 @@ class SimpleBalancerInitTest(unittest.TestCase):
             self.api.run_balancers()
             total_runs +=1
 
-        self.assertEquals(total_runs, 49)
+        self.assertEquals(total_runs, 46)
 
         self.api.updatePrefixBW("0000000000000001", ipaddr.IPv4Network("134.68.80.0/20"), 8000000000, 0)
 
@@ -186,7 +186,7 @@ class SimpleBalancerInitTest(unittest.TestCase):
             self.api.run_balancers()
             total_runs += 1
 
-        self.assertEquals(total_runs, 24)
+        self.assertEquals(total_runs, 25)
         
         self.api.updatePrefixBW("0000000000000001", ipaddr.IPv4Network("134.68.91.0/24"), 8000000000, 0)
 
@@ -198,7 +198,7 @@ class SimpleBalancerInitTest(unittest.TestCase):
             self.api.run_balancers()
             total_runs += 1
 
-        self.assertEquals(total_runs, 8)
+        self.assertEquals(total_runs, 4)
 
 
 
