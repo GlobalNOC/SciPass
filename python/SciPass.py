@@ -1042,12 +1042,22 @@ class SciPass:
               
           header = {}
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
-            header = {"nw_dst":      prefix,
-                      "phys_port":   int(ports['wan'][0]['port_id'])}
+            if(prefix._version != 4):
+              header = {"dl_type": 34525,
+                        "nw_dst":  prefix,
+                        "phys_port":   int(ports['wan'][0]['port_id'])}
+            else:
+              header = {"nw_dst": prefix,
+                        "phys_port": int(ports['wan'][0]['port_id'])}
           else:
-            header = {"nw_dst": prefix,
-                      "phys_port": int(in_port['port_id'])}
-
+             if(prefix._version != 4):
+               header = {"dl_type": 34525,
+                         "nw_dst" : prefix,
+                         "phys_port": int(in_port['port_id'])}
+             else:
+               header = {"nw_dst": prefix,
+                         "phys_port": int(in_port['port_id'])}
+            
           actions = []
           #output to sensor (basically this is the IDS balance case)
             
@@ -1107,7 +1117,7 @@ class SciPass:
         header = {"dl_type": 34525,
                   "nw_dst" : prefix}
       else:
-        header = {"nw_src": prefix}
+        header = {"nw_dst": prefix}
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain       = domain_name,
                                               header       = header,
@@ -1131,8 +1141,13 @@ class SciPass:
           in_port = port
 
           header = {}
-          header = {"nw_src":      prefix,
-                    "phys_port":   int(in_port['port_id'])}
+          if(prefix._version != 4):
+            header = {"dl_type": 34525,
+                      "nw_src":      prefix,
+                      "phys_port":   int(in_port['port_id'])}
+          else:
+            header = {"nw_src":      prefix,
+                      "phys_port":   int(in_port['port_id'])}
     
           actions = []
           self.fireForwardingStateChangeHandlers( dpid         = dpid,
@@ -1148,13 +1163,20 @@ class SciPass:
             header = {}
             if(prefix._version != 4):
               header = {"dl_type": 34525,
+                        "nw_dst" : prefix,
                         "phys_port": int(ports['wan'][0]['port_id'])}
+
             else:
               header = {"nw_dst":      prefix,
                         "phys_port":   int(ports['wan'][0]['port_id'])}
           else:
-             header = {"nw_dst":      prefix,
-                      "phys_port":   int(in_port['port_id'])}
+            if(prefix._version != 4):
+              header = {"dl_type": 34525,
+                        "nw_dst" : prefix,
+                        "phys_port": int(in_port['port_id'])}
+            else:
+              header = {"nw_dst":      prefix,
+                        "phys_port":   int(in_port['port_id'])}
           
           actions = []
           self.fireForwardingStateChangeHandlers( dpid         = dpid,

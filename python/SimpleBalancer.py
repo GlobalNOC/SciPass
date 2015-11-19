@@ -576,11 +576,19 @@ class SimpleBalancer:
     return 0
 
 
-  def splitSensorPrefix(self,group,candidatePrefix):
+  def splitSensorPrefix(self,group,candidatePrefix,check=False):
       """used to split a prefix that is on a sensor"""
+      # @param check : If set, checks that the bw on Candidate Prefix
+      # is greater than configurable threshold, to prevent continous
+      # split and merge
       try:
           subnets = self.splitPrefix(candidatePrefix)
           bw = self.prefixBW[candidatePrefix]
+          if float(bw/1000/1000) < float(self.sensorConfigurableThreshold):
+              self.logger.error("Candidate Prefix : " + str(candidatePrefix) + " bw " + str(bw/1000/1000) + " Mbps" )
+              self.logger.error("Configurable Threshold :" + str(self.sensorConfigurableThreshold))
+              self.logger.error("Preventing split of prefix " + str(candidatePrefix))
+              return 0
           self.logger.info( "split prefix "+str(candidatePrefix) +" bw "+str((bw / 1000 / 1000 )) + "Mbps")
           #--- update the bandwidth we are guessing is going to each prefix to smooth things, before real data is avail
           self.prefixBW[candidatePrefix] = 0
@@ -977,7 +985,7 @@ class SimpleBalancer:
                 return
             else:
                 for prefix in sortedPrefixes:
-                    if self.splitSensorPrefix(maxGroup, prefix):
+                    if self.splitSensorPrefix(maxGroup, prefix, check=True):
                         self.logger.info("Sensor prefix %s on sensor %s was successfully split",str(prefix), str(maxGroup))
                                                 
             self.merge()

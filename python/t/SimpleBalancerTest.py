@@ -251,7 +251,7 @@ class TestPrefix(unittest.TestCase):
         net = ipaddr.IPv4Network("10.0.0.0/10")
         res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
-        res = self.balancer.setPrefixBW(net,500,500)
+        res = self.balancer.setPrefixBW(net,5000000,5000000)
         self.assertTrue(res == 1)
         res = self.balancer.splitSensorPrefix(1,net)
         self.assertTrue(res == 1)
@@ -261,8 +261,8 @@ class TestPrefix(unittest.TestCase):
         newnet2 = ipaddr.IPv4Network("10.32.0.0/11")
         #remember that we set it via bytes and this will be returned
         #as bits persec
-        self.assertTrue(prefixBW[newnet] == 8 * 500.0)
-        self.assertTrue(prefixBW[newnet2] == 8 * 500.0)
+        self.assertTrue(prefixBW[newnet] == 8 * 5000000.0)
+        self.assertTrue(prefixBW[newnet2] == 8 * 5000000.0)
 
     def test_split_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/11")
