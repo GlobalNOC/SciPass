@@ -966,11 +966,10 @@ class SciPass:
       
       if(prefix._version != 4):
         header = {"dl_type": 34525,
-                  "nw_dst" : prefix}
+                  "nw_src" : prefix}
       else:
-        header = {"nw_dst": prefix}
-      
-              
+        header = {"nw_src": prefix}
+
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain       = domain_name,
                                               header       = header,
@@ -1001,6 +1000,7 @@ class SciPass:
           header = {}
           if(prefix._version != 4):
             header = {"dl_type": 34525,
+                      "nw_src" : prefix,
                       "phys_port": int(in_port['port_id'])}
           else:
             header = {"nw_src":      prefix,
