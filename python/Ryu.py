@@ -839,7 +839,6 @@ class Ryu(app_manager.RyuApp):
         def getCIDR(netmask):
             bitCount = [0, 0x8000, 0xc000, 0xe000, 0xf000, 0xf800, 0xfc00, 0xfe00, 0xff00, 0xff80, 0xffc0, 0xffe0, 0xfff0, 0xfff8, 0xfffc, 0xfffe, 0xffff]
             count = 0
-            
             try:
                 for w in netmask.split(':'):
                     if not w or int(w, 16) == 0: break
@@ -857,7 +856,8 @@ class Ryu(app_manager.RyuApp):
                 mask = getCIDR(str(addr[1]))
                 if mask == 0:
                     prefix = ipaddr.IPv4Network(str(addr[0]))
-                prefix = ipaddr.IPv6Network(str(addr[0]) + "/" + str(mask))
+                else:
+                    prefix = ipaddr.IPv6Network(str(addr[0]) + "/" + str(mask))
             elif type(addr) is str:
                 prefix = ipaddr.IPv6Network(str(addr))
             return prefix
@@ -875,7 +875,7 @@ class Ryu(app_manager.RyuApp):
             #IPv6
             if(stat.match['eth_type'] == 0x86dd):
                 if(stat.match.__contains__('ipv6_src') and stat.match.__contains__('ipv6_dst')):
-                    # for good and bad flows                                                                                                           
+                    #for good and bad flow
                     id = stat.match['ipv6_src']
                     prefix = ipv6Prefix(id)
                     if prefix:
