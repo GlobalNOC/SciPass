@@ -150,7 +150,8 @@ class SciPassRest(ControllerBase):
 
 
 class Ryu(app_manager.RyuApp):
-    OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION, ofproto_v1_3.OFP_VERSION]
+    #OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION, ofproto_v1_3.OFP_VERSION]
+    OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
     _CONTEXTS = { 'wsgi': WSGIApplication }
     def __init__(self,*args, **kwargs):
         super(Ryu,self).__init__(*args,**kwargs)
@@ -243,6 +244,8 @@ class Ryu(app_manager.RyuApp):
             obj['in_port'] = None
             
         if(header.has_key('nw_src')):
+            if header['nw_src'].version == 6:
+                obj['dl_type'] = 34525
             obj['nw_src'] = int(header['nw_src'])
             obj['nw_src_mask'] = int(header['nw_src'].prefixlen)
         else:
@@ -250,6 +253,8 @@ class Ryu(app_manager.RyuApp):
             obj['nw_src_mask'] = None
          
         if(header.has_key('nw_dst')):
+            if header['nw_dst'].version == 6:
+                obj['dl_type'] = 34525
             obj['nw_dst'] = int(header['nw_dst'])
             obj['nw_dst_mask'] = int(header['nw_dst'].prefixlen)
         else:
@@ -814,8 +819,9 @@ class Ryu(app_manager.RyuApp):
         
         if flow.match.tp_dst > 0:
             obj['tp_dst'] = flow.match.tp_dst
-        
-        obj['phys_port'] = flow.match.in_port
+
+        if flow.match.in_port > 0:
+            obj['phys_port'] = flow.match.in_port
         priority =  flow.priority
         self.api.remove_flow(obj,priority)
         
