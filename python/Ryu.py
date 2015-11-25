@@ -233,6 +233,7 @@ class Ryu(app_manager.RyuApp):
         if(header.has_key('dl_type')):
             if(header['dl_type'] == None):
                 obj['dl_type'] = None
+                del header['dl_type']
             else:
                 obj['dl_type'] = int(header['dl_type'])
         else:
@@ -287,7 +288,7 @@ class Ryu(app_manager.RyuApp):
         idle = {}
         hard =  {}
         now = time.time()
-        
+        idle_timeout=15
         if int(idle_timeout) != 0:
             timeout = now + int(idle_timeout)
             idle   =      {'timeout': timeout,
@@ -316,8 +317,10 @@ class Ryu(app_manager.RyuApp):
             command = ofp.OFPFC_ADD
             flags = ofp.OFPFF_SEND_FLOW_REM
             self.api.pushTimeouts(idle, hard)
+            self.api.pushFlows(dpid, domain, header, actions, priority)
         elif(command == "DELETE_STRICT"):
             command = ofp.OFPFC_DELETE_STRICT
+            self.api.remove_flow(dpid, domain, header, priority)
         else:
             command = -1
         #self.logger.error("Sending flow mod with command: " + str(command))
@@ -348,7 +351,9 @@ class Ryu(app_manager.RyuApp):
         
         if(header.has_key('phys_port')):
             obj['in_port'] = int(header['phys_port'])
-                
+            header['in_port'] = int(header['phys_port'])
+            del header['phys_port']
+
         if(header.has_key('nw_src')):
             if(header['nw_src'].version == 4):
                 obj['ipv4_src'] = (str(header['nw_src'].ip), str(header['nw_src'].netmask))
@@ -462,7 +467,6 @@ class Ryu(app_manager.RyuApp):
         idle = {}
         hard =  {}
         now = time.time()
-
         if int(idle_timeout) != 0:
             timeout = now + int(idle_timeout)
             idle   =      {'timeout': timeout,
@@ -493,8 +497,10 @@ class Ryu(app_manager.RyuApp):
             command = ofp.OFPFC_ADD
             flags = ofp.OFPFF_SEND_FLOW_REM
             self.api.pushTimeouts(idle, hard)
+            self.api.pushFlows(dpid, domain, header, actions, priority)
         elif(command == "DELETE_STRICT"):
             command = ofp.OFPFC_DELETE_STRICT
+            self.api.remove_flow(dpid, domain, header, priority)
         else:
             command = ofp.OFPFC_DELETE
         
@@ -788,7 +794,7 @@ class Ryu(app_manager.RyuApp):
                 match[field] = header[field]
         
         priority = flow.priority
-        self.api.remove_flow(match, priority)
+        self.api.remove_flow(header=match, priority=priority)
 
 
     def process_flow_removed_of10(self, flow, dp):
@@ -823,7 +829,7 @@ class Ryu(app_manager.RyuApp):
         if flow.match.in_port > 0:
             obj['phys_port'] = flow.match.in_port
         priority =  flow.priority
-        self.api.remove_flow(obj,priority)
+        self.api.remove_flow(header=obj, priority=priority)
         
 
     def process_flow_stats(self, stats, dp):
@@ -984,7 +990,7 @@ class Ryu(app_manager.RyuApp):
                     if header.has_key('ipv4_dst'):
                         header['nw_dst'] = header['ipv4_dst']
                         del header['ipv4_dst']
-            
+
             flows.append({'match': header,
                           'packet_count': stat.packet_count
                           })
@@ -1051,7 +1057,7 @@ class Ryu(app_manager.RyuApp):
         self.lastStatsTime[dpid] = now
         
         for stat in stats:
-            
+            priority = stat.priority
             dur_sec = stat.duration_sec
             in_port = stat.match.in_port
             src_mask = 32 - ((stat.match.wildcards & ofproto_v1_0.OFPFW_NW_SRC_MASK) >> ofproto_v1_0.OFPFW_NW_SRC_SHIFT)
@@ -1070,7 +1076,7 @@ class Ryu(app_manager.RyuApp):
                 prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
                 dir = "rx"
             else:
-                self.logger.error("Flow:" + str(stat.match))
+                self.logger.debug("Flow:" + str(stat.match))
                 #--- no mask, lets skip
                 continue
         
@@ -1087,7 +1093,8 @@ class Ryu(app_manager.RyuApp):
             del match['dl_dst']
             del match['dl_src']
             del match['wildcards']
-            
+            pprint.pprint(match)
+            #print stat.priority 
             if match['dl_type'] == 34525:
                 if  match['nw_src'] != 0:
                     id = ipaddr.IPv6Address(stat.match.nw_src)
@@ -1095,10 +1102,10 @@ class Ryu(app_manager.RyuApp):
                         match['nw_src'] = ipaddr.IPv6Network(str(id)+"/"+str(src_mask))
                     else:
                         match['nw_src'] = ipaddr.IPv6Network(str(id))
-                if  match['nw_src'] != 0:
+                if  match['nw_dst'] != 0:
                     id = ipaddr.IPv6Address(stat.match.nw_dst)
-                    if src_mask > 0:
-                        match['nw_dst'] = ipaddr.IPv6Network(str(id)+"/"+str(src_mask))
+                    if dst_mask > 0:
+                        match['nw_dst'] = ipaddr.IPv6Network(str(id)+"/"+str(dst_mask))
                     else:
                         match['nw_dst'] = ipaddr.IPv6Network(str(id))
                 
@@ -1115,7 +1122,11 @@ class Ryu(app_manager.RyuApp):
                         match['nw_dst'] = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
                     else:
                         match['nw_dst'] = ipaddr.IPv4Network(str(id))
+                
+
+            if(match.has_key('dl_type') and match['dl_type'] != 34525):
                 del match['dl_type']
+
             if(match['dl_vlan_pcp'] == 0):
                 del match['dl_vlan_pcp']
 
@@ -1146,13 +1157,13 @@ class Ryu(app_manager.RyuApp):
                 match['phys_port'] = int(match['in_port'])
                 del match['in_port']
                 
-            
             flows.append({'match': match,
                           'wildcards': wildcards,
-                          'packet_count': stat.packet_count
+                          'packet_count': stat.packet_count,
+                          'priority' : priority
                           })
             
-
+            
         for prefix in prefix_bytes:
             for dir in ("rx","tx"):
                 old_bytes = self.prefix_bytes[prefix][dir]

@@ -1214,19 +1214,33 @@ class SciPass:
       json.dump([curr_state], fd)
     fd.close()
 
-  def remove_flow(self, header, priority):
+  def remove_flow(self, dpid=None, domain=None, header=None,priority=None):
     self.logger.debug("remove flow")
     for white in self.whiteList:
       if ((cmp(header, white['header']) == 0) and (cmp(priority, white['priority'])== 0)):
         """ if a good flow times out, remove it"""
         self.logger.error("Removing good flow due to timeout")
         self.whiteList.remove(white)
-
+        
+        
     for black in self.blackList:
       if ((cmp(header, black['header']) == 0) and (cmp(priority, black['priority'])== 0)):
         """ if a bad flow times out, remove it"""
         self.logger.error("Removing bad flow due to timeout")
         self.blackList.remove(black)
+        
+    if not dpid:
+      return
+
+    if not domain:
+      return
+    
+    match = self.stringify(header)
+    for flow in self.config[dpid][domain]['flows']:
+      if(flow['header'] == match and flow['priority'] == priority):
+        self.config[dpid][domain]['flows'].remove(flow)
+        self.flowCount -= 1
+
 
   def port_status(self, ev):
     self.logger.debug("port status handler")
@@ -1250,27 +1264,7 @@ class SciPass:
     self.logger.debug("Idle Timeout: " + str(idle_timeout))
     self.logger.debug("Hard Timeout: " + str(hard_timeout))
     self.logger.debug("Priority: " + str(priority))
-    now = time.time()
-
-    if(command == "ADD"):
-      if int(self.flowCount) < int(self.config[dpid][domain]['max_flow_count']):
-        match = self.stringify(header)
-        self.config[dpid][domain]['flows'].append({'dpid': dpid,
-                                                   'header': match,
-                                                   'actions': actions,
-                                                   'priority': priority
-                                                   })
-        self.flowCount += 1
-      else:
-        return 0
-
-    if(command == "DELETE" or command == "DELETE_STRICT"):
-      for flow in self.config[dpid][domain]['flows']:
-        match = self.stringify(header)
-        if(flow['header'] == match and flow['priority'] == priority):
-          self.config[dpid][domain]['flows'].remove(flow)
-          self.flowCount -= 1
-    
+            
     for handler in self.switchForwardingChangeHandlers:
       handler( dpid = dpid,
                domain = domain,
@@ -1281,6 +1275,15 @@ class SciPass:
                hard_timeout = hard_timeout,
                priority = priority)
     return 1
+
+  def pushFlows(self, dpid=None, domain=None, header=None, actions=None, priority=None):
+    match = self.stringify(header)
+    self.config[dpid][domain]['flows'].append({'dpid': dpid,
+                                               'header': match,
+                                               'actions': actions,
+                                               'priority': priority
+                                               })
+    self.flowCount+= 1
 
   def stringify(self,header=None):
     match = {}
@@ -1468,7 +1471,17 @@ class SciPass:
           #self.logger.error(str(flow['match']))
           #self.logger.error(str(idle['header']))
           try:
-            if(cmp(flow['match'], idle['header']) == 0):
+            """
+            if(not (flow['match'].has_key('nw_src') and idle['header'].has_key('nw_src'))): 
+              if(not (flow['match'].has_key('nw_dst') and idle['header'].has_key('nw_dst'))):
+                print "flow"
+                pprint.pprint(flow['match'])
+                print "idle"
+                pprint.pprint(idle['header'])
+            """
+            if(cmp(flow['match'], idle['header']) == 0 and cmp(int(idle['priority']),int(flow['priority']))==0):
+              #pprint.pprint(flow['match'])
+              #pprint.pprint(idle['header'])
               #compare the dicts and they are the same
               #so update the flow count and the expires time
               if(idle['pkt_count'] == flow['packet_count']):
