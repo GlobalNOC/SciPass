@@ -1471,17 +1471,7 @@ class SciPass:
           #self.logger.error(str(flow['match']))
           #self.logger.error(str(idle['header']))
           try:
-            """
-            if(not (flow['match'].has_key('nw_src') and idle['header'].has_key('nw_src'))): 
-              if(not (flow['match'].has_key('nw_dst') and idle['header'].has_key('nw_dst'))):
-                print "flow"
-                pprint.pprint(flow['match'])
-                print "idle"
-                pprint.pprint(idle['header'])
-            """
             if(cmp(flow['match'], idle['header']) == 0 and cmp(int(idle['priority']),int(flow['priority']))==0):
-              #pprint.pprint(flow['match'])
-              #pprint.pprint(idle['header'])
               #compare the dicts and they are the same
               #so update the flow count and the expires time
               if(idle['pkt_count'] == flow['packet_count']):

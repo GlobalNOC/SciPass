@@ -216,7 +216,6 @@ class Ryu(app_manager.RyuApp):
             return
 
         if(datapath.is_active == True):
-            #print flow
             self.logger.debug("Installing Flow: " + str(flow))
             datapath.send_msg(flow)
         else:
@@ -288,7 +287,7 @@ class Ryu(app_manager.RyuApp):
         idle = {}
         hard =  {}
         now = time.time()
-        idle_timeout=15
+        
         if int(idle_timeout) != 0:
             timeout = now + int(idle_timeout)
             idle   =      {'timeout': timeout,
@@ -467,6 +466,7 @@ class Ryu(app_manager.RyuApp):
         idle = {}
         hard =  {}
         now = time.time()
+        
         if int(idle_timeout) != 0:
             timeout = now + int(idle_timeout)
             idle   =      {'timeout': timeout,
@@ -973,6 +973,7 @@ class Ryu(app_manager.RyuApp):
 
         for stat in stats:
             header = {}
+            priority = stat.priority
             match = stat.match.__dict__
             header, prefix, d, _  = self.processStat(stat)
             if header.has_key('eth_type'):
@@ -992,9 +993,11 @@ class Ryu(app_manager.RyuApp):
                         del header['ipv4_dst']
 
             flows.append({'match': header,
-                          'packet_count': stat.packet_count
+                          'packet_count': stat.packet_count,
+                          'priority' : priority
                           })
             dur_sec = stat.duration_sec
+
             if not prefix:
                 continue
 
@@ -1092,23 +1095,12 @@ class Ryu(app_manager.RyuApp):
             wildcards = stat.match.wildcards
             del match['dl_dst']
             del match['dl_src']
-            del match['wildcards']
-            pprint.pprint(match)
-            #print stat.priority 
+            del match['wildcards'] 
             if match['dl_type'] == 34525:
-                if  match['nw_src'] != 0:
-                    id = ipaddr.IPv6Address(stat.match.nw_src)
-                    if src_mask > 0:
-                        match['nw_src'] = ipaddr.IPv6Network(str(id)+"/"+str(src_mask))
-                    else:
-                        match['nw_src'] = ipaddr.IPv6Network(str(id))
-                if  match['nw_dst'] != 0:
-                    id = ipaddr.IPv6Address(stat.match.nw_dst)
-                    if dst_mask > 0:
-                        match['nw_dst'] = ipaddr.IPv6Network(str(id)+"/"+str(dst_mask))
-                    else:
-                        match['nw_dst'] = ipaddr.IPv6Network(str(id))
-                
+                if src_mask > 0:
+                    match['nw_src'] = ipaddr.IPv6Network("::/128")
+                if dst_mask > 0:
+                    match['nw_dst'] = ipaddr.IPv6Network("::/128")
             elif match['dl_type'] == 2048:
                 if match['nw_src'] != 0:
                     id = ipaddr.IPv4Address(stat.match.nw_src)

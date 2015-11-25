@@ -326,7 +326,7 @@ sub build_command_list {
                 push(@{$self->{'switches'}->{$switch->{'dpid'}}->{'domains'}}, $domain);
                 # warn Data::Dumper::Dumper($domain);
 
-		foreach my $group (keys %{$domain->{'sensor_port_group'}}) {
+		foreach my $group (keys %{$domain->{'sensor_group'}}) {
                     my $vars;
                     $vars->{'sw_name'} = $switch->{'name'};
                     $vars->{'domain_name'} = $domain->{'name'};
