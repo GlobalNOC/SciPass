@@ -714,6 +714,8 @@ sub flow_to_human{
 	switch($key){
 	    case 'phys_port'{
 		$of_match_name = 'IN PORT';
+	    }case 'in_port'{
+		$of_match_name = 'IN PORT';
 	    }case 'dl_vlan'{
 		$of_match_name = 'VLAN';
 	    }case 'dl_type'{
