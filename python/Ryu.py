@@ -245,8 +245,9 @@ class Ryu(app_manager.RyuApp):
         if(header.has_key('nw_src')):
             if header['nw_src'].version == 6:
                 obj['dl_type'] = 34525
-            obj['nw_src'] = int(header['nw_src'])
-            obj['nw_src_mask'] = int(header['nw_src'].prefixlen)
+            elif header['nw_src'].version == 4:
+                obj['nw_src'] = int(header['nw_src'])
+                obj['nw_src_mask'] = int(header['nw_src'].prefixlen)
         else:
             obj['nw_src'] = None
             obj['nw_src_mask'] = None
@@ -254,8 +255,9 @@ class Ryu(app_manager.RyuApp):
         if(header.has_key('nw_dst')):
             if header['nw_dst'].version == 6:
                 obj['dl_type'] = 34525
-            obj['nw_dst'] = int(header['nw_dst'])
-            obj['nw_dst_mask'] = int(header['nw_dst'].prefixlen)
+            elif header['nw_dst'].version == 4:
+                obj['nw_dst'] = int(header['nw_dst'])
+                obj['nw_dst_mask'] = int(header['nw_dst'].prefixlen)
         else:
             obj['nw_dst'] = None
             obj['nw_dst_mask'] = None
@@ -857,7 +859,6 @@ class Ryu(app_manager.RyuApp):
             except:
                 self.logger.info("Bad netmask")
                 return 0
-                
             return count
 
         def ipv6Prefix(addr):
@@ -866,7 +867,7 @@ class Ryu(app_manager.RyuApp):
             if type(addr) is tuple:
                 mask = getCIDR(str(addr[1]))
                 if mask == 0:
-                    prefix = ipaddr.IPv4Network(str(addr[0]))
+                    prefix = ipaddr.IPv6Network(str(addr[0]))
                 else:
                     prefix = ipaddr.IPv6Network(str(addr[0]) + "/" + str(mask))
             elif type(addr) is str:
@@ -1095,12 +1096,7 @@ class Ryu(app_manager.RyuApp):
             del match['dl_dst']
             del match['dl_src']
             del match['wildcards'] 
-            if match['dl_type'] == 34525:
-                if src_mask > 0:
-                    match['nw_src'] = ipaddr.IPv6Network("::/128")
-                if dst_mask > 0:
-                    match['nw_dst'] = ipaddr.IPv6Network("::/128")
-            elif match['dl_type'] == 2048:
+            if match['dl_type'] == 2048:
                 if match['nw_src'] != 0:
                     id = ipaddr.IPv4Address(stat.match.nw_src)
                     if src_mask > 0:

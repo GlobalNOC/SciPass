@@ -116,12 +116,12 @@ class TestInit(unittest.TestCase):
         flow = flows[10]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': 2}])
         self.assertEquals(flow['command'],"ADD")
-        self.assertEquals(flow['header'], {'phys_port': 5, 'nw_dst': ipaddr.IPv6Network('::/128')})
+        self.assertEquals(flow['header'], {'phys_port': 5, 'nw_dst': ipaddr.IPv6Network('2001:0DB8::/48')})
         self.assertEquals(flow['priority'], 10)
         flow = flows[11]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': 5}])
         self.assertEquals(flow['command'],"ADD")
-        self.assertEquals(flow['header'], {'phys_port': 2, 'nw_src': ipaddr.IPv6Network('::/128')})
+        self.assertEquals(flow['header'], {'phys_port': 2, 'nw_src': ipaddr.IPv6Network('2001:0DB8::/48')})
         self.assertEquals(flow['priority'], 10)
         flow = flows[12]
         self.assertEquals(flow['actions'],[{'type': 'output', 'port': 1}, {'type': 'output', 'port': 2}])
@@ -208,7 +208,8 @@ class TestFunctionality(unittest.TestCase):
         self.assertTrue(self.api.getBalancer("%016x" % datapath.id, "R&E").getPrefixBW(ipaddr.IPv4Network("10.0.19.0/24")), 1000)
         self.api.updatePrefixBW("%016x" % datapath.id, ipaddr.IPv4Network("10.0.17.0/24"), 500,500)
         self.assertTrue(self.api.getBalancer("%016x" % datapath.id, "R&E").getPrefixBW(ipaddr.IPv4Network("10.0.17.0/24")), 1000)
-        
+        self.api.updatePrefixBW("%016x" % datapath.id, ipaddr.IPv6Network("2001:0DB8::/48"), 500,500)
+        self.assertTrue(self.api.getBalancer("%016x" % datapath.id, "R&E").getPrefixBW(ipaddr.IPv6Network("2001:0DB8::/48")), 1000)
 
     def test_good_flow(self):
         flows = []

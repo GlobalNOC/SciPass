@@ -61,11 +61,11 @@ class SimpleBalancer:
 		 maxPrefixes		= 32,
   		 mostSpecificPrefixLen	= 29,
  		 leastSpecificPrefixLen	= 24,
-                 ipv6MostSpecificPrefixLen  = 96,
-                 ipv6LeastSpecificPrefixLen = 128,
+                 ipv6MostSpecificPrefixLen  = 64,
+                 ipv6LeastSpecificPrefixLen = 48,
      		 sensorLoadMinThresh	= .02,
 		 sensorLoadDeltaThresh	= .05,
-                 sensorConfigurableThresh = .05,
+                 sensorConfigurableThresh = 100,
                  state                  = None,
                  logger                 = None):
       
@@ -584,11 +584,12 @@ class SimpleBalancer:
       try:
           subnets = self.splitPrefix(candidatePrefix)
           bw = self.prefixBW[candidatePrefix]
-          if float(bw/1000/1000) < float(self.sensorConfigurableThreshold):
-              self.logger.error("Candidate Prefix : " + str(candidatePrefix) + " bw " + str(bw/1000/1000) + " Mbps" )
-              self.logger.error("Configurable Threshold :" + str(self.sensorConfigurableThreshold))
-              self.logger.error("Preventing split of prefix " + str(candidatePrefix))
-              return 0
+          if check:
+              if float(bw/1000/1000) < float(self.sensorConfigurableThreshold):
+                  self.logger.error("Candidate Prefix : " + str(candidatePrefix) + " bw " + str(bw/1000/1000) + " Mbps" )
+                  self.logger.error("Configurable Threshold :" + str(self.sensorConfigurableThreshold))
+                  self.logger.error("Preventing split of prefix " + str(candidatePrefix))
+                  return 0
           self.logger.info( "split prefix "+str(candidatePrefix) +" bw "+str((bw / 1000 / 1000 )) + "Mbps")
           #--- update the bandwidth we are guessing is going to each prefix to smooth things, before real data is avail
           self.prefixBW[candidatePrefix] = 0
@@ -762,8 +763,9 @@ class SimpleBalancer:
           
           prefix_a = prefix_list[0]
           prefix_b = prefix_list[1]
-      
-          aggBW = (self.prefixBW[prefix_a]/1000/1000) + (self.prefixBW[prefix_b]/1000/1000)
+          bw1 = self.prefixBW[prefix_a]
+          bw2 = self.prefixBW[prefix_b]
+          aggBW = (bw1/1000/1000) + (bw2/1000/1000)
  
           self.logger.error("Prefixes :"  + str(prefix_a) + ", " + str(prefix_b) + " Aggregate BW : " + str(aggBW) + " Mbps" )
           self.logger.error("Configurable Threshold :" + str(self.sensorConfigurableThreshold))
@@ -808,10 +810,14 @@ class SimpleBalancer:
                   aggBW = aggBW*1000*1000
                   self.addGroupPrefix(minSensor, candidatePrefix, aggBW)
               except DuplicatePrefixError:
-                  self.logger.debug("Already have prefix: " + str(prefix))
+                  self.logger.debug("Already have prefix: " + str(candidatePrefix))
+                  self.addGroupPrefix(group_a, prefix_a, bw1)
+                  self.addGroupPrefix(group_b, prefix_b, bw2)
                   return
               except MaxFlowCountError:
                   self.logger.debug("Max Flow Count Error")
+                  self.addGroupPrefix(group_a, prefix_a, bw1)
+                  self.addGroupPrefix(group_b, prefix_b, bw2)
                   return
               return
 

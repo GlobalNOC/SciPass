@@ -412,7 +412,7 @@ class SciPass:
 
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
-                header,match = self._build_header(obj,False)
+                header = self._build_header(obj,False)
                 #set the port
                 header['phys_port'] = int(wan['port_id'])
                 match = self.stringify(header)
@@ -925,11 +925,7 @@ class SciPass:
     flows = []
     if self.config[dpid][domain_name]['mode'] == "SimpleBalancer":
       header = {}
-      if(prefix._version != 4):
-        header = {"dl_type": 34525,
-                  "nw_src" : prefix}
-      else:
-        header = {"nw_src": prefix}
+      header = {"nw_src": prefix}
         
       actions = []
       #output to sensor (basically this is the IDS balance case)
@@ -948,11 +944,7 @@ class SciPass:
                                               hard_timeout = 0,
                                               priority     = priority)
       
-      if(prefix._version != 4):
-        header = {"dl_type": 34525,
-                  "nw_src" : prefix}
-      else:
-        header = {"nw_src": prefix}
+      header = {"nw_dst": prefix}
 
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain       = domain_name,
@@ -982,13 +974,8 @@ class SciPass:
           in_port = port
          
           header = {}
-          if(prefix._version != 4):
-            header = {"dl_type": 34525,
-                      "nw_src" : prefix,
-                      "phys_port": int(in_port['port_id'])}
-          else:
-            header = {"nw_src":      prefix,
-                      "phys_port":   int(in_port['port_id'])}
+          header = {"nw_src":      prefix,
+                    "phys_port":   int(in_port['port_id'])}
 
           actions = []
           #output to sensor (basically this is the IDS balance case)
@@ -1026,21 +1013,11 @@ class SciPass:
               
           header = {}
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
-            if(prefix._version != 4):
-              header = {"dl_type": 34525,
-                        "nw_dst":  prefix,
-                        "phys_port":   int(ports['wan'][0]['port_id'])}
-            else:
-              header = {"nw_dst": prefix,
-                        "phys_port": int(ports['wan'][0]['port_id'])}
+            header = {"nw_dst": prefix,
+                      "phys_port": int(ports['wan'][0]['port_id'])}
           else:
-             if(prefix._version != 4):
-               header = {"dl_type": 34525,
-                         "nw_dst" : prefix,
-                         "phys_port": int(in_port['port_id'])}
-             else:
-               header = {"nw_dst": prefix,
-                         "phys_port": int(in_port['port_id'])}
+            header = {"nw_dst": prefix,
+                      "phys_port": int(in_port['port_id'])}
             
           actions = []
           #output to sensor (basically this is the IDS balance case)
@@ -1081,11 +1058,7 @@ class SciPass:
 
     if self.config[dpid][domain_name]['mode'] == "SimpleBalancer":
       header = {}
-      if(prefix._version != 4):
-        header = {"dl_type": 34525,
-                  "nw_src" : prefix}
-      else:
-        header = {"nw_src": prefix}
+      header = {"nw_src": prefix}
       actions = []
       #output to sensor (basically this is the IDS balance case)                                                                                                
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
@@ -1097,11 +1070,7 @@ class SciPass:
                                               hard_timeout = 0,
                                               priority     = priority)
       
-      if(prefix._version != 4):
-        header = {"dl_type": 34525,
-                  "nw_dst" : prefix}
-      else:
-        header = {"nw_dst": prefix}
+      header = {"nw_dst": prefix}
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain       = domain_name,
                                               header       = header,
@@ -1125,13 +1094,8 @@ class SciPass:
           in_port = port
 
           header = {}
-          if(prefix._version != 4):
-            header = {"dl_type": 34525,
-                      "nw_src":      prefix,
-                      "phys_port":   int(in_port['port_id'])}
-          else:
-            header = {"nw_src":      prefix,
-                      "phys_port":   int(in_port['port_id'])}
+          header = {"nw_src":      prefix,
+                    "phys_port":   int(in_port['port_id'])}
     
           actions = []
           self.fireForwardingStateChangeHandlers( dpid         = dpid,
@@ -1145,22 +1109,11 @@ class SciPass:
           header = {}
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
             header = {}
-            if(prefix._version != 4):
-              header = {"dl_type": 34525,
-                        "nw_dst" : prefix,
-                        "phys_port": int(ports['wan'][0]['port_id'])}
-
-            else:
-              header = {"nw_dst":      prefix,
-                        "phys_port":   int(ports['wan'][0]['port_id'])}
+            header = {"nw_dst":      prefix,
+                      "phys_port":   int(ports['wan'][0]['port_id'])}
           else:
-            if(prefix._version != 4):
-              header = {"dl_type": 34525,
-                        "nw_dst" : prefix,
-                        "phys_port": int(in_port['port_id'])}
-            else:
-              header = {"nw_dst":      prefix,
-                        "phys_port":   int(in_port['port_id'])}
+            header = {"nw_dst":      prefix,
+                      "phys_port":   int(in_port['port_id'])}
           
           actions = []
           self.fireForwardingStateChangeHandlers( dpid         = dpid,
