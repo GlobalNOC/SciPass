@@ -24,7 +24,7 @@ class SimpleBalancerInitTest(unittest.TestCase):
 
         #first setup the handler to get all the flows that were sent
         flows = []
-        def flowSent(dpid = None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
+        def flowSent(dpid = None, domain=None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
             obj = {'dpid': dpid, 'header': header,
                    'actions': actions, 'command': command,
                    'priority': priority,
@@ -86,7 +86,7 @@ class SimpleBalancerInitTest(unittest.TestCase):
 
         #first setup the handler to get all the flows that were sent
         flows = []
-        def flowSent(dpid = None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
+        def flowSent(dpid = None,  domain=None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
             obj = {'dpid': dpid, 'header': header,
                    'actions': actions, 'command': command,
                    'priority': priority,
@@ -167,14 +167,14 @@ class SimpleBalancerInitTest(unittest.TestCase):
 #        self.assertEquals(flow['priority'], 26250)
 
         #run the balancer again!
-
+        
         total_runs = 1
         while len(flows) != 0:
             flows = []
             self.api.run_balancers()
             total_runs +=1
 
-        self.assertEquals(total_runs, 49)
+        self.assertEquals(total_runs, 46)
 
         self.api.updatePrefixBW("0000000000000001", ipaddr.IPv4Network("134.68.80.0/20"), 8000000000, 0)
 
@@ -186,19 +186,20 @@ class SimpleBalancerInitTest(unittest.TestCase):
             self.api.run_balancers()
             total_runs += 1
 
-        self.assertEquals(total_runs, 24)
+        self.assertEquals(total_runs, 25)
         
         self.api.updatePrefixBW("0000000000000001", ipaddr.IPv4Network("134.68.91.0/24"), 8000000000, 0)
 
         total_runs = 0
-        #make our while condition true to enter :)                                                                                                                                                                         
+        #make our while condition true to enter :)
         flows.append({})
         while len(flows) != 0:
             flows = []
             self.api.run_balancers()
             total_runs += 1
 
-        self.assertEquals(total_runs, 8)
+        self.assertEquals(total_runs, 4)
+        
 
 
 
