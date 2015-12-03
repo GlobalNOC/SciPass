@@ -1,8 +1,9 @@
 <SciPass>
 
    <switch dpid="0000000000000001">
-    <domain name="R&amp;E" mode="SciDMZ" admin_status="active" least_specific_prefix_len="24" most_specific_prefix_len="32" 
-	    blacklist_priority="1000" whitelist_priority="900" sensor_min_load_threshold="0.1" sensor_load_delta_threshold="0.1"
+    <domain name="R&amp;E" mode="SciDMZ" admin_status="active" least_specific_prefix_len="24" most_specific_prefix_len="32"
+ 	    ipv6least_specific_prefix_len="96" ipv6most_specific_prefix_len="128" blacklist_priority="1000" whitelist_priority="900" 
+	    sensor_min_load_threshold="0.1" sensor_load_delta_threshold="0.1" sensor_configurable_threshold="100"
 	    max_prefixes="200" max_flow_count="250" idle_timeout="90" hard_timeout="300" >
 
       <port of_port_id="1" type="lan" name="foo8" description="lan int">

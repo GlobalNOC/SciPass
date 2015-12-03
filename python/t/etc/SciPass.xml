@@ -3,7 +3,8 @@
    <switch dpid="0000000000000001">
     <domain name="R&amp;E" mode="SciDMZ" admin_status="active" 
 	    least_specific_prefix_len="24" most_specific_prefix_len="32" 
-	    sensor_min_load_threshold="0.1" sensor_load_delta_threshold="0.1"
+	    ipv6least_specific_prefix_len="48" ipv6most_specific_prefix_len="64"
+	    sensor_min_load_threshold="0.1" sensor_load_delta_threshold="0.1" sensor_configurable_threshold="100"
 	    max_prefixes="200" idle_timeout="90" hard_timeout="300" max_flow_count="1000">
 
       <port of_port_id="1" type="lan" name="foo8" description="lan int">
@@ -14,7 +15,7 @@
       <port of_port_id="2" type="lan" name="foo12" description="another lan int">
 	<prefix type="v4">10.0.19.0/24</prefix>
         <prefix type="v4">10.0.20.0/24</prefix>
-	<prefix type="v6">::/128</prefix>
+	<prefix type="v6">2001:0DB8::/48</prefix>
       </port>
       
 
