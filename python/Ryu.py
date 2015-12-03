@@ -357,7 +357,7 @@ class Ryu(app_manager.RyuApp):
         if(header.has_key('nw_src')):
             if(header['nw_src'].version == 4):
                 obj['ipv4_src'] = (str(header['nw_src'].ip), str(header['nw_src'].netmask))
-                obj['eth_type'] = 0x800
+                obj['eth_type'] = ether.ETH_TYPE_IP
             else:
                 del obj['ipv4_src']
             if(header['nw_src'].version == 6):
@@ -365,7 +365,7 @@ class Ryu(app_manager.RyuApp):
                     self.logger.error("IPv4 and IPv6 in the same message")
                     return
                 obj['ipv6_src'] = (str(header['nw_src'].ip), str(header['nw_src'].netmask))
-                obj['eth_type'] = 0x86dd
+                obj['eth_type'] = ether.ETH_TYPE_IPV6
             else:
                 del obj['ipv6_src']
         else:
@@ -378,7 +378,7 @@ class Ryu(app_manager.RyuApp):
                     self.logger.error("IPv4 and IPv6 in the same message")
                     return
                 obj['ipv4_dst'] = (str(header['nw_dst'].ip), str(header['nw_dst'].netmask))
-                obj['eth_type'] = 0x800
+                obj['eth_type'] = ether.ETH_TYPE_IP
             else:
                 del obj['ipv4_dst']
             if(header['nw_dst'].version == 6):
@@ -386,7 +386,7 @@ class Ryu(app_manager.RyuApp):
                     self.logger.error("IPv4 and IPv6 in the same message")
                     return
                 obj['ipv6_dst'] = (str(header['nw_dst'].ip), str(header['nw_dst'].netmask))
-                obj['eth_type'] = 0x86dd
+                obj['eth_type'] = ether.ETH_TYPE_IPV6
             else:
                 del obj['ipv6_dst']
         else:
