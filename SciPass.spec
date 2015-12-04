@@ -1,6 +1,6 @@
 Summary: Science DMZ and IDS loadbalancer via OpenFlow RYU
 Name: SciPass
-Version: 1.0.3
+Version: 1.0.4
 Release: 1
 License: Apache2
 Group: GRNOC
