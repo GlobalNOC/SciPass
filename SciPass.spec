@@ -35,6 +35,7 @@ rm -rf $RPM_BUILD_ROOT
 %{__install} python/*.py %{buildroot}/%{python_sitelib}/SciPass/
 %{__install} perl/lib/SciPass/*.pm %{buildroot}/%{perl_vendorlib}/SciPass/
 %{__install} etc/SciPass.xml %{buildroot}/etc/SciPass/
+%{__install} etc/SciPass.xsd %{buildroot}/etc/SciPass/
 %{__install} etc/ryu.conf %{buildroot}/etc/SciPass/
 %{__install} etc/scipass-init %{buildroot}/etc/init.d/scipass
 %{__install} perl/bin/scipass-cli.pl %{buildroot}/usr/bin/scipass-cli.pl
@@ -47,6 +48,7 @@ rm -rf $RPM_BUILD_ROOT
 %defattr(-,root,root,-)
 /etc/init.d/scipass
 %config(noreplace) /etc/SciPass/SciPass.xml
+/etc/SciPass/SciPass.xsd
 /etc/SciPass/ryu.conf
 %{python_sitelib}/SciPass/*
 %{perl_vendorlib}/*
