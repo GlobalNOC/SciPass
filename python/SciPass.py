@@ -140,9 +140,9 @@ class SciPass:
           for prefix in port['prefixes']:
             #ok we'll see if the src matches
             if(prefix['prefix'].Contains( src_prefix )):
-              header,match = self._build_header(obj,False)    
+              header = self._build_header(obj,False)    
               header['phys_port'] = int(port['port_id'])
-              match['phys_port'] = int(port['port_id'])
+              match = self.stringify(header)
               status = self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                                domain       = name,
                                                                header       = header,
@@ -163,9 +163,9 @@ class SciPass:
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
-                header,match = self._build_header(obj,True)
+                header = self._build_header(obj,True)
                 header['phys_port'] = int(wan)
-                match['phys_port'] = int(wan)
+                match = self.stringify(header)
                 status = self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                                  domain       = name,
                                                                  header       = header,
@@ -188,9 +188,9 @@ class SciPass:
                 
             #check the other dir          
             if(prefix['prefix'].Contains( dst_prefix )):
-              header,match = self._build_header(obj,True)
+              header = self._build_header(obj,True)
               header['phys_port'] = int(port['port_id'])
-              match['phys_port'] = int(port['port_id'])
+              match = self.stringify(header)
               status = self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                                domain       = name,
                                                                header       = header,
@@ -212,9 +212,9 @@ class SciPass:
 
               #now do the wan side (there might be multiple)
               for wan in used_wan_ports:
-                header,match = self._build_header(obj,False)
+                header = self._build_header(obj,False)
                 header['phys_port'] = int(wan)
-                match['phys_port'] = int(wan)
+                match = self.stringify(header)
                 status = self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                                  domain       = name,
                                                                  header       = header,
@@ -238,77 +238,61 @@ class SciPass:
 
   def _build_header(self, obj, reverse):
     header = {}
-    match = {}
     if(obj.has_key('nw_src')):
       if(reverse):
         prefix = ipaddr.IPv4Network(obj['nw_src'])
         header['nw_dst'] = prefix
-        match['nw_dst']  = obj['nw_src']
       else:
         prefix = ipaddr.IPv4Network(obj['nw_src'])
         header['nw_src'] = prefix
-        match['nw_src']  = obj['nw_src']
-        
+                
     if(obj.has_key('nw_dst')):
       if(reverse):
         prefix = ipaddr.IPv4Network(obj['nw_dst'])
         header['nw_src'] = prefix
-        match['nw_src']  = obj['nw_dst']
       else:
         prefix = ipaddr.IPv4Network(obj['nw_dst'])
         header['nw_dst'] = prefix
-        match['nw_dst']  = obj['nw_dst']
-
     #OF10
     if(obj.has_key('tp_src')):
       if(reverse):
         header['tp_dst'] = int(obj['tp_src'])
-        match['tp_dst']  = int(obj['tp_src'])
       else:
         header['tp_src'] = int(obj['tp_src'])
-        match['tp_src']  =  int(obj['tp_src'])
-
+        
     if(obj.has_key('tp_dst')):
       if(reverse):
         header['tp_src'] = int(obj['tp_dst'])
-        match['tp_src']  = int(obj['tp_dst'])
       else:
         header['tp_dst'] = int(obj['tp_dst'])
-        match['tp_dst']  = int(obj['tp_dst'])
+        
 
     #O13
     if(obj.has_key('tcp_src')):
       if(reverse):
         header['tcp_dst'] = int(obj['tcp_src'])
-        match['tcp_dst']  = int(obj['tcp_src'])
       else:
         header['tcp_src'] = int(obj['tcp_src'])
-        match['tcp_src']  = int(obj['tcp_src'])
-
+        
     if(obj.has_key('tcp_dst')):
       if(reverse):
         header['tcp_src'] = int(obj['tcp_dst'])
-        match['tcp_src'] =  int(obj['tcp_dst'])
       else:
         header['tcp_dst'] = int(obj['tcp_dst'])
-        match['tcp_dst'] =  int(obj['tcp_dst'])
-
+        
     if(obj.has_key('udp_src')):
       if(reverse):
         header['udp_dst'] = int(obj['udp_src'])
-        match['udp_dst']  = int(obj['udp_src'])
       else:
         header['udp_src'] = int(obj['udp_src'])
-        match['udp_src']  = int(obj['udp_src'])
-                            
+                                    
     if(obj.has_key('udp_dst')):
       if(reverse):
         header['udp_src'] = int(obj['udp_dst'])
-        match['udp_src']  = int(obj['udp_dst'])
       else:
         header['udp_dst'] = int(obj['udp_dst'])
-        match['udp_dst']  = int(obj['udp_dst'])
-    return header, match
+  
+    return header
 
 
   def bad_flow(self, obj):
@@ -343,12 +327,12 @@ class SciPass:
               actions = []
 
               #build a header based on what was sent
-              header,match = self._build_header(obj,False) 
+              header = self._build_header(obj,False) 
               
               if not self.config[datapath_id][name]['mode'] == "SimpleBalancer":
                 #set the port of the header
                 header['phys_port'] = int(port['port_id'])
-                match['phys_port'] = int(port['port_id'])
+              match = self.stringify(header)
               self.logger.debug("Header: " + str(header))
 
               status = self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
@@ -370,11 +354,11 @@ class SciPass:
 
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
-                header,match = self._build_header(obj,True)
+                header = self._build_header(obj,True)
                 
                 #set the port
                 header['phys_port'] = int(wan['port_id'])
-                match['phys_port'] = int(wan['port_id'])
+                match = self.stringify(header)
                 self.logger.debug("Header: " + str(header))
 
                 status = self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
@@ -400,12 +384,12 @@ class SciPass:
               #actions drop
               actions = []
               #build a header based on what was setn
-              header,match = self._build_header(obj,True)
+              header = self._build_header(obj,True)
               
               if not self.config[datapath_id][name]['mode'] == "SimpleBalancer":
                 #set the port
                 header['phys_port'] = int(port['port_id'])
-                match['phys_port'] = int(port['port_id'])
+                match = self.stringify(header)
               self.logger.debug("Header: " + str(header))
 
               status = self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
@@ -428,10 +412,10 @@ class SciPass:
 
               for wan in self.config[datapath_id][name]['ports']['wan']:
                 #build a header based on what was set
-                header,match = self._build_header(obj,False)
+                header = self._build_header(obj,False)
                 #set the port
                 header['phys_port'] = int(wan['port_id'])
-                match['phys_port'] = int(wan['port_id'])
+                match = self.stringify(header)
                 self.logger.debug("Header: " + str(header))
                 status = self.fireForwardingStateChangeHandlers( dpid         = datapath_id,
                                                                  domain       = name,
@@ -549,6 +533,7 @@ class SciPass:
         default_whitelist_priority = 65535
         sensorLoadMinThreshold = domain.prop("sensor_min_load_threshold")
         sensorLoadDeltaThreshhold = domain.prop("sensor_load_delta_threshold")
+        sensorConfigurableThreshold = domain.prop("sensor_configurable_threshold")
         ignore_sensor_load = domain.prop("ignore_sensor_load")
         ignore_prefix_bw = domain.prop("ignore_prefix_bw")
         max_flow_count = domain.prop("max_flow_count")
@@ -568,6 +553,7 @@ class SciPass:
         config[dpid][name]['default_whitelist_priority'] = default_whitelist_priority
         config[dpid][name]['sensor_load_min_threshold'] = sensorLoadMinThreshold
         config[dpid][name]['sensor_load_delta_threshold'] = sensorLoadDeltaThreshhold
+        config[dpid][name]['sensor_configurable_threshold'] = sensorConfigurableThreshold
         config[dpid][name]['max_flow_count'] = max_flow_count
         if(ignore_prefix_bw == "true"):
           config[dpid][name]['ignore_prefix_bw'] = 1
@@ -603,6 +589,7 @@ class SciPass:
                                                          mostSpecificPrefixLen = most_specific_len,
                                                          sensorLoadMinThresh = sensorLoadMinThreshold,
                                                          sensorLoadDeltaThresh = sensorLoadDeltaThreshhold,
+                                                         sensorConfigurableThresh = sensorConfigurableThreshold,
                                                          leastSpecificPrefixLen = least_specific_len,
                                                          ipv6LeastSpecificPrefixLen = ipv6least_specific_len,
                                                          ipv6MostSpecificPrefixLen = ipv6most_specific_len,
@@ -760,7 +747,7 @@ class SciPass:
     for in_port in ports['lan']:
       header = {"phys_port":   int(in_port['port_id']),
                 'dl_type': None}
-
+      
       actions = []
       #output to FW
       actions.append({"type": "output",
@@ -768,7 +755,6 @@ class SciPass:
 
       fw_lan_outputs.append({"type": "output",
                              "port": int(in_port['port_id'])})
-
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain     = domain_name,
                                               header       = header,
@@ -807,7 +793,7 @@ class SciPass:
         actions = []
         actions.append({"type": "output",
                         "port": int(ports['fw_lan'][0]['port_id'])})
-
+        
         self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                                 domain       = domain_name,
                                                 header       = header,
@@ -820,6 +806,7 @@ class SciPass:
     #FW LAN to ALL INPUT PORTS
     header = {"phys_port": int(ports['fw_lan'][0]['port_id']),
               'dl_type': None}
+    
     self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                             domain       = domain_name,
                                             header       = header,
@@ -938,11 +925,7 @@ class SciPass:
     flows = []
     if self.config[dpid][domain_name]['mode'] == "SimpleBalancer":
       header = {}
-      if(prefix._version != 4):
-        header = {"dl_type": 34525,
-                  "nw_src" : prefix}
-      else:
-        header = {"nw_src": prefix}
+      header = {"nw_src": prefix}
         
       actions = []
       #output to sensor (basically this is the IDS balance case)
@@ -961,13 +944,8 @@ class SciPass:
                                               hard_timeout = 0,
                                               priority     = priority)
       
-      if(prefix._version != 4):
-        header = {"dl_type": 34525,
-                  "nw_dst" : prefix}
-      else:
-        header = {"nw_dst": prefix}
-      
-              
+      header = {"nw_dst": prefix}
+
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain       = domain_name,
                                               header       = header,
@@ -996,12 +974,8 @@ class SciPass:
           in_port = port
          
           header = {}
-          if(prefix._version != 4):
-            header = {"dl_type": 34525,
-                      "phys_port": int(in_port['port_id'])}
-          else:
-            header = {"nw_src":      prefix,
-                      "phys_port":   int(in_port['port_id'])}
+          header = {"nw_src":      prefix,
+                    "phys_port":   int(in_port['port_id'])}
 
           actions = []
           #output to sensor (basically this is the IDS balance case)
@@ -1039,12 +1013,12 @@ class SciPass:
               
           header = {}
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
-            header = {"nw_dst":      prefix,
-                      "phys_port":   int(ports['wan'][0]['port_id'])}
+            header = {"nw_dst": prefix,
+                      "phys_port": int(ports['wan'][0]['port_id'])}
           else:
             header = {"nw_dst": prefix,
                       "phys_port": int(in_port['port_id'])}
-
+            
           actions = []
           #output to sensor (basically this is the IDS balance case)
             
@@ -1084,11 +1058,7 @@ class SciPass:
 
     if self.config[dpid][domain_name]['mode'] == "SimpleBalancer":
       header = {}
-      if(prefix._version != 4):
-        header = {"dl_type": 34525,
-                  "nw_src" : prefix}
-      else:
-        header = {"nw_src": prefix}
+      header = {"nw_src": prefix}
       actions = []
       #output to sensor (basically this is the IDS balance case)                                                                                                
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
@@ -1100,11 +1070,7 @@ class SciPass:
                                               hard_timeout = 0,
                                               priority     = priority)
       
-      if(prefix._version != 4):
-        header = {"dl_type": 34525,
-                  "nw_dst" : prefix}
-      else:
-        header = {"nw_src": prefix}
+      header = {"nw_dst": prefix}
       self.fireForwardingStateChangeHandlers( dpid         = dpid,
                                               domain       = domain_name,
                                               header       = header,
@@ -1143,14 +1109,10 @@ class SciPass:
           header = {}
           if(self.config[dpid][domain_name]['mode'] == "SciDMZ" or self.config[dpid][domain_name]['mode'] == "InlineIDS"):
             header = {}
-            if(prefix._version != 4):
-              header = {"dl_type": 34525,
-                        "phys_port": int(ports['wan'][0]['port_id'])}
-            else:
-              header = {"nw_dst":      prefix,
-                        "phys_port":   int(ports['wan'][0]['port_id'])}
+            header = {"nw_dst":      prefix,
+                      "phys_port":   int(ports['wan'][0]['port_id'])}
           else:
-             header = {"nw_dst":      prefix,
+            header = {"nw_dst":      prefix,
                       "phys_port":   int(in_port['port_id'])}
           
           actions = []
@@ -1205,19 +1167,33 @@ class SciPass:
       json.dump([curr_state], fd)
     fd.close()
 
-  def remove_flow(self, header, priority):
+  def remove_flow(self, dpid=None, domain=None, header=None,priority=None):
     self.logger.debug("remove flow")
     for white in self.whiteList:
       if ((cmp(header, white['header']) == 0) and (cmp(priority, white['priority'])== 0)):
         """ if a good flow times out, remove it"""
         self.logger.error("Removing good flow due to timeout")
         self.whiteList.remove(white)
-
+        
+        
     for black in self.blackList:
       if ((cmp(header, black['header']) == 0) and (cmp(priority, black['priority'])== 0)):
         """ if a bad flow times out, remove it"""
         self.logger.error("Removing bad flow due to timeout")
         self.blackList.remove(black)
+        
+    if not dpid:
+      return
+
+    if not domain:
+      return
+    
+    match = self.stringify(header)
+    for flow in self.config[dpid][domain]['flows']:
+      if(flow['header'] == match and flow['priority'] == priority):
+        self.config[dpid][domain]['flows'].remove(flow)
+        self.flowCount -= 1
+
 
   def port_status(self, ev):
     self.logger.debug("port status handler")
@@ -1241,25 +1217,7 @@ class SciPass:
     self.logger.debug("Idle Timeout: " + str(idle_timeout))
     self.logger.debug("Hard Timeout: " + str(hard_timeout))
     self.logger.debug("Priority: " + str(priority))
-    now = time.time()
-
-    if(command == "ADD"):
-      if int(self.flowCount) < int(self.config[dpid][domain]['max_flow_count']):
-        self.config[dpid][domain]['flows'].append({'dpid': dpid,
-                                                   'header': header,
-                                                   'actions': actions,
-                                                   'priority': priority
-                                                   })
-        self.flowCount += 1
-      else:
-        return 0
-
-    if(command == "DELETE" or command == "DELETE_STRICT"):
-      for flow in self.config[dpid][domain]['flows']:
-        if(flow['header'] == header and flow['priority'] == priority):
-          self.config[dpid][domain]['flows'].remove(flow)
-          self.flowCount -= 1
-    
+            
     for handler in self.switchForwardingChangeHandlers:
       handler( dpid = dpid,
                domain = domain,
@@ -1270,6 +1228,27 @@ class SciPass:
                hard_timeout = hard_timeout,
                priority = priority)
     return 1
+
+  def pushFlows(self, dpid=None, domain=None, header=None, actions=None, priority=None):
+    match = self.stringify(header)
+    self.config[dpid][domain]['flows'].append({'dpid': dpid,
+                                               'header': match,
+                                               'actions': actions,
+                                               'priority': priority
+                                               })
+    self.flowCount+= 1
+
+  def stringify(self,header=None):
+    match = {}
+    if(header.has_key('nw_src')):
+      match['nw_src'] = str(header['nw_src'])
+    if(header.has_key('nw_dst')):
+      match['nw_dst'] = str(header['nw_dst'])
+    for field in header:
+      if(not match.has_key(field)):
+        match[field] = header[field]
+
+    return match
 
   def pushTimeouts(self,idle= None,hard= None):
     if idle:
@@ -1445,7 +1424,7 @@ class SciPass:
           #self.logger.error(str(flow['match']))
           #self.logger.error(str(idle['header']))
           try:
-            if(cmp(flow['match'], idle['header']) == 0):
+            if(cmp(flow['match'], idle['header']) == 0 and cmp(int(idle['priority']),int(flow['priority']))==0):
               #compare the dicts and they are the same
               #so update the flow count and the expires time
               if(idle['pkt_count'] == flow['packet_count']):

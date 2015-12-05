@@ -4,6 +4,7 @@ import pprint
 import ipaddr
 import unittest
 import xmlrunner
+import logging
 from SimpleBalancer import SimpleBalancer,MaxPrefixlenError
 from collections import defaultdict
 
@@ -19,6 +20,8 @@ class TestInit(unittest.TestCase):
                                    maxPrefixes            = 28,
                                    mostSpecificPrefixLen  = 30,
                                    leastSpecificPrefixLen = 26,
+                                   ipv6MostSpecificPrefixLen = 64,
+                                   ipv6LeastSpecificPrefixLen = 48,
                                    sensorLoadMinThresh    = .2,
                                    sensorLoadDeltaThresh  = .1)
         self.assertTrue(isinstance(balancer,SimpleBalancer))
@@ -171,8 +174,19 @@ class TestPrefix(unittest.TestCase):
         self.assertTrue(prefixList[2] == ipaddr.IPv4Network("10.128.0.0/10"))
         self.assertTrue(prefixList[3] == ipaddr.IPv4Network("10.192.0.0/10"))    
         
+        net = ipaddr.IPv6Network("2001:0DB8::/48")
+        prefixList = self.balancer.splitPrefixForSensors(net,4)
+        self.assertTrue(prefixList[0] == ipaddr.IPv6Network("2001:db8::/50"))
+        self.assertTrue(prefixList[1] == ipaddr.IPv6Network("2001:db8:0:4000::/50"))
+        self.assertTrue(prefixList[2] == ipaddr.IPv6Network("2001:db8:0:8000::/50"))
+        self.assertTrue(prefixList[3] == ipaddr.IPv6Network("2001:db8:0:c000::/50"))
+
     def test_split_prefix_for_sensors_large(self):
         net = ipaddr.IPv4Network("10.0.0.0/8")
+        prefixList = self.balancer.splitPrefixForSensors(net,100)
+        self.assertTrue(len(prefixList) == 128)
+        
+        net = ipaddr.IPv6Network("2001:0DB8::/48")
         prefixList = self.balancer.splitPrefixForSensors(net,100)
         self.assertTrue(len(prefixList) == 128)
 
@@ -184,6 +198,14 @@ class TestPrefix(unittest.TestCase):
         self.assertTrue(self.sensor == 1)
         self.assertTrue(self.prefix == net)
         self.assertTrue(self.priority == 500)
+
+        net = ipaddr.IPv6Network("2001:0DB8::/48")
+        self.balancer.addGroupPrefix(1,net,100)
+        self.assertTrue(self.handler_fired == 1)
+        self.assertTrue(self.sensor == 1)
+        self.assertTrue(self.prefix == net)
+        logging.error(self.priority)
+        self.assertTrue(self.priority == 600)
 
     def test_del_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
@@ -204,9 +226,29 @@ class TestPrefix(unittest.TestCase):
         self.assertTrue(self.handler_fired == 1)
         self.assertTrue(self.sensor == 1)
         self.assertTrue(self.prefix == net)
-        print self.priority
         self.assertTrue(self.priority == 500)
 
+        net = ipaddr.IPv6Network("2001:0DB8::/48")
+        res = self.balancer.addGroupPrefix(1,net,100)
+        self.assertTrue(res == 1)
+        self.assertTrue(self.handler_fired == 1)
+        self.assertTrue(self.sensor == 1)
+        self.assertTrue(self.prefix == net)
+        self.assertTrue(self.priority == 600)
+        #cleam them out
+        self.handler = 0
+        self.sensor = None
+        self.prefix = None
+        self.priority = None
+        #do the del
+        res = self.balancer.delGroupPrefix(1,net)
+        self.assertTrue(res == 1)
+        self.assertTrue(self.handler_fired == 1)
+        self.assertTrue(self.sensor == 1)
+        self.assertTrue(self.prefix == net)
+        self.assertTrue(self.priority == 600)
+
+        
     def test_move_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
         res = self.balancer.addGroupPrefix(1,net)
@@ -227,8 +269,29 @@ class TestPrefix(unittest.TestCase):
         self.assertTrue(self.sensor == 2)
         self.assertTrue(self.prefix == net)
         self.assertTrue(self.old_sensor == 1)
-        print self.priority
         self.assertTrue(self.priority == 500)
+
+
+        net = ipaddr.IPv6Network("2001:0DB8::/48")
+        res = self.balancer.addGroupPrefix(2,net)
+        self.assertTrue(res == 1)
+        self.assertTrue(self.handler_fired == 1)
+        self.assertTrue(self.sensor == 2)
+        self.assertTrue(self.prefix == net)
+        self.assertTrue(self.priority == 600)
+        #clear them out
+        self.handler = 0
+        self.sensor = None
+        self.prefix = None
+        self.priority == 0
+        #do the move
+        res = self.balancer.moveGroupPrefix(2,1,net)
+        self.assertTrue(res == 1)
+        self.assertTrue(self.handler_fired == 1)
+        self.assertTrue(self.sensor == 1)
+        self.assertTrue(self.prefix == net)
+        self.assertTrue(self.old_sensor == 2)
+        self.assertTrue(self.priority == 600)
 
     def test_set_prefix_bw(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
@@ -240,30 +303,42 @@ class TestPrefix(unittest.TestCase):
         #note setPrefixBW takes in bytes so for bits
         # we multiply by 8
         self.assertTrue(prefixBW[net] == 8 * 1000)
-        net2 = ipaddr.IPv4Network("172.16.0.0/16")
+        net2 = ipaddr.IPv6Network("2001:0DB8::/48")
         res = self.balancer.setPrefixBW(net2, 1000, 1000)
         self.assertTrue(res == 0)
         prefixBW = self.balancer.getPrefixes()
         self.assertTrue(prefixBW.has_key(net2) == False)
         self.assertTrue(prefixBW[net] == 8 * 1000)
 
+        
     def test_split_sensor_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
+        net2 = ipaddr.IPv6Network("2001:0DB8::/48")
         res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
-        res = self.balancer.setPrefixBW(net,500,500)
+        res = self.balancer.addGroupPrefix(1,net2,0)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net,5000000,5000000)
+        self.assertTrue(res == 1)
+        res = self.balancer.setPrefixBW(net2,5000000,5000000)
         self.assertTrue(res == 1)
         res = self.balancer.splitSensorPrefix(1,net)
         self.assertTrue(res == 1)
+        res = self.balancer.splitSensorPrefix(1,net2)
+        self.assertTrue(res == 1)
         prefixBW = self.balancer.getPrefixes()
-        self.assertTrue(len(prefixBW) == 2)
+        self.assertTrue(len(prefixBW) == 4)
         newnet = ipaddr.IPv4Network("10.0.0.0/11")
         newnet2 = ipaddr.IPv4Network("10.32.0.0/11")
+        newnet3 = ipaddr.IPv6Network("2001:db8::/49")
+        newnet4 = ipaddr.IPv6Network("2001:db8:0:8000::/49")
         #remember that we set it via bytes and this will be returned
         #as bits persec
-        self.assertTrue(prefixBW[newnet] == 8 * 500.0)
-        self.assertTrue(prefixBW[newnet2] == 8 * 500.0)
-
+        self.assertTrue(prefixBW[newnet] == 8 * 5000000.0)
+        self.assertTrue(prefixBW[newnet2] == 8 * 5000000.0)
+        self.assertTrue(prefixBW[newnet3] == 8 * 5000000.0)
+        self.assertTrue(prefixBW[newnet4] == 8 * 5000000.0)
+        
     def test_split_prefix(self):
         net = ipaddr.IPv4Network("10.0.0.0/11")
         res = self.balancer.splitPrefix(net)
@@ -273,6 +348,12 @@ class TestPrefix(unittest.TestCase):
 
         net = ipaddr.IPv4Network("10.0.0.0/29")
         self.assertRaises(MaxPrefixlenError, lambda: list(self.balancer.splitPrefix(net)))
+
+        net = ipaddr.IPv6Network("2001:0DB8::/48")
+        res = self.balancer.splitPrefix(net)
+        self.assertTrue(len(res) == 2)
+        self.assertTrue(res[0] == ipaddr.IPv6Network("2001:db8::/49"))
+        self.assertTrue(res[1] == ipaddr.IPv6Network("2001:db8:0:8000::/49"))
 
     def test_get_prefix_sensor(self):
         net = ipaddr.IPv4Network("10.0.0.0/10")
@@ -325,7 +406,7 @@ class TestBalance(unittest.TestCase):
         net = ipaddr.IPv4Network("10.10.0.0/24")
         res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
-        net2 = ipaddr.IPv4Network("10.11.0.0/24")
+        net2 = ipaddr.IPv6Network("2001:0DB8::/48")
         res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,5000000,5000000)
@@ -337,7 +418,8 @@ class TestBalance(unittest.TestCase):
         self.assertTrue(percentTotal == 0)
         percentTotal = self.balancer.getEstLoad(1,net)
         print "Percent Total: " + str(percentTotal)
-        self.assertTrue(percentTotal == .5)
+        self.assertTrue(percentTotal == 0.5)
+        
 
     def test_balance_by_ip(self):
         self.balancer = SimpleBalancer()
@@ -363,7 +445,7 @@ class TestBalance(unittest.TestCase):
         net = ipaddr.IPv4Network("10.220.0.0/12")
         res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
-        net2 = ipaddr.IPv4Network("10.0.0.0/10")
+        net2 = ipaddr.IPv6Network("2001:0DB8::/48")
         res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,5000000,5000000)
@@ -398,7 +480,7 @@ class TestBalance(unittest.TestCase):
         net = ipaddr.IPv4Network("10.220.0.0/12")
         res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
-        net2 = ipaddr.IPv4Network("10.0.0.0/10")
+        net2 = ipaddr.IPv6Network("2001:0DB8::/48")
         res = self.balancer.addGroupPrefix(1,net2,0)
         self.assertTrue(res == 1)
         res = self.balancer.setPrefixBW(net,5000000,5000000)
@@ -429,7 +511,7 @@ class TestBalance(unittest.TestCase):
                                             "description": "some descr",
                                             "sensors": sensors2})
         self.assertTrue(res == 1)
-        net = ipaddr.IPv4Network("10.220.0.0/12")
+        net = ipaddr.IPv6Network("2001:0DB8::/48")
         res = self.balancer.addGroupPrefix(1,net,0)
         self.assertTrue(res == 1)
         net2 = ipaddr.IPv4Network("10.0.0.0/10")

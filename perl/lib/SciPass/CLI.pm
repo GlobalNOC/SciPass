@@ -714,11 +714,15 @@ sub flow_to_human{
 	switch($key){
 	    case 'phys_port'{
 		$of_match_name = 'IN PORT';
+	    }case 'in_port'{
+		$of_match_name = 'IN PORT';
 	    }case 'dl_vlan'{
 		$of_match_name = 'VLAN';
 	    }case 'dl_type'{
 		$of_match_name = "Ether Type";
-	    }case 'nw_src'{
+	    }case 'eth_type'{
+                $of_match_name = "Ether Type";
+            }case 'nw_src'{
 		$of_match_name = "Source IP";
 	    }case 'nw_src_mask'{
 		$of_match_name = "Source IP Mask";
@@ -730,7 +734,15 @@ sub flow_to_human{
 		$of_match_name = "Source Port";
 	    }case 'tp_dst'{
 		$of_match_name = "Destination Port";
-	    }
+	    }case 'tcp_src'{
+		$of_match_name = "TCP Source Port";
+	    }case 'tcp_dst'{
+		$of_match_name = "TCP Destination Port";
+	    }case 'udp_src'{
+		$of_match_name = "UDP Source Port";
+	    }case 'udp_dst'{
+                $of_match_name = "UDP Destination  Port";
+	    }  
 	}
 	$str .= "  " . $of_match_name . ":" . $flow->{'header'}->{$key} . "\n";
     }

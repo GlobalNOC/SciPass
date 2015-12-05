@@ -215,7 +215,6 @@ class Ryu(app_manager.RyuApp):
             return
 
         if(datapath.is_active == True):
-            #print flow
             self.logger.debug("Installing Flow: " + str(flow))
             datapath.send_msg(flow)
         else:
@@ -232,6 +231,7 @@ class Ryu(app_manager.RyuApp):
         if(header.has_key('dl_type')):
             if(header['dl_type'] == None):
                 obj['dl_type'] = None
+                del header['dl_type']
             else:
                 obj['dl_type'] = int(header['dl_type'])
         else:
@@ -243,15 +243,21 @@ class Ryu(app_manager.RyuApp):
             obj['in_port'] = None
             
         if(header.has_key('nw_src')):
-            obj['nw_src'] = int(header['nw_src'])
-            obj['nw_src_mask'] = int(header['nw_src'].prefixlen)
+            if header['nw_src'].version == 6:
+                obj['dl_type'] = 34525
+            elif header['nw_src'].version == 4:
+                obj['nw_src'] = int(header['nw_src'])
+                obj['nw_src_mask'] = int(header['nw_src'].prefixlen)
         else:
             obj['nw_src'] = None
             obj['nw_src_mask'] = None
          
         if(header.has_key('nw_dst')):
-            obj['nw_dst'] = int(header['nw_dst'])
-            obj['nw_dst_mask'] = int(header['nw_dst'].prefixlen)
+            if header['nw_dst'].version == 6:
+                obj['dl_type'] = 34525
+            elif header['nw_dst'].version == 4:
+                obj['nw_dst'] = int(header['nw_dst'])
+                obj['nw_dst_mask'] = int(header['nw_dst'].prefixlen)
         else:
             obj['nw_dst'] = None
             obj['nw_dst_mask'] = None
@@ -311,8 +317,10 @@ class Ryu(app_manager.RyuApp):
             command = ofp.OFPFC_ADD
             flags = ofp.OFPFF_SEND_FLOW_REM
             self.api.pushTimeouts(idle, hard)
+            self.api.pushFlows(dpid, domain, header, actions, priority)
         elif(command == "DELETE_STRICT"):
             command = ofp.OFPFC_DELETE_STRICT
+            self.api.remove_flow(dpid, domain, header, priority)
         else:
             command = -1
         #self.logger.error("Sending flow mod with command: " + str(command))
@@ -343,11 +351,13 @@ class Ryu(app_manager.RyuApp):
         
         if(header.has_key('phys_port')):
             obj['in_port'] = int(header['phys_port'])
-                
+            header['in_port'] = int(header['phys_port'])
+            del header['phys_port']
+
         if(header.has_key('nw_src')):
             if(header['nw_src'].version == 4):
                 obj['ipv4_src'] = (str(header['nw_src'].ip), str(header['nw_src'].netmask))
-                obj['eth_type'] = 0x800
+                obj['eth_type'] = ether.ETH_TYPE_IP
             else:
                 del obj['ipv4_src']
             if(header['nw_src'].version == 6):
@@ -355,7 +365,7 @@ class Ryu(app_manager.RyuApp):
                     self.logger.error("IPv4 and IPv6 in the same message")
                     return
                 obj['ipv6_src'] = (str(header['nw_src'].ip), str(header['nw_src'].netmask))
-                obj['eth_type'] = 0x86dd
+                obj['eth_type'] = ether.ETH_TYPE_IPV6
             else:
                 del obj['ipv6_src']
         else:
@@ -368,7 +378,7 @@ class Ryu(app_manager.RyuApp):
                     self.logger.error("IPv4 and IPv6 in the same message")
                     return
                 obj['ipv4_dst'] = (str(header['nw_dst'].ip), str(header['nw_dst'].netmask))
-                obj['eth_type'] = 0x800
+                obj['eth_type'] = ether.ETH_TYPE_IP
             else:
                 del obj['ipv4_dst']
             if(header['nw_dst'].version == 6):
@@ -376,7 +386,7 @@ class Ryu(app_manager.RyuApp):
                     self.logger.error("IPv4 and IPv6 in the same message")
                     return
                 obj['ipv6_dst'] = (str(header['nw_dst'].ip), str(header['nw_dst'].netmask))
-                obj['eth_type'] = 0x86dd
+                obj['eth_type'] = ether.ETH_TYPE_IPV6
             else:
                 del obj['ipv6_dst']
         else:
@@ -457,7 +467,7 @@ class Ryu(app_manager.RyuApp):
         idle = {}
         hard =  {}
         now = time.time()
-
+        
         if int(idle_timeout) != 0:
             timeout = now + int(idle_timeout)
             idle   =      {'timeout': timeout,
@@ -488,8 +498,10 @@ class Ryu(app_manager.RyuApp):
             command = ofp.OFPFC_ADD
             flags = ofp.OFPFF_SEND_FLOW_REM
             self.api.pushTimeouts(idle, hard)
+            self.api.pushFlows(dpid, domain, header, actions, priority)
         elif(command == "DELETE_STRICT"):
             command = ofp.OFPFC_DELETE_STRICT
+            self.api.remove_flow(dpid, domain, header, priority)
         else:
             command = ofp.OFPFC_DELETE
         
@@ -783,7 +795,7 @@ class Ryu(app_manager.RyuApp):
                 match[field] = header[field]
         
         priority = flow.priority
-        self.api.remove_flow(match, priority)
+        self.api.remove_flow(header=match, priority=priority)
 
 
     def process_flow_removed_of10(self, flow, dp):
@@ -814,10 +826,11 @@ class Ryu(app_manager.RyuApp):
         
         if flow.match.tp_dst > 0:
             obj['tp_dst'] = flow.match.tp_dst
-        
-        obj['phys_port'] = flow.match.in_port
+
+        if flow.match.in_port > 0:
+            obj['phys_port'] = flow.match.in_port
         priority =  flow.priority
-        self.api.remove_flow(obj,priority)
+        self.api.remove_flow(header=obj, priority=priority)
         
 
     def process_flow_stats(self, stats, dp):
@@ -839,7 +852,6 @@ class Ryu(app_manager.RyuApp):
         def getCIDR(netmask):
             bitCount = [0, 0x8000, 0xc000, 0xe000, 0xf000, 0xf800, 0xfc00, 0xfe00, 0xff00, 0xff80, 0xffc0, 0xffe0, 0xfff0, 0xfff8, 0xfffc, 0xfffe, 0xffff]
             count = 0
-            
             try:
                 for w in netmask.split(':'):
                     if not w or int(w, 16) == 0: break
@@ -847,7 +859,6 @@ class Ryu(app_manager.RyuApp):
             except:
                 self.logger.info("Bad netmask")
                 return 0
-                
             return count
 
         def ipv6Prefix(addr):
@@ -856,8 +867,9 @@ class Ryu(app_manager.RyuApp):
             if type(addr) is tuple:
                 mask = getCIDR(str(addr[1]))
                 if mask == 0:
-                    prefix = ipaddr.IPv4Network(str(addr[0]))
-                prefix = ipaddr.IPv6Network(str(addr[0]) + "/" + str(mask))
+                    prefix = ipaddr.IPv6Network(str(addr[0]))
+                else:
+                    prefix = ipaddr.IPv6Network(str(addr[0]) + "/" + str(mask))
             elif type(addr) is str:
                 prefix = ipaddr.IPv6Network(str(addr))
             return prefix
@@ -875,7 +887,7 @@ class Ryu(app_manager.RyuApp):
             #IPv6
             if(stat.match['eth_type'] == 0x86dd):
                 if(stat.match.__contains__('ipv6_src') and stat.match.__contains__('ipv6_dst')):
-                    # for good and bad flows                                                                                                           
+                    #for good and bad flow
                     id = stat.match['ipv6_src']
                     prefix = ipv6Prefix(id)
                     if prefix:
@@ -961,6 +973,7 @@ class Ryu(app_manager.RyuApp):
 
         for stat in stats:
             header = {}
+            priority = stat.priority
             match = stat.match.__dict__
             header, prefix, d, _  = self.processStat(stat)
             if header.has_key('eth_type'):
@@ -978,11 +991,13 @@ class Ryu(app_manager.RyuApp):
                     if header.has_key('ipv4_dst'):
                         header['nw_dst'] = header['ipv4_dst']
                         del header['ipv4_dst']
-            
+
             flows.append({'match': header,
-                          'packet_count': stat.packet_count
+                          'packet_count': stat.packet_count,
+                          'priority' : priority
                           })
             dur_sec = stat.duration_sec
+
             if not prefix:
                 continue
 
@@ -1045,7 +1060,7 @@ class Ryu(app_manager.RyuApp):
         self.lastStatsTime[dpid] = now
         
         for stat in stats:
-            
+            priority = stat.priority
             dur_sec = stat.duration_sec
             in_port = stat.match.in_port
             src_mask = 32 - ((stat.match.wildcards & ofproto_v1_0.OFPFW_NW_SRC_MASK) >> ofproto_v1_0.OFPFW_NW_SRC_SHIFT)
@@ -1064,7 +1079,7 @@ class Ryu(app_manager.RyuApp):
                 prefix = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
                 dir = "rx"
             else:
-                self.logger.error("Flow:" + str(stat.match))
+                self.logger.debug("Flow:" + str(stat.match))
                 #--- no mask, lets skip
                 continue
         
@@ -1080,23 +1095,8 @@ class Ryu(app_manager.RyuApp):
             wildcards = stat.match.wildcards
             del match['dl_dst']
             del match['dl_src']
-            del match['wildcards']
-            
-            if match['dl_type'] == 34525:
-                if  match['nw_src'] != 0:
-                    id = ipaddr.IPv6Address(stat.match.nw_src)
-                    if src_mask > 0:
-                        match['nw_src'] = ipaddr.IPv6Network(str(id)+"/"+str(src_mask))
-                    else:
-                        match['nw_src'] = ipaddr.IPv6Network(str(id))
-                if  match['nw_src'] != 0:
-                    id = ipaddr.IPv6Address(stat.match.nw_dst)
-                    if src_mask > 0:
-                        match['nw_dst'] = ipaddr.IPv6Network(str(id)+"/"+str(src_mask))
-                    else:
-                        match['nw_dst'] = ipaddr.IPv6Network(str(id))
-                
-            elif match['dl_type'] == 2048:
+            del match['wildcards'] 
+            if match['dl_type'] == 2048:
                 if match['nw_src'] != 0:
                     id = ipaddr.IPv4Address(stat.match.nw_src)
                     if src_mask > 0:
@@ -1109,7 +1109,11 @@ class Ryu(app_manager.RyuApp):
                         match['nw_dst'] = ipaddr.IPv4Network(str(id)+"/"+str(dst_mask))
                     else:
                         match['nw_dst'] = ipaddr.IPv4Network(str(id))
+                
+
+            if(match.has_key('dl_type') and match['dl_type'] != 34525):
                 del match['dl_type']
+
             if(match['dl_vlan_pcp'] == 0):
                 del match['dl_vlan_pcp']
 
@@ -1140,13 +1144,13 @@ class Ryu(app_manager.RyuApp):
                 match['phys_port'] = int(match['in_port'])
                 del match['in_port']
                 
-            
             flows.append({'match': match,
                           'wildcards': wildcards,
-                          'packet_count': stat.packet_count
+                          'packet_count': stat.packet_count,
+                          'priority' : priority
                           })
             
-
+            
         for prefix in prefix_bytes:
             for dir in ("rx","tx"):
                 old_bytes = self.prefix_bytes[prefix][dir]
