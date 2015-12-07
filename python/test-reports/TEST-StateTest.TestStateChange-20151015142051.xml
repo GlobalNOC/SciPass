@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="1" name="StateTest.TestStateChange-20151015142051" tests="2" time="0.048">
+	<properties/>
+	<system-out>
+<![CDATA[set([IPv4Network('10.0.18.128/25')])
+set([IPv4Network('10.0.18.128/25')])
+]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="StateTest.TestStateChange" name="test_sensor_prefix_split" time="0.030"/>
+	<testcase classname="StateTest.TestStateChange" name="test_initial_config" time="0.018">
+		<failure message="" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/StateTest.py", line 45, in test_initial_config
+    assert(prefix in ["10.0.17.0/24","10.0.18.0/24","10.0.19.0/24","10.0.20.0/24","::/128"])
+AssertionError
+
+Stdout:
+set([IPv4Network('10.0.18.128/25')])
+]]>		</failure>
+	</testcase>
+</testsuite>

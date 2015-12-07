@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="1" name="SimpleBalancerTest.TestPrefix-20151119200849" tests="10" time="0.013">
+	<properties/>
+	<system-out>
+<![CDATA[500
+None
+500
+defaultdict(<type 'float'>, {IPv4Network('10.0.0.0/10'): 8000})
+defaultdict(<type 'float'>, {IPv4Network('10.0.0.0/10'): 80000000})
+]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_add_sensor_prefix" time="0.000"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_del_sensor_prefix" time="0.000"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_get_largest_prefix" time="0.000"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_get_prefix_sensor" time="0.000"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_move_sensor_prefix" time="0.000"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_set_prefix_bw" time="0.000"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_split_prefix" time="0.000"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_split_prefix_for_sensors" time="0.001"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_split_prefix_for_sensors_large" time="0.009"/>
+	<testcase classname="SimpleBalancerTest.TestPrefix" name="test_split_sensor_prefix" time="0.001">
+		<failure message="" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerTest.py", line 264, in test_split_sensor_prefix
+    self.assertTrue(prefixBW[newnet] == 8 * 500.0)
+AssertionError
+
+Stdout:
+defaultdict(<type 'float'>, {IPv4Network('10.0.0.0/10'): 80000000})
+]]>		</failure>
+	</testcase>
+</testsuite>

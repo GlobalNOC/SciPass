@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="ConfigTest.TestPrefix-20150930144943" tests="1" time="0.019">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefix" name="test_initail_config" time="0.019">
+		<error message="[Errno 2] No such file or directory: '1R&amp;E'" type="IOError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 29, in test_initail_config
+    with open(fileName) as data_file:
+IOError: [Errno 2] No such file or directory: '1R&E'
+]]>		</error>
+	</testcase>
+</testsuite>

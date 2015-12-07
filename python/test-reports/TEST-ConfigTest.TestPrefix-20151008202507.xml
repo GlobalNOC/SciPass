@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="1" name="ConfigTest.TestPrefix-20151008202507" tests="1" time="0.056">
+	<properties/>
+	<system-out>
+<![CDATA[[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '10',
+  'prefixes': [{'prefix': IPv4Network('10.0.21.0/24'),
+                'prefix_str': '10.0.21.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.22.0/24'),
+                'prefix_str': '10.0.22.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '20',
+  'prefixes': [{'prefix': IPv4Network('10.0.23.0/24'),
+                'prefix_str': '10.0.23.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.24.0/24'),
+                'prefix_str': '10.0.24.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None}]
+]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefix" name="test_sensor_prefix_split" time="0.056">
+		<failure message="" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 55, in test_sensor_prefix_split
+    assert(os.path.isfile(self.file1) == 1)
+AssertionError
+
+Stdout:
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '10',
+  'prefixes': [{'prefix': IPv4Network('10.0.21.0/24'),
+                'prefix_str': '10.0.21.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.22.0/24'),
+                'prefix_str': '10.0.22.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '20',
+  'prefixes': [{'prefix': IPv4Network('10.0.23.0/24'),
+                'prefix_str': '10.0.23.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.24.0/24'),
+                'prefix_str': '10.0.24.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None}]
+]]>		</failure>
+	</testcase>
+</testsuite>

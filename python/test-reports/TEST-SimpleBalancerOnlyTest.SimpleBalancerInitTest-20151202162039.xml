@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="SimpleBalancerOnlyTest.SimpleBalancerInitTest-20151202162039" tests="2" time="3.303">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerOnlyTest.SimpleBalancerInitTest" name="testInit" time="1.769"/>
+	<testcase classname="SimpleBalancerOnlyTest.SimpleBalancerInitTest" name="testSimpleBalance" time="1.534">
+		<error message="2001:0DB8:1000:" type="AddressValueError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerOnlyTest.py", line 204, in testSimpleBalance
+    self.api.updatePrefixBW("0000000000000001", ipaddr.IPv6Network("2001:0DB8:1000:/49"), 800000000000, 0)
+  File "/usr/lib/python2.6/site-packages/ipaddr.py", line 1919, in __init__
+    raise AddressValueError(addr[0])
+AddressValueError: 2001:0DB8:1000:
+]]>		</error>
+	</testcase>
+</testsuite>

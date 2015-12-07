@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="BalancerOnlyTest.BalancerInitTest-20151021142728" tests="1" time="0.040">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testBalance" time="0.040">
+		<error message="local variable 'j' referenced before assignment" type="UnboundLocalError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 273, in testBalance
+    self.api.switchJoined(datapath)
+  File "./SciPass.py", line 688, in switchJoined
+    self._setupBalancer(dpid = dpid, domain_name = domain_name)
+  File "./SciPass.py", line 895, in _setupBalancer
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
+  File "./SimpleBalancer.py", line 120, in pushToSwitch
+    self.distributePrefixes(self.prefix_list)
+  File "./SimpleBalancer.py", line 254, in distributePrefixes
+    self.distributePrefixes( self.splitPrefix(prefix) )
+  File "./SimpleBalancer.py", line 254, in distributePrefixes
+    self.distributePrefixes( self.splitPrefix(prefix) )
+  File "./SimpleBalancer.py", line 254, in distributePrefixes
+    self.distributePrefixes( self.splitPrefix(prefix) )
+  File "./SimpleBalancer.py", line 254, in distributePrefixes
+    self.distributePrefixes( self.splitPrefix(prefix) )
+  File "./SimpleBalancer.py", line 254, in distributePrefixes
+    self.distributePrefixes( self.splitPrefix(prefix) )
+  File "./SimpleBalancer.py", line 254, in distributePrefixes
+    self.distributePrefixes( self.splitPrefix(prefix) )
+  File "./SimpleBalancer.py", line 254, in distributePrefixes
+    self.distributePrefixes( self.splitPrefix(prefix) )
+  File "./SimpleBalancer.py", line 254, in distributePrefixes
+    self.distributePrefixes( self.splitPrefix(prefix) )
+  File "./SimpleBalancer.py", line 261, in distributePrefixes
+    self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
+  File "./SimpleBalancer.py", line 498, in addGroupPrefix
+    j+=1
+UnboundLocalError: local variable 'j' referenced before assignment
+]]>		</error>
+	</testcase>
+</testsuite>

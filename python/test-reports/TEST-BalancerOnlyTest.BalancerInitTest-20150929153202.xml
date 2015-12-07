@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="4" failures="0" name="BalancerOnlyTest.BalancerInitTest-20150929153202" tests="4" time="0.009">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testBalance" time="0.002">
+		<error message="'balancer'" type="KeyError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 21, in setUp
+    config = str(os.getcwd()) + "/t/etc/SciPass_balancer_only.xml" )
+  File "./SciPass.py", line 50, in __init__
+    self._processConfig(self.configFile)
+  File "./SciPass.py", line 514, in _processConfig
+    config[dpid][name]['balancer'].addSensorGroup(group_info)
+KeyError: 'balancer'
+]]>		</error>
+	</testcase>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testInit" time="0.002">
+		<error message="'balancer'" type="KeyError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 21, in setUp
+    config = str(os.getcwd()) + "/t/etc/SciPass_balancer_only.xml" )
+  File "./SciPass.py", line 50, in __init__
+    self._processConfig(self.configFile)
+  File "./SciPass.py", line 514, in _processConfig
+    config[dpid][name]['balancer'].addSensorGroup(group_info)
+KeyError: 'balancer'
+]]>		</error>
+	</testcase>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="test_bad_flow" time="0.002">
+		<error message="'balancer'" type="KeyError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 21, in setUp
+    config = str(os.getcwd()) + "/t/etc/SciPass_balancer_only.xml" )
+  File "./SciPass.py", line 50, in __init__
+    self._processConfig(self.configFile)
+  File "./SciPass.py", line 514, in _processConfig
+    config[dpid][name]['balancer'].addSensorGroup(group_info)
+KeyError: 'balancer'
+]]>		</error>
+	</testcase>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="test_good_flow" time="0.002">
+		<error message="'balancer'" type="KeyError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 21, in setUp
+    config = str(os.getcwd()) + "/t/etc/SciPass_balancer_only.xml" )
+  File "./SciPass.py", line 50, in __init__
+    self._processConfig(self.configFile)
+  File "./SciPass.py", line 514, in _processConfig
+    config[dpid][name]['balancer'].addSensorGroup(group_info)
+KeyError: 'balancer'
+]]>		</error>
+	</testcase>
+</testsuite>

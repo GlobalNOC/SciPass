@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="0" name="ConfigTest.TestPrefixBalancer-20151001174122" tests="1" time="233.425">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefixBalancer" name="test_init" time="233.425"/>
+</testsuite>

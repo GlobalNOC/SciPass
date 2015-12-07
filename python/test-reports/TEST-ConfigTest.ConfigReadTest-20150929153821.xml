@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="ConfigTest.ConfigReadTest-20150929153821" tests="1" time="0.004">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.ConfigReadTest" name="testConfig" time="0.004">
+		<error message="IPv4Network('10.0.0.0/8') is not JSON serializable" type="TypeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 22, in setUp
+    config = str(os.getcwd()) + "/t/etc/Simple_SciPass_balancer_only.xml" )
+  File "./SciPass.py", line 51, in __init__
+    self._processConfig(self.configFile)
+  File "./SciPass.py", line 519, in _processConfig
+    json.dump(config, f)
+  File "/usr/lib64/python2.6/json/__init__.py", line 180, in dump
+    for chunk in iterable:
+  File "/usr/lib64/python2.6/json/encoder.py", line 309, in _iterencode
+    for chunk in self._iterencode_dict(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 275, in _iterencode_dict
+    for chunk in self._iterencode(value, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 309, in _iterencode
+    for chunk in self._iterencode_dict(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 275, in _iterencode_dict
+    for chunk in self._iterencode(value, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 309, in _iterencode
+    for chunk in self._iterencode_dict(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 275, in _iterencode_dict
+    for chunk in self._iterencode(value, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 309, in _iterencode
+    for chunk in self._iterencode_dict(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 275, in _iterencode_dict
+    for chunk in self._iterencode(value, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 306, in _iterencode
+    for chunk in self._iterencode_list(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 204, in _iterencode_list
+    for chunk in self._iterencode(value, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 309, in _iterencode
+    for chunk in self._iterencode_dict(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 275, in _iterencode_dict
+    for chunk in self._iterencode(value, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 306, in _iterencode
+    for chunk in self._iterencode_list(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 204, in _iterencode_list
+    for chunk in self._iterencode(value, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 309, in _iterencode
+    for chunk in self._iterencode_dict(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 275, in _iterencode_dict
+    for chunk in self._iterencode(value, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 317, in _iterencode
+    for chunk in self._iterencode_default(o, markers):
+  File "/usr/lib64/python2.6/json/encoder.py", line 323, in _iterencode_default
+    newobj = self.default(o)
+  File "/usr/lib64/python2.6/json/encoder.py", line 344, in default
+    raise TypeError(repr(o) + " is not JSON serializable")
+TypeError: IPv4Network('10.0.0.0/8') is not JSON serializable
+]]>		</error>
+	</testcase>
+</testsuite>

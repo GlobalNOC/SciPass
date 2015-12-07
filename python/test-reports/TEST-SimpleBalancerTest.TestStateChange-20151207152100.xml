@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="SimpleBalancerTest.TestStateChange-20151207152100" tests="2" time="3.086">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerTest.TestStateChange" name="test_initial_config" time="1.607"/>
+	<testcase classname="SimpleBalancerTest.TestStateChange" name="test_prefix_split" time="1.479">
+		<error message="getPrefixGroup() takes exactly 2 arguments (3 given)" type="TypeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerTest.py", line 567, in test_prefix_split
+    group = self.api.getBalancer("%016x" % self.datapath.id, "IUPUI").getPrefixGroup(self,net)
+TypeError: getPrefixGroup() takes exactly 2 arguments (3 given)
+]]>		</error>
+	</testcase>
+</testsuite>

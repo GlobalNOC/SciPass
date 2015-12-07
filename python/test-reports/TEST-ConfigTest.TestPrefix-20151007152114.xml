@@ -1,0 +1,348 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="5" failures="0" name="ConfigTest.TestPrefix-20151007152114" tests="5" time="0.034">
+	<properties/>
+	<system-out>
+<![CDATA[[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefix" name="test_add_prefix" time="0.008">
+		<error message="&lt;lambda&gt;() takes exactly 3 arguments (2 given)" type="TypeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 23, in setUp
+    self.api.switchJoined(self.datapath)
+  File "./SciPass.py", line 568, in switchJoined
+    domain_name = domain_name)
+  File "./SciPass.py", line 718, in _setupSciDMZRules
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
+  File "./SimpleBalancer.py", line 114, in pushToSwitch
+    self.distributePrefixes(self.prefix_list)
+  File "./SimpleBalancer.py", line 214, in distributePrefixes
+    self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
+  File "./SimpleBalancer.py", line 475, in addGroupPrefix
+    self.fireSaveState()
+  File "./SimpleBalancer.py", line 397, in fireSaveState
+    handler(self.groups, self.prefix_list)
+TypeError: <lambda>() takes exactly 3 arguments (2 given)
+
+Stdout:
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+]]>		</error>
+	</testcase>
+	<testcase classname="ConfigTest.TestPrefix" name="test_del_prefix" time="0.007">
+		<error message="&lt;lambda&gt;() takes exactly 3 arguments (2 given)" type="TypeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 23, in setUp
+    self.api.switchJoined(self.datapath)
+  File "./SciPass.py", line 568, in switchJoined
+    domain_name = domain_name)
+  File "./SciPass.py", line 718, in _setupSciDMZRules
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
+  File "./SimpleBalancer.py", line 114, in pushToSwitch
+    self.distributePrefixes(self.prefix_list)
+  File "./SimpleBalancer.py", line 214, in distributePrefixes
+    self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
+  File "./SimpleBalancer.py", line 475, in addGroupPrefix
+    self.fireSaveState()
+  File "./SimpleBalancer.py", line 397, in fireSaveState
+    handler(self.groups, self.prefix_list)
+TypeError: <lambda>() takes exactly 3 arguments (2 given)
+
+Stdout:
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+]]>		</error>
+	</testcase>
+	<testcase classname="ConfigTest.TestPrefix" name="test_initial_config" time="0.006">
+		<error message="&lt;lambda&gt;() takes exactly 3 arguments (2 given)" type="TypeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 23, in setUp
+    self.api.switchJoined(self.datapath)
+  File "./SciPass.py", line 568, in switchJoined
+    domain_name = domain_name)
+  File "./SciPass.py", line 718, in _setupSciDMZRules
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
+  File "./SimpleBalancer.py", line 114, in pushToSwitch
+    self.distributePrefixes(self.prefix_list)
+  File "./SimpleBalancer.py", line 214, in distributePrefixes
+    self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
+  File "./SimpleBalancer.py", line 475, in addGroupPrefix
+    self.fireSaveState()
+  File "./SimpleBalancer.py", line 397, in fireSaveState
+    handler(self.groups, self.prefix_list)
+TypeError: <lambda>() takes exactly 3 arguments (2 given)
+
+Stdout:
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+]]>		</error>
+	</testcase>
+	<testcase classname="ConfigTest.TestPrefix" name="test_move_prefix" time="0.006">
+		<error message="&lt;lambda&gt;() takes exactly 3 arguments (2 given)" type="TypeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 23, in setUp
+    self.api.switchJoined(self.datapath)
+  File "./SciPass.py", line 568, in switchJoined
+    domain_name = domain_name)
+  File "./SciPass.py", line 718, in _setupSciDMZRules
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
+  File "./SimpleBalancer.py", line 114, in pushToSwitch
+    self.distributePrefixes(self.prefix_list)
+  File "./SimpleBalancer.py", line 214, in distributePrefixes
+    self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
+  File "./SimpleBalancer.py", line 475, in addGroupPrefix
+    self.fireSaveState()
+  File "./SimpleBalancer.py", line 397, in fireSaveState
+    handler(self.groups, self.prefix_list)
+TypeError: <lambda>() takes exactly 3 arguments (2 given)
+
+Stdout:
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+]]>		</error>
+	</testcase>
+	<testcase classname="ConfigTest.TestPrefix" name="test_sensor_prefix_split" time="0.007">
+		<error message="&lt;lambda&gt;() takes exactly 3 arguments (2 given)" type="TypeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 23, in setUp
+    self.api.switchJoined(self.datapath)
+  File "./SciPass.py", line 568, in switchJoined
+    domain_name = domain_name)
+  File "./SciPass.py", line 718, in _setupSciDMZRules
+    self.config[dpid][domain_name]['balancer'].pushToSwitch()
+  File "./SimpleBalancer.py", line 114, in pushToSwitch
+    self.distributePrefixes(self.prefix_list)
+  File "./SimpleBalancer.py", line 214, in distributePrefixes
+    self.addGroupPrefix( self.groups[group]['group_id'], prefix, 0)
+  File "./SimpleBalancer.py", line 475, in addGroupPrefix
+    self.fireSaveState()
+  File "./SimpleBalancer.py", line 397, in fireSaveState
+    handler(self.groups, self.prefix_list)
+TypeError: <lambda>() takes exactly 3 arguments (2 given)
+
+Stdout:
+[{'description': 'lan int',
+  'name': 'foo8',
+  'port_id': '1',
+  'prefixes': [{'prefix': IPv4Network('10.0.17.0/24'),
+                'prefix_str': '10.0.17.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.18.0/24'),
+                'prefix_str': '10.0.18.0/24',
+                'type': 'v4'}],
+  'vlan_tag': None},
+ {'description': 'another lan int',
+  'name': 'foo12',
+  'port_id': '2',
+  'prefixes': [{'prefix': IPv4Network('10.0.19.0/24'),
+                'prefix_str': '10.0.19.0/24',
+                'type': 'v4'},
+               {'prefix': IPv4Network('10.0.20.0/24'),
+                'prefix_str': '10.0.20.0/24',
+                'type': 'v4'},
+               {'prefix': IPv6Network('::/128'),
+                'prefix_str': '::/128',
+                'type': 'v6'}],
+  'vlan_tag': None}]
+]]>		</error>
+	</testcase>
+</testsuite>

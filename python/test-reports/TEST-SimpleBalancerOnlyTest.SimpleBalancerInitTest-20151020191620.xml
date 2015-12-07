@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="1" name="SimpleBalancerOnlyTest.SimpleBalancerInitTest-20151020191620" tests="1" time="1.979">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerOnlyTest.SimpleBalancerInitTest" name="testInit" time="1.979">
+		<failure message="560 != 566" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerOnlyTest.py", line 42, in testInit
+    self.assertEquals(len(flows), 566)
+AssertionError: 560 != 566
+]]>		</failure>
+	</testcase>
+</testsuite>

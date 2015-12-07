@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="SimpleBalancerTest.TestBalance-20151113153838" tests="1" time="0.002">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerTest.TestBalance" name="test_merge_continous_prefix" time="0.002">
+		<error message="'NoneType' object is unsubscriptable" type="TypeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerTest.py", line 483, in test_merge_continous_prefix
+    self.balancer.splitSensorPrefix(1,net)
+  File "./SimpleBalancer.py", line 587, in splitSensorPrefix
+    incrementer = priority['total'] / len(subnets)
+TypeError: 'NoneType' object is unsubscriptable
+]]>		</error>
+	</testcase>
+</testsuite>

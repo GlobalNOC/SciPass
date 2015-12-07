@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="0" name="BalancerOnlyTest.BalancerInitTest-20151123160046" tests="4" time="165.587">
+	<properties/>
+	<system-out>
+<![CDATA[{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'tp_src': 1, 'phys_port': 10, 'nw_src': IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': IPv4Network('8.8.8.8/32')}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'tp_src': 1, 'phys_port': 9, 'nw_src': IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': IPv4Network('8.8.8.8/32')}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'tp_src': 1, 'phys_port': 10, 'nw_src': IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': IPv4Network('8.8.8.8/32')}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'tp_src': 1, 'phys_port': 9, 'nw_src': IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': IPv4Network('8.8.8.8/32')}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'tp_src': 1, 'phys_port': 10, 'nw_src': IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': IPv4Network('8.8.8.8/32')}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'tp_src': 1, 'phys_port': 9, 'nw_src': IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': IPv4Network('8.8.8.8/32')}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'tp_src': 1, 'phys_port': 10, 'nw_src': IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': IPv4Network('8.8.8.8/32')}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'tp_src': 1, 'phys_port': 9, 'nw_src': IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': IPv4Network('8.8.8.8/32')}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testBalance" time="156.949"/>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testInit" time="3.013"/>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="test_bad_flow" time="2.841"/>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="test_good_flow" time="2.784"/>
+</testsuite>

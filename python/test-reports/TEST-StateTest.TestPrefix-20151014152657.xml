@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="0" name="StateTest.TestPrefix-20151014152657" tests="1" time="0.009">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="StateTest.TestPrefix" name="test_initial_config" time="0.009"/>
+</testsuite>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="0" name="ConfigTest.TestPrefix-20150930175033" tests="2" time="0.066">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefix" name="test_initial_config" time="0.028"/>
+	<testcase classname="ConfigTest.TestPrefix" name="test_prefx_split" time="0.038"/>
+</testsuite>

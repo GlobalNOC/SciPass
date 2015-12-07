@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="1" name="BalancerOnlyTest.BalancerInitTest-20151021140447" tests="4" time="69.340">
+	<properties/>
+	<system-out>
+<![CDATA[{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'phys_port': 10, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_dst': 134744072, 'tp_dst': 2, 'tp_src': 1, 'nw_src': 167777282}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'phys_port': 9, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_dst': 134744072, 'tp_dst': 2, 'tp_src': 1, 'nw_src': 167777282}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'phys_port': 10, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_dst': 134744072, 'tp_dst': 2, 'tp_src': 1, 'nw_src': 167777282}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'phys_port': 9, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_dst': 134744072, 'tp_dst': 2, 'tp_src': 1, 'nw_src': 167777282}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'phys_port': 10, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_dst': 134744072, 'tp_dst': 2, 'tp_src': 1, 'nw_src': 167777282}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'phys_port': 9, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_dst': 134744072, 'tp_dst': 2, 'tp_src': 1, 'nw_src': 167777282}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'phys_port': 10, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_dst': 134744072, 'tp_dst': 2, 'tp_src': 1, 'nw_src': 167777282}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+{'hard_timeout': 0, 'actions': [], 'priority': 65535, 'header': {'phys_port': 9, 'nw_src_mask': 32, 'nw_dst_mask': 32, 'nw_dst': 134744072, 'tp_dst': 2, 'tp_src': 1, 'nw_src': 167777282}, 'idle_timeout': '90', 'command': 'ADD', 'dpid': '0000000000000001'}
+]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testInit" time="2.607"/>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="test_bad_flow" time="2.719"/>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="test_good_flow" time="2.592"/>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testBalance" time="61.422">
+		<failure message="1120 != 560" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 288, in testBalance
+    self.assertEquals(len(flows), 560)
+AssertionError: 1120 != 560
+]]>		</failure>
+	</testcase>
+</testsuite>

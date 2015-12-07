@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="ConfigTest.TestPrefix-20150930182410" tests="2" time="0.045">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefix" name="test_initial_config" time="0.022"/>
+	<testcase classname="ConfigTest.TestPrefix" name="test_prefx_split" time="0.024">
+		<error message="'list' object has no attribute 'has_key'" type="AttributeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 53, in test_prefx_split
+    self.api.getBalancer("%016x" % self.datapath.id, "R&E").splitSensorPrefix("group4",ipaddr.IPv4Network("10.0.17.0/24"))
+  File "./SimpleBalancer.py", line 520, in splitSensorPrefix
+    self.delGroupPrefix(group, candidatePrefix)
+  File "./SimpleBalancer.py", line 432, in delGroupPrefix
+    if(self.groups[group]['prefixes'].has_key(targetPrefix)):
+AttributeError: 'list' object has no attribute 'has_key'
+]]>		</error>
+	</testcase>
+</testsuite>

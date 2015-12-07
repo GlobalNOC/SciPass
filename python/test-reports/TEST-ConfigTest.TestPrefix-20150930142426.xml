@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="ConfigTest.TestPrefix-20150930142426" tests="1" time="0.019">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefix" name="test_split_prefix_for_sensors" time="0.019">
+		<error message="'TestPrefix' object has no attribute 'balancer'" type="AttributeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 66, in setUp
+    self.balancer.registerAddPrefixHandler(self.addPrefixHandler)
+AttributeError: 'TestPrefix' object has no attribute 'balancer'
+]]>		</error>
+	</testcase>
+</testsuite>

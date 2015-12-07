@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="3" failures="1" name="SimpleBalancerTest.TestStateChange-20151207151833" tests="4" time="3.401">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerTest.TestStateChange" name="test_initial_config" time="0.000">
+		<failure message="" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerTest.py", line 554, in test_initial_config
+    assert(os.path.isfile(self.state) == 1)
+AssertionError
+]]>		</failure>
+	</testcase>
+	<testcase classname="SimpleBalancerTest.TestStateChange" name="test_initial_config" time="1.742">
+		<error message="[Errno 2] No such file or directory: '/var/run0000000000000001IUPUI.json'" type="OSError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerTest.py", line 550, in tearDown
+    os.remove(self.state)
+OSError: [Errno 2] No such file or directory: '/var/run0000000000000001IUPUI.json'
+]]>		</error>
+	</testcase>
+	<testcase classname="SimpleBalancerTest.TestStateChange" name="test_prefix_split" time="0.000">
+		<error message="SciPass instance has no attribute 'getPrefixGroup'" type="AttributeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerTest.py", line 567, in test_prefix_split
+    group = self.api.getPrefixGroup(self,net)
+AttributeError: SciPass instance has no attribute 'getPrefixGroup'
+]]>		</error>
+	</testcase>
+	<testcase classname="SimpleBalancerTest.TestStateChange" name="test_prefix_split" time="1.659">
+		<error message="[Errno 2] No such file or directory: '/var/run0000000000000001IUPUI.json'" type="OSError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerTest.py", line 550, in tearDown
+    os.remove(self.state)
+OSError: [Errno 2] No such file or directory: '/var/run0000000000000001IUPUI.json'
+]]>		</error>
+	</testcase>
+</testsuite>

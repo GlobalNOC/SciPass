@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="0" name="SimpleBalancerTest.TestSensorMods-20151207150053" tests="3" time="0.001">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerTest.TestSensorMods" name="test_add_sensor" time="0.001"/>
+	<testcase classname="SimpleBalancerTest.TestSensorMods" name="test_set_sensor_load" time="0.000"/>
+	<testcase classname="SimpleBalancerTest.TestSensorMods" name="test_set_sensor_status" time="0.000"/>
+</testsuite>

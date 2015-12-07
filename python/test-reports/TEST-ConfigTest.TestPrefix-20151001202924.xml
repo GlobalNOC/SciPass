@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="0" name="ConfigTest.TestPrefix-20151001202924" tests="5" time="0.160">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefix" name="test_add_prefix" time="0.027"/>
+	<testcase classname="ConfigTest.TestPrefix" name="test_del_prefix" time="0.034"/>
+	<testcase classname="ConfigTest.TestPrefix" name="test_initial_config" time="0.024"/>
+	<testcase classname="ConfigTest.TestPrefix" name="test_move_prefix" time="0.040"/>
+	<testcase classname="ConfigTest.TestPrefix" name="test_sensor_prefix_split" time="0.035"/>
+</testsuite>

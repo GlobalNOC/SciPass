@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="4" name="BalancerOnlyTest.BalancerInitTest-20151020170403" tests="4" time="11.139">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testBalance" time="2.816">
+		<failure message="" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 274, in testBalance
+    self.assertTrue( len(flows) == 1132)
+AssertionError
+]]>		</failure>
+	</testcase>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="testInit" time="2.686">
+		<failure message="" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 172, in testInit
+    self.assertTrue( len(flows) == 1132)
+AssertionError
+]]>		</failure>
+	</testcase>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="test_bad_flow" time="2.726">
+		<failure message="" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 40, in test_bad_flow
+    self.assertTrue( len(flows) == 1132)
+AssertionError
+]]>		</failure>
+	</testcase>
+	<testcase classname="BalancerOnlyTest.BalancerInitTest" name="test_good_flow" time="2.911">
+		<failure message="" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/BalancerOnlyTest.py", line 106, in test_good_flow
+    self.assertTrue( len(flows) == 1132)
+AssertionError
+]]>		</failure>
+	</testcase>
+</testsuite>

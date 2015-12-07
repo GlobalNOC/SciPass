@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="2" failures="0" name="ConfigTest.TestPrefix-20151007182845" tests="2" time="0.012">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="ConfigTest.TestPrefix" name="test_initial_config" time="0.010">
+		<error message="Expecting property name: line 1 column 179 (char 179)" type="ValueError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 21, in setUp
+    config = str(os.getcwd()) + "/t/etc/SciPass.xml" )
+  File "./SciPass.py", line 52, in __init__
+    self._processConfig(self.configFile)
+  File "./SciPass.py", line 528, in _processConfig
+    self.readState(dpid, domain, self.config[dpid][domain]["mode"])
+  File "./SciPass.py", line 535, in readState
+    data = json.load(data_file)
+  File "/usr/lib64/python2.6/json/__init__.py", line 267, in load
+    parse_constant=parse_constant, **kw)
+  File "/usr/lib64/python2.6/json/__init__.py", line 307, in loads
+    return _default_decoder.decode(s)
+  File "/usr/lib64/python2.6/json/decoder.py", line 319, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/usr/lib64/python2.6/json/decoder.py", line 336, in raw_decode
+    obj, end = self._scanner.iterscan(s, **kw).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 217, in JSONArray
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 171, in JSONObject
+    raise ValueError(errmsg("Expecting property name", s, end))
+ValueError: Expecting property name: line 1 column 179 (char 179)
+]]>		</error>
+	</testcase>
+	<testcase classname="ConfigTest.TestPrefix" name="test_sensor_prefix_split" time="0.002">
+		<error message="Expecting property name: line 1 column 179 (char 179)" type="ValueError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/ConfigTest.py", line 21, in setUp
+    config = str(os.getcwd()) + "/t/etc/SciPass.xml" )
+  File "./SciPass.py", line 52, in __init__
+    self._processConfig(self.configFile)
+  File "./SciPass.py", line 528, in _processConfig
+    self.readState(dpid, domain, self.config[dpid][domain]["mode"])
+  File "./SciPass.py", line 535, in readState
+    data = json.load(data_file)
+  File "/usr/lib64/python2.6/json/__init__.py", line 267, in load
+    parse_constant=parse_constant, **kw)
+  File "/usr/lib64/python2.6/json/__init__.py", line 307, in loads
+    return _default_decoder.decode(s)
+  File "/usr/lib64/python2.6/json/decoder.py", line 319, in decode
+    obj, end = self.raw_decode(s, idx=_w(s, 0).end())
+  File "/usr/lib64/python2.6/json/decoder.py", line 336, in raw_decode
+    obj, end = self._scanner.iterscan(s, **kw).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 217, in JSONArray
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 183, in JSONObject
+    value, end = iterscan(s, idx=end, context=context).next()
+  File "/usr/lib64/python2.6/json/scanner.py", line 55, in iterscan
+    rval, next_pos = action(m, context)
+  File "/usr/lib64/python2.6/json/decoder.py", line 171, in JSONObject
+    raise ValueError(errmsg("Expecting property name", s, end))
+ValueError: Expecting property name: line 1 column 179 (char 179)
+]]>		</error>
+	</testcase>
+</testsuite>

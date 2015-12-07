@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="StateTest.TestStateChange-20151014170021" tests="5" time="0.127">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="StateTest.TestStateChange" name="test_add_prefix" time="0.019"/>
+	<testcase classname="StateTest.TestStateChange" name="test_initial_config" time="0.015"/>
+	<testcase classname="StateTest.TestStateChange" name="test_move_prefix" time="0.037"/>
+	<testcase classname="StateTest.TestStateChange" name="test_sensor_prefix_split" time="0.028"/>
+	<testcase classname="StateTest.TestStateChange" name="test_del_prefix" time="0.028">
+		<error message="[Errno 2] No such file or directory: '/var/run//var/run/0000000000000001R&amp;E.json'" type="IOError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/StateTest.py", line 96, in test_del_prefix
+    with open("/var/run/" +self.file) as data_file:
+IOError: [Errno 2] No such file or directory: '/var/run//var/run/0000000000000001R&E.json'
+]]>		</error>
+	</testcase>
+</testsuite>

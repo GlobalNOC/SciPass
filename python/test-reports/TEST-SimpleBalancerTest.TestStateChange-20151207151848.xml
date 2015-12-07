@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="1" failures="0" name="SimpleBalancerTest.TestStateChange-20151207151848" tests="2" time="3.044">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerTest.TestStateChange" name="test_initial_config" time="1.531"/>
+	<testcase classname="SimpleBalancerTest.TestStateChange" name="test_prefix_split" time="1.513">
+		<error message="SciPass instance has no attribute 'getPrefixGroup'" type="AttributeError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerTest.py", line 567, in test_prefix_split
+    group = self.api.getPrefixGroup(self,net)
+AttributeError: SciPass instance has no attribute 'getPrefixGroup'
+]]>		</error>
+	</testcase>
+</testsuite>

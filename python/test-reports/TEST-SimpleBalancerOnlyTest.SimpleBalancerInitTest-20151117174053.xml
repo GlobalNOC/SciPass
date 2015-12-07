@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="0" name="SimpleBalancerOnlyTest.SimpleBalancerInitTest-20151117174053" tests="2" time="526.737">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerOnlyTest.SimpleBalancerInitTest" name="testInit" time="1.486"/>
+	<testcase classname="SimpleBalancerOnlyTest.SimpleBalancerInitTest" name="testSimpleBalance" time="525.251"/>
+</testsuite>

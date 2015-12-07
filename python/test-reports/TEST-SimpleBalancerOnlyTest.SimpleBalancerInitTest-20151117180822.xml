@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="1" name="SimpleBalancerOnlyTest.SimpleBalancerInitTest-20151117180822" tests="2" time="329.647">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SimpleBalancerOnlyTest.SimpleBalancerInitTest" name="testInit" time="1.553"/>
+	<testcase classname="SimpleBalancerOnlyTest.SimpleBalancerInitTest" name="testSimpleBalance" time="328.094">
+		<failure message="45 != 24" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SimpleBalancerOnlyTest.py", line 189, in testSimpleBalance
+    self.assertEquals(total_runs, 24)
+AssertionError: 45 != 24
+]]>		</failure>
+	</testcase>
+</testsuite>

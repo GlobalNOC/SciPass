@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="1" name="SciPassTest.TestInit-20151202154951" tests="2" time="0.018">
+	<properties/>
+	<system-out>
+<![CDATA[]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="SciPassTest.TestInit" name="test_valid_config" time="0.002"/>
+	<testcase classname="SciPassTest.TestInit" name="test_switch_init" time="0.015">
+		<failure message="[{'type': 'output', 'port': 1}] != [{'type': 'output', 'port': 5}]" type="AssertionError">
+<![CDATA[Traceback (most recent call last):
+  File "/home/saikappa/workspace/SciPass/python/t/SciPassTest.py", line 92, in test_switch_init
+    self.assertEquals(flow['actions'],[{'type': 'output', 'port': 5}])
+AssertionError: [{'type': 'output', 'port': 1}] != [{'type': 'output', 'port': 5}]
+]]>		</failure>
+	</testcase>
+</testsuite>

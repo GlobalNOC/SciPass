@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite errors="0" failures="0" name="StateTest.TestStateChange-20151015142518" tests="1" time="0.033">
+	<properties/>
+	<system-out>
+<![CDATA[set([])
+set([IPv6Network('::/128')])
+10.0.17.0/24
+::/128
+10.0.18.0/24
+10.0.19.0/24
+10.0.20.0/24
+]]>	</system-out>
+	<system-err>
+<![CDATA[]]>	</system-err>
+	<testcase classname="StateTest.TestStateChange" name="test_sensor_prefix_split" time="0.033"/>
+</testsuite>
