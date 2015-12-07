@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite errors="0" failures="0" name="StateTest.TestStateChange-20151015144148" tests="1" time="0.028">
-	<properties/>
-	<system-out>
-<![CDATA[]]>	</system-out>
-	<system-err>
-<![CDATA[]]>	</system-err>
-	<testcase classname="StateTest.TestStateChange" name="test_sensor_prefix_split" time="0.028"/>
-</testsuite>

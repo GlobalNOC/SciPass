@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite errors="0" failures="0" name="InlineTest.InlineInitTest-20151021140614" tests="1" time="2.738">
-	<properties/>
-	<system-out>
-<![CDATA[]]>	</system-out>
-	<system-err>
-<![CDATA[]]>	</system-err>
-	<testcase classname="InlineTest.InlineInitTest" name="testInit" time="2.738"/>
-</testsuite>
