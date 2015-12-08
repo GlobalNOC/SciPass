@@ -733,11 +733,11 @@ class SimpleBalancer:
 
                   if(not self.getGroupStatus(group)): continue
 
-              load = self.getGroupLoad(group)
+                  load = self.getGroupLoad(group)
 
-              if(load < minLoad):
-                  minLoad = load
-                  minSensor = group;
+                  if(load < minLoad):
+                      minLoad = load
+                      minSensor = group;
 
               self.logger.debug("Min Group: " + str(minSensor))
               group_a = self.getPrefixGroup(prefix_a)

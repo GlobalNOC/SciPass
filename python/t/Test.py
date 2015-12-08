@@ -21,6 +21,6 @@ if __name__ == '__main__':
     simple_balancer_only_tests = SimpleBalancerOnlyTest.suite()
     inline_tests = InlineTest.suite()
     suite = unittest.TestSuite([scipasstests, simplebalancertests, balancer_only_tests, inline_tests, simple_balancer_only_tests])
-    #suite = unittest.TestSuite([simplebalancertests])
+
     xmlrunner.XMLTestRunner(output='test-reports').run(suite)
 
