@@ -173,7 +173,7 @@ class Ryu(app_manager.RyuApp):
         self.balance_thread = hub.spawn(self._balance_loop)
         
         self.ports = defaultdict(dict);
-        self.prefix_bytes = defaultdict(lambda: defaultdict(int))
+        self.prefix_bytes = {}
         self.lastStatsTime = {}
         self.flowmods = {}
         
@@ -958,6 +958,7 @@ class Ryu(app_manager.RyuApp):
         flows = []
         dpid = dp.id
         ofproto = dp.ofproto
+        self.prefix_bytes[dpid] = defaultdict(lambda: defaultdict(int))
         if(self.lastStatsTime.has_key(dpid)):
             old_time = self.lastStatsTime[dpid]
         else:
@@ -1047,6 +1048,7 @@ class Ryu(app_manager.RyuApp):
         prefix_bytes = {}
         flows = []
         dpid = dp.id
+        self.prefix_bytes[dpid] = defaultdict(lambda: defaultdict(int))
         ofproto = dp.ofproto
         old_time = None
         if (self.lastStatsTime.has_key(dpid)):
