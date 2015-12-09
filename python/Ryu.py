@@ -173,7 +173,7 @@ class Ryu(app_manager.RyuApp):
         self.balance_thread = hub.spawn(self._balance_loop)
         
         self.ports = defaultdict(dict);
-        self.prefix_bytes = {}
+        self.prefix_bytes = defaultdict(lambda: defaultdict(dict))
         self.lastStatsTime = {}
         self.flowmods = {}
         
@@ -958,7 +958,6 @@ class Ryu(app_manager.RyuApp):
         flows = []
         dpid = dp.id
         ofproto = dp.ofproto
-        self.prefix_bytes[dpid] = defaultdict(lambda: defaultdict(int))
         if(self.lastStatsTime.has_key(dpid)):
             old_time = self.lastStatsTime[dpid]
         else:
@@ -1011,9 +1010,14 @@ class Ryu(app_manager.RyuApp):
 
         for prefix in prefix_bytes:
             for d in ("rx","tx"):
-                old_bytes = self.prefix_bytes[dpid][prefix][d]
+                old_bytes = 0
+                if(self.prefix_bytes[dpid][prefix].has_key(d)):
+                    old_bytes = self.prefix_bytes[dpid][prefix][d]
                 new_bytes = prefix_bytes[prefix][d]
                 bytes = new_bytes - old_bytes
+                self.logger.info("Switch : " + str(dpid))
+                self.logger.info("Prefix : " + str(prefix))
+                self.logger.info("Bytes %s :  %d  ", d, bytes)
                 #if we are less than the previous counter then we re-balanced
                 #set back to 0 and start again
                 if(bytes < 0):
@@ -1048,7 +1052,6 @@ class Ryu(app_manager.RyuApp):
         prefix_bytes = {}
         flows = []
         dpid = dp.id
-        self.prefix_bytes[dpid] = defaultdict(lambda: defaultdict(int))
         ofproto = dp.ofproto
         old_time = None
         if (self.lastStatsTime.has_key(dpid)):
@@ -1155,11 +1158,16 @@ class Ryu(app_manager.RyuApp):
             
         for prefix in prefix_bytes:
             for dir in ("rx","tx"):
-                old_bytes = self.prefix_bytes[dpid][prefix][dir]
+                old_bytes = 0
+                if(self.prefix_bytes[dpid][prefix].has_key(dir)):
+                    old_bytes = self.prefix_bytes[dpid][prefix][dir]
                 new_bytes = prefix_bytes[prefix][dir]
                 bytes = new_bytes - old_bytes
                 #if we are less than the previous counter then we re-balanced
                 #set back to 0 and start again
+                self.logger.info("Switch : " + str(dpid))
+                self.logger.info("Prefix : " + str(prefix))
+                self.logger.info("Bytes %s :  %d  ", dir, bytes)
                 if(bytes < 0):
                     self.prefix_bytes[dpid][prefix][dir] = 0
                     bytes = 0
