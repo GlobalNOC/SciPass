@@ -1015,9 +1015,9 @@ class Ryu(app_manager.RyuApp):
                     old_bytes = self.prefix_bytes[dpid][prefix][d]
                 new_bytes = prefix_bytes[prefix][d]
                 bytes = new_bytes - old_bytes
-                self.logger.info("Switch : " + str(dpid))
-                self.logger.info("Prefix : " + str(prefix))
-                self.logger.info("Bytes %s :  %d  ", d, bytes)
+                self.logger.debug("Switch : " + str(dpid))
+                self.logger.debug("Prefix : " + str(prefix))
+                self.logger.debug("Bytes %s :  %d  ", d, bytes)
                 #if we are less than the previous counter then we re-balanced
                 #set back to 0 and start again
                 if(bytes < 0):
@@ -1165,9 +1165,9 @@ class Ryu(app_manager.RyuApp):
                 bytes = new_bytes - old_bytes
                 #if we are less than the previous counter then we re-balanced
                 #set back to 0 and start again
-                self.logger.info("Switch : " + str(dpid))
-                self.logger.info("Prefix : " + str(prefix))
-                self.logger.info("Bytes %s :  %d  ", dir, bytes)
+                self.logger.debug("Switch : " + str(dpid))
+                self.logger.debug("Prefix : " + str(prefix))
+                self.logger.debug("Bytes %s :  %d  ", dir, bytes)
                 if(bytes < 0):
                     self.prefix_bytes[dpid][prefix][dir] = 0
                     bytes = 0
