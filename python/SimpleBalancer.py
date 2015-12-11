@@ -192,52 +192,6 @@ class SimpleBalancer:
           if(pfix.Contains(prefix)):
               return self.prefixPriorities[pfix]
 
-  def showStatus(self):
-      """returns text represention in show format of the current status balancing"""
-
-      mode = "Sensor Load and Prefix Bandwidth"
-      
-      if(self.ignoreSensorLoad > 0):
-          mode = "Prefix Bandwidth"
-
-      if(self.ignoreSensorLoad > 0 and  self.ignorePrefixBW > 0):
-          mode = "IP Space"
-
-      status = ""; 
-      totalHosts = 0
-      totalBW    = 0;
-
-      status = "Balance Method: %s:\n" % mode
-
-      sensorHosts = defaultdict(int)
-      sensorBW    = defaultdict(int)
-      for prefix in self.prefixSensor:
-          totalHosts = totalHosts +  prefix.numhosts
-          totalBW    = totalBW    +  self.prefixBW[prefix]
-          sensor     = self.prefixSensor[prefix]
-          sensorBW[sensor]  = sensorBW[sensor] + self.prefixBW[prefix]
-  
-          lastCount = sensorHosts[sensor]
-          sensorHosts[sensor] = lastCount + prefix.numhosts
-
-      for sensor in self.sensorLoad:
-          sensorHostVal = sensorHosts[sensor] / float(totalHosts)
-          try:
-              sensorBwPer = sensorBW[sensor] / float(totalBW)
-          except ZeroDivisionError:
-              sensorBwPer = 0 
-              
-      status = status + "sensor: '"+sensor+"'  bw: %.2f load: %.3f  hosts: %.3f"%(sensorBwPer,self.sensorLoad[sensor],sensorHostVal )+"\n"
-    
-      for prefix in self.prefixSensor:
-          if(self.prefixSensor[prefix] == sensor):
-              prefixBW = self.prefixBW[prefix]
-              status = status + " "+str(prefix)+": %.3f "%(prefixBW/1000000.0)+"mbps\n"
-
-          status = status + "\n"
-
-      return status
- 
 
   #distributes prefixes through all groups
   #this is not going to be event but it is at least a start
@@ -779,11 +733,11 @@ class SimpleBalancer:
 
                   if(not self.getGroupStatus(group)): continue
 
-              load = self.getGroupLoad(group)
+                  load = self.getGroupLoad(group)
 
-              if(load < minLoad):
-                  minLoad = load
-                  minSensor = group;
+                  if(load < minLoad):
+                      minLoad = load
+                      minSensor = group;
 
               self.logger.debug("Min Group: " + str(minSensor))
               group_a = self.getPrefixGroup(prefix_a)
