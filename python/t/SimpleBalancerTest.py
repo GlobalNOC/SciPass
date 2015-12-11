@@ -5,8 +5,13 @@ import ipaddr
 import unittest
 import xmlrunner
 import logging
+import os
+import json
+import time
 from SimpleBalancer import SimpleBalancer,MaxPrefixlenError
+from SciPass import SciPass
 from collections import defaultdict
+from mock import Mock
 
 class TestInit(unittest.TestCase):
 
@@ -531,10 +536,60 @@ class TestBalance(unittest.TestCase):
         self.balancer = SimpleBalancer()
         self
 
+class TestStateChange(unittest.TestCase):
+    
+    def setUp(self):
+        self.api = SciPass( logger = logging.getLogger(__name__),
+                            config = str(os.getcwd()) + "/t/etc/SciPass_balancer_only.xml", 
+                            readState = False)
+        self.datapath = Mock(id=1)
+        self.api.switchJoined(self.datapath)
+        self.state = "/var/run/" + "%016x" % self.datapath.id +  "IUPUI" + ".json"
+
+    def tearDown(self):
+        os.remove(self.state)                                                                                                                  
+        
+
+    def test_initial_config(self):
+        assert(os.path.isfile(self.state) == 1)
+        with open(self.state) as data_file:
+            data = json.load(data_file)
+        data = data[0]
+        switches = data["switch"].keys()
+        assert(switches[0] == "%016x" % self.datapath.id)
+        domain = data["switch"]["%016x" % self.datapath.id]["domain"].keys()
+        assert(domain[0] == "IUPUI")
+        mode = data["switch"]["%016x" % self.datapath.id]["domain"][domain[0]]["mode"].keys()
+        assert(mode[0] == "Balancer")
+                 
+    def test_state_restore(self):
+        net1 = ipaddr.IPv4Network("192.168.0.0/24")
+        group = self.api.getBalancer("%016x" % self.datapath.id, "IUPUI").getPrefixGroup(net1)
+        res = self.api.getBalancer("%016x" % self.datapath.id, "IUPUI").splitSensorPrefix(group,net1,check=False)
+        self.assertTrue(res == 1)
+        net2 = ipaddr.IPv6Network("2001:0DB8::/48")
+        group = self.api.getBalancer("%016x" % self.datapath.id, "IUPUI").getPrefixGroup(net2)
+        res = self.api.getBalancer("%016x" % self.datapath.id, "IUPUI").splitSensorPrefix(group,net2,check=False)
+        self.assertTrue(res == 1)
+        self.api.switchLeave(self.datapath)
+        time.sleep(3)
+        self.api = SciPass( logger = logging.getLogger(__name__),
+                            config = str(os.getcwd()) + "/t/etc/SciPass_balancer_only.xml",
+                            readState = True)
+        self.api.switchJoined(self.datapath)
+        prefixes = self.api.getBalancer("%016x" % self.datapath.id, "IUPUI").getPrefixes()
+        prefixList = prefixes.keys()
+        assert(net1 not in prefixList)
+        assert(net2 not in prefixList)
+        net  = [ipaddr.IPv4Network('192.168.0.0/25'), ipaddr.IPv4Network('192.168.0.128/25')]
+        assert(n in prefixList for n in net)
+        net = [ipaddr.IPv6Network('2001:db8::/49'), ipaddr.IPv6Network('2001:db8:0:8000::/49')]
+        assert(n in prefixList for n in net)
 
 def suite():
     suite = unittest.TestLoader().loadTestsFromTestCase(TestInit)
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestSensorMods))
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestPrefix))
     suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestBalance))
+    suite.addTests(unittest.TestLoader().loadTestsFromTestCase(TestStateChange))
     return suite

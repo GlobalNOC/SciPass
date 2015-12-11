@@ -173,7 +173,7 @@ class Ryu(app_manager.RyuApp):
         self.balance_thread = hub.spawn(self._balance_loop)
         
         self.ports = defaultdict(dict);
-        self.prefix_bytes = defaultdict(lambda: defaultdict(int))
+        self.prefix_bytes = defaultdict(lambda: defaultdict(dict))
         self.lastStatsTime = {}
         self.flowmods = {}
         
@@ -1010,13 +1010,18 @@ class Ryu(app_manager.RyuApp):
 
         for prefix in prefix_bytes:
             for d in ("rx","tx"):
-                old_bytes = self.prefix_bytes[prefix][d]
+                old_bytes = 0
+                if(self.prefix_bytes[dpid][prefix].has_key(d)):
+                    old_bytes = self.prefix_bytes[dpid][prefix][d]
                 new_bytes = prefix_bytes[prefix][d]
                 bytes = new_bytes - old_bytes
+                self.logger.debug("Switch : " + str(dpid))
+                self.logger.debug("Prefix : " + str(prefix))
+                self.logger.debug("Bytes %s :  %d  ", d, bytes)
                 #if we are less than the previous counter then we re-balanced
                 #set back to 0 and start again
                 if(bytes < 0):
-                    self.prefix_bytes[prefix][d] = 0
+                    self.prefix_bytes[dpid][prefix][d] = 0
                     bytes = 0
 
                 if(stats_et == None):
@@ -1029,7 +1034,7 @@ class Ryu(app_manager.RyuApp):
                     rate = 0
 
                 prefix_bps[prefix][d] = rate
-                self.prefix_bytes[prefix][d] = prefix_bytes[prefix][d]
+                self.prefix_bytes[dpid][prefix][d] = prefix_bytes[prefix][d]
 
         #--- update the balancer
         for prefix in prefix_bps.keys():
@@ -1153,13 +1158,18 @@ class Ryu(app_manager.RyuApp):
             
         for prefix in prefix_bytes:
             for dir in ("rx","tx"):
-                old_bytes = self.prefix_bytes[prefix][dir]
+                old_bytes = 0
+                if(self.prefix_bytes[dpid][prefix].has_key(dir)):
+                    old_bytes = self.prefix_bytes[dpid][prefix][dir]
                 new_bytes = prefix_bytes[prefix][dir]
                 bytes = new_bytes - old_bytes
                 #if we are less than the previous counter then we re-balanced
                 #set back to 0 and start again
+                self.logger.debug("Switch : " + str(dpid))
+                self.logger.debug("Prefix : " + str(prefix))
+                self.logger.debug("Bytes %s :  %d  ", dir, bytes)
                 if(bytes < 0):
-                    self.prefix_bytes[prefix][dir] = 0
+                    self.prefix_bytes[dpid][prefix][dir] = 0
                     bytes = 0
 
                 if(stats_et == None):
@@ -1172,7 +1182,7 @@ class Ryu(app_manager.RyuApp):
                     rate = 0
             
                 prefix_bps[prefix][dir] = rate
-                self.prefix_bytes[prefix][dir] = prefix_bytes[prefix][dir]
+                self.prefix_bytes[dpid][prefix][dir] = prefix_bytes[prefix][dir]
         
 
         #--- update the balancer
