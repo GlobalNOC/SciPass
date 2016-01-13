@@ -99,7 +99,6 @@ class SimpleBalancer:
       self.addPrefixHandlers  = []
       self.delPrefixHandlers  = []
       self.movePrefixHandlers = []
-      self.saveStateChangeHandlers = []
       self.prefix_list = []
       self.initialized = False
       return
@@ -123,7 +122,6 @@ class SimpleBalancer:
           self.pushAllPrefixes()
       else:
           self.distributePrefixes(self.prefix_list)
-          self.fireSaveState()
           self.initialized = True
       self.logger.info("Switch Initialized")
 
@@ -154,7 +152,6 @@ class SimpleBalancer:
           #calculate new prefixes
           newPrefixes = previous.difference(current)
           
-                        
           #delete the old prefixes from sensor group
           if delPrefixes:
               for delPrefix in delPrefixes:
@@ -250,8 +247,7 @@ class SimpleBalancer:
           for prefix in self.groups[group]['prefixes']:
               priority = self.getPrefixPriority(prefix)
               self.fireAddPrefix(group, prefix, priority['priority'])
-              self.fireSaveState()
-
+              
   def addSensorGroup(self, group):
     """adds sensor, inits to load 0, sets status to 1"""
     if(group == None):
@@ -400,10 +396,7 @@ class SimpleBalancer:
     """used to register a handler for del prefix events"""
     self.movePrefixHandlers.append(handler)
 
-  def registerStateChangeHandler(self, handler):
-      """used to register a handler for save state events"""
-      self.saveStateChangeHandlers.append(handler)
-
+  
   def fireAddPrefix(self,group,prefix, priority):
     """When called will fire each of the registered add prefix handlers"""
     for handler in self.addPrefixHandlers:
@@ -418,11 +411,6 @@ class SimpleBalancer:
     """when called will fire each of the registered move prefix handlers"""
     for handler in self.movePrefixHandlers:
       handler(oldGroup,newGroup,prefix, priority)
-
-  def fireSaveState(self):
-      """when called will fire each of the registered save state handlers"""
-      for handler in self.saveStateChangeHandlers:
-          handler(self.groups, self.prefix_list, self.prefixPriorities)
 
   def delGroupPrefix(self,group,targetPrefix):
     """looks for prefix and removes it if its associated with the sensor"""
@@ -449,8 +437,6 @@ class SimpleBalancer:
             self.groups[group]['prefixes'].remove(targetPrefix)
         if(self.prefixPriorities.has_key(targetPrefix)):
             del self.prefixPriorities[targetPrefix]
-        if(self.initialized):
-            self.fireSaveState()
         return 1
       x = x+1
     return 0
@@ -501,8 +487,6 @@ class SimpleBalancer:
     self.prefixBW[targetPrefix] = bw
     if targetPrefix not in self.prefix_list:
         self.prefix_list.append(targetPrefix)
-    if(self.initialized):
-        self.fireSaveState()
     return 1;
 
   def moveGroupPrefix(self,oldGroup,newGroup,targetPrefix):
@@ -523,8 +507,6 @@ class SimpleBalancer:
         if(prefix in self.groups[oldGroup]['prefixes']):
             self.groups[oldGroup]['prefixes'].remove(targetPrefix)
         self.fireMovePrefix(oldGroup,newGroup,targetPrefix, priority['priority'])
-        if(self.initialized):
-            self.fireSaveState()
         return 1
       x = x+1 
     return 0
@@ -658,6 +640,11 @@ class SimpleBalancer:
                 
         return largestPrefix;
     return None
+
+  def getCurrentState(self):
+      return (self.groups,
+              self.prefix_list,
+              self.prefixPriorities)
 
   def getGroupBW(self,group):
       totalBW = 0

@@ -616,15 +616,7 @@ class SciPass:
                                                                                                                          prefix = z,
                                                                                                                          priority=a))
         
-        #handler to save the state
-        config[dpid][name]['balancer'].registerStateChangeHandler(lambda x, y, z , dpid=dpid, name=name, mode=mode: self.saveState(dpid = dpid,
-                                                                                                                                   domain_name = name,
-                                                                                                                                   mode = mode,
-                                                                                                                                   groups = x,
-                                                                                                                                   prefix_list = y,
-                                                                                                                                   prefix_priorities =z
-                                                                                                                                   ))
-
+        
         ports = ctxt.xpathEval("port")
         sensor_groups = ctxt.xpathEval("sensor_group")
         for port in ports:
@@ -1131,41 +1123,55 @@ class SciPass:
     self.delPrefix(dpid, domain_name, old_group_id, prefix, priority)
     self.addPrefix(dpid, domain_name, new_group_id, prefix, priority)
     
-  def saveState(self, dpid = None, domain_name = None, mode = None, groups = None, prefix_list = None, prefix_priorities = None):
-    self.logger.info("Saving State")
-    self.logger.debug(str(dpid))
-    self.logger.debug(str(domain_name))
-    self.logger.debug(str(mode))
-    self.logger.debug(str(groups))
-    self.logger.debug(str(prefix_list))
-    self.logger.debug(str(prefix_priorities))
-    fileName = str(dpid) + str(domain_name) + ".json"
-    
-    group = copy.deepcopy(groups)
-    prefixes = []
-    priorities = {}
-    for k, v in group.iteritems():
-      v['prefixes']= [str(i) for i in v["prefixes"]]
+  def saveState(self, dp=None):
+    if not dp:
+      return
 
-    for prefix in prefix_list:
-      prefixes = [str(i) for i in prefix_list]
+    dpid = "%016x" % dp.id
+    if(self.config.has_key(dpid)):
+      for domain_name in self.config[dpid]:
+        domain = self.config[dpid][domain_name]
+        if(domain.has_key('mode')):
+          mode = domain['mode']
+          groups, prefix_list, prefix_priorities = self.config[dpid][domain_name]['balancer'].getCurrentState()
+          if not (groups or prefix_list or prefix_priorities):
+            return
+          self.logger.debug(str(dpid))
+          self.logger.debug(str(domain_name))
+          self.logger.debug(str(mode))
+          self.logger.debug(str(groups))
+          self.logger.debug(str(prefix_list))
+          self.logger.debug(str(prefix_priorities))
+          fileName = str(dpid) + str(domain_name) + ".json"
+          
+          group = copy.deepcopy(groups)
+          prefixes = []
+          priorities = {}
+          
+          #json serialize groups, prefixes and priorties 
+          for k, v in group.iteritems():
+            v['prefixes']= [str(i) for i in v["prefixes"]]
+            
+          for prefix in prefix_list:
+            prefixes = [str(i) for i in prefix_list]
      
-    for k, v in prefix_priorities.iteritems():
-      priorities[str(k)] = v
-
-    curr_state = {}
-    curr_state["switch"] = {}
-    curr_state["switch"][dpid] = {}
-    curr_state["switch"][dpid]["domain"] = {} 
-    curr_state["switch"][dpid]["domain"][domain_name] = {}
-    curr_state["switch"][dpid]["domain"][domain_name]["mode"] = {}
-    curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode] = {}
-    curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["groups"] = group
-    curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["prefixes"] = prefixes
-    curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["priorities"] = priorities
-    with open("/var/run/" +fileName, 'w') as fd:
-      json.dump([curr_state], fd)
-    fd.close()
+          for k, v in prefix_priorities.iteritems():
+            priorities[str(k)] = v
+          
+          curr_state = {}
+          curr_state["switch"] = {}
+          curr_state["switch"][dpid] = {}
+          curr_state["switch"][dpid]["domain"] = {} 
+          curr_state["switch"][dpid]["domain"][domain_name] = {}
+          curr_state["switch"][dpid]["domain"][domain_name]["mode"] = {}
+          curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode] = {}
+          curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["groups"] = group
+          curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["prefixes"] = prefixes
+          curr_state["switch"][dpid]["domain"][domain_name]["mode"][mode]["priorities"] = priorities
+          with open("/var/run/" +fileName, 'w') as fd:
+            self.logger.info("Saving State : " + str(dpid))
+            json.dump([curr_state], fd)
+            fd.close()
 
   def remove_flow(self, dpid=None, domain=None, header=None,priority=None):
     self.logger.debug("remove flow")
