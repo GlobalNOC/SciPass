@@ -159,7 +159,9 @@ class Ryu(app_manager.RyuApp):
             cfg.StrOpt('SciPassConfig',default='/etc/SciPass/SciPass.xml',
                        help='where to find the SciPass config file'),
             cfg.BoolOpt('readState', default=False,
-                        help = 'Read previous state or not')
+                        help = 'Read previous state or not'),
+            cfg.IntOpt('stateInterval', default=100,
+                       help = 'Interval in secs between each save of state of the balancer')
             ]
         self.CONF.register_opts(SciPass_opts, group='SciPass')
         self.logger.error("Starting SciPass")
@@ -167,11 +169,12 @@ class Ryu(app_manager.RyuApp):
         self.isactive = 1
         self.statsInterval = 5
         self.balanceInterval = 15
+        self.stateInterval = self.CONF.SciPass.stateInterval
         self.bal = None
         self.stats = {}
         self.stats_thread = hub.spawn(self._stats_loop)
         self.balance_thread = hub.spawn(self._balance_loop)
-        
+        self.state_thread = hub.spawn(self._state_loop)
         self.ports = defaultdict(dict);
         self.prefix_bytes = defaultdict(lambda: defaultdict(dict))
         self.lastStatsTime = {}
@@ -612,6 +615,14 @@ class Ryu(app_manager.RyuApp):
              self.api.run_balancers()
              #--- sleep
              hub.sleep(self.balanceInterval)
+
+    def _state_loop(self):
+        while 1:
+            hub.sleep(self.stateInterval)
+            
+            #save the state of balancer
+            for dp in self.datapaths.values():
+                self.api.saveState(dp)
 
     def _request_stats(self,datapath):
         ofp    = datapath.ofproto
