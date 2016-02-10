@@ -55,42 +55,110 @@ class SciPassRest(ControllerBase):
         self.api = data['api']
         self.logger = logging.getLogger(__name__)
     #POST /scipass/flows/good_flow
-    @route('scipass', '/scipass/flows/good_flow', methods=['PUT'])
-    def good_flow(self, req):
+    @route('scipass', '/scipass/switch/{dpid}/flows/good_flow', methods=['PUT'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def good_flow(self, req, **kwargs):
         try:
             obj = eval(req.body)
         except SyntaxError:
             self.logger.error("Syntax Error processing good_flow signal %s", req.body)
             return Response(status=400)
 
-        result = self.api.good_flow(obj)
+        result = self.api.good_flow(obj,dp=kwargs['dpid'])
         if result['success'] == 0:
             return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
 
     #POST /scipass/flows/bad_flow
-    @route('scipass', '/scipass/flows/bad_flow', methods=['PUT'])
-    def bad_flow(self, req):
+    @route('scipass', '/scipass/switch/{dpid}/flows/bad_flow', methods=['PUT'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def bad_flow(self, req, **kwargs):
         try:
             obj = eval(req.body)
         except SyntaxError:
             self.logger.error("Syntax Error processing bad_flow signal %s", req.body)
             return Response(status=400)
-        result = self.api.bad_flow(obj)
+        result = self.api.bad_flow(obj,dp=kwargs['dpid'])
         if result['success'] == 0:
             return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
 
+
+    @route('scipass', '/scipass/switch/{dpid}/flows/forwarding_flow', methods=['PUT'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def add_forwarding_flow(self, req,  **kwargs):
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing forwarding_flow signal %s", req.body)
+            return Response(status=400)
+        
+        result = self.api.add_forwarding_flow(obj, dp=kwargs['dpid'])
+        if result['success'] == 0:
+            return Response(body=json.dumps(result),status=500)
+        return Response(content_type='application/json',body=json.dumps(result))
+
+    
+    @route('scipass', '/scipass/switch/{dpid}/flows/forwarding_flow', methods=['DELETE'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def del_forwarding_flow(self, req, **kwargs):
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing forwarding_flow signal %s", req.body)
+            return Response(status=400)
+
+        result = self.api.del_forwarding_flow(obj, dp=kwargs['dpid'])
+        if result['success'] == 0:
+            return Response(body=json.dumps(result),status=500)
+        return Response(content_type='application/json',body=json.dumps(result))
+    
+    
+    @route('scipass', '/scipass/switch/{dpid}/flows/forwarding_flows', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def get_forwarding_flows(self, req, **kwargs):
+        result = self.api.getForwardingFlows(dpid = kwargs['dpid'])
+        return Response(content_type='application/json', body=json.dumps(result))
+    
+    
+    @route('scipass', '/scipass/switch/{dpid}/flows/blocking_flow', methods=['PUT'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def add_blocking_flow(self, req,**kwargs) :
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing forwarding_flow signal %s", req.body)
+            return Response(status=400)
+
+        result = self.api.add_blocking_flow(obj, dp=kwargs['dpid'])
+        if result['success'] == 0:
+            return Response(body=json.dumps(result),status=500)
+        return Response(content_type='application/json',body=json.dumps(result))
+
+    @route('scipass', '/scipass/switch/{dpid}/flows/blocking_flow', methods=['DELETE'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def del_blocking_flow(self, req,**kwargs):
+        try:
+            obj = eval(req.body)
+        except SyntaxError:
+            self.logger.error("Syntax Error processing forwarding_flow signal %s", req.body)
+            return Response(status=400)
+
+        result = self.api.del_blocking_flow(obj, dp=kwargs['dpid'])
+        if result['success'] == 0:
+            return Response(body=json.dumps(result),status=500)
+        return Response(content_type='application/json',body=json.dumps(result))
+
+    @route('scipass', '/scipass/switch/{dpid}/flows/blocking_flows', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def get_blocking_flows(self, req, **kwargs):
+        result = self.api.getBlockingFlows(dpid = kwargs['dpid'])
+        return Response(content_type='application/json', body=json.dumps(result))
+        
+    
+
     #GET /scipass/flows/get_good_flows
-    @route('scipass', '/scipass/flows/get_good_flows', methods=['GET'])
-    def get_good_flows(self, req):
-        result = self.api.get_good_flows()
+    @route('scipass', '/scipass/switch/{dpid}/flows/get_good_flows', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def get_good_flows(self, req, **kwargs):
+        result = self.api.get_good_flows(dp=kwargs['dpid'])
         return Response(content_type='application/json',body=json.dumps(result))
 
     #GET /scipass/flows/get_bad_flows
-    @route('scipass', '/scipass/flows/get_bad_flows', methods=['GET'])
-    def get_bad_flows(self, req):
-        result = self.api.get_bad_flows()
+    @route('scipass', '/scipass/switch/{dpid}/flows/get_bad_flows', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
+    def get_bad_flows(self, req, **kwargs):
+        result = self.api.get_bad_flows(dp=kwargs['dpid'])
         return Response(content_type='application/json',body=json.dumps(result))
 
     @route('scipass', '/scipass/switch/{dpid}/flows', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
@@ -147,10 +215,12 @@ class SciPassRest(ControllerBase):
     def get_domain_flows(self,req, **kwargs):
         result = self.api.getDomainFlows(dpid = kwargs['dpid'], domain = kwargs['domain'])
         return Response(content_type='application/json', body=json.dumps(result))
-
+        
+    
 
 class Ryu(app_manager.RyuApp):
-    OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION, ofproto_v1_3.OFP_VERSION]
+    #OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION, ofproto_v1_3.OFP_VERSION]
+    OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
     _CONTEXTS = { 'wsgi': WSGIApplication }
     def __init__(self,*args, **kwargs):
         super(Ryu,self).__init__(*args,**kwargs)
@@ -227,7 +297,6 @@ class Ryu(app_manager.RyuApp):
         ofp      = dp.ofproto
         parser   = dp.ofproto_parser
         obj = {} 
-        
         if(header.has_key('dl_type')):
             if(header['dl_type'] == None):
                 obj['dl_type'] = None
@@ -341,7 +410,7 @@ class Ryu(app_manager.RyuApp):
     def OF13_flow(self, dp=None, domain=None,header=None, actions=None, command=None, idle_timeout=None, hard_timeout=None, priority=1):
         ofp      = dp.ofproto
         parser   = dp.ofproto_parser
-        
+
         obj = {}
         obj['ipv6_src'] = None
         obj['ipv6_dst'] = None
@@ -793,7 +862,7 @@ class Ryu(app_manager.RyuApp):
         for field in fields:
             if header.has_key(field):
                 match[field] = header[field]
-        
+        pprint.pprint(match)
         priority = flow.priority
         self.api.remove_flow(header=match, priority=priority)
 
@@ -830,7 +899,7 @@ class Ryu(app_manager.RyuApp):
         if flow.match.in_port > 0:
             obj['phys_port'] = flow.match.in_port
         priority =  flow.priority
-        self.api.remove_flow(header=obj, priority=priority)
+        #self.api.remove_flow(header=obj, priority=priority)
         
 
     def process_flow_stats(self, stats, dp):
