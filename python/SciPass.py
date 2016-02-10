@@ -1410,7 +1410,6 @@ class SciPass:
       for forward in self.forwardingList[dpid]:
         self.logger.error("Removing forwarding flow due to timeout")
         if ((cmp(match, forward['header']) == 0) and (cmp(priority, forward['priority'])== 0)):
-          pprint.pprint(self.forwardingList[dpid])
           self.forwardingList[dpid].remove(forward)
 
     if self.blockingList[dpid]:

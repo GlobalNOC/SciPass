@@ -54,7 +54,8 @@ class SciPassRest(ControllerBase):
         super(SciPassRest, self).__init__(req, link, data, **config)
         self.api = data['api']
         self.logger = logging.getLogger(__name__)
-    #POST /scipass/flows/good_flow
+
+    #POST /scipass/switch/{dpid}/flows/good_flow
     @route('scipass', '/scipass/switch/{dpid}/flows/good_flow', methods=['PUT'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
     def good_flow(self, req, **kwargs):
         try:
@@ -68,7 +69,7 @@ class SciPassRest(ControllerBase):
             return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
 
-    #POST /scipass/flows/bad_flow
+    #POST /scipass/switch/{dpid}/flows/bad_flow
     @route('scipass', '/scipass/switch/{dpid}/flows/bad_flow', methods=['PUT'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
     def bad_flow(self, req, **kwargs):
         try:
@@ -81,7 +82,7 @@ class SciPassRest(ControllerBase):
             return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
 
-
+    #POST /scipass/switch/{dpid}/flows/forwarding_flow
     @route('scipass', '/scipass/switch/{dpid}/flows/forwarding_flow', methods=['PUT'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
     def add_forwarding_flow(self, req,  **kwargs):
         try:
@@ -94,8 +95,8 @@ class SciPassRest(ControllerBase):
         if result['success'] == 0:
             return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
-
     
+    #DELETE /scipass/switch/{dpid}/flows/forwarding_flow
     @route('scipass', '/scipass/switch/{dpid}/flows/forwarding_flow', methods=['DELETE'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
     def del_forwarding_flow(self, req, **kwargs):
         try:
@@ -109,13 +110,14 @@ class SciPassRest(ControllerBase):
             return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
     
-    
+    #GET /scipass/switch/{dpid}/flows/forwarding_flow
     @route('scipass', '/scipass/switch/{dpid}/flows/forwarding_flows', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
     def get_forwarding_flows(self, req, **kwargs):
         result = self.api.getForwardingFlows(dpid = kwargs['dpid'])
         return Response(content_type='application/json', body=json.dumps(result))
     
     
+    #POST /scipass/switch/{dpid}/flows/blocking_flow
     @route('scipass', '/scipass/switch/{dpid}/flows/blocking_flow', methods=['PUT'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
     def add_blocking_flow(self, req,**kwargs) :
         try:
@@ -129,6 +131,7 @@ class SciPassRest(ControllerBase):
             return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
 
+    #DELETE /scipass/switch/{dpid}/flows/blocking_flow
     @route('scipass', '/scipass/switch/{dpid}/flows/blocking_flow', methods=['DELETE'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
     def del_blocking_flow(self, req,**kwargs):
         try:
@@ -142,6 +145,7 @@ class SciPassRest(ControllerBase):
             return Response(body=json.dumps(result),status=500)
         return Response(content_type='application/json',body=json.dumps(result))
 
+    #GET /scipass/switch/{dpid}/flows/blocking_flows
     @route('scipass', '/scipass/switch/{dpid}/flows/blocking_flows', methods=['GET'], requirements= {'dpid': dpid_lib.DPID_PATTERN})
     def get_blocking_flows(self, req, **kwargs):
         result = self.api.getBlockingFlows(dpid = kwargs['dpid'])
@@ -219,8 +223,7 @@ class SciPassRest(ControllerBase):
     
 
 class Ryu(app_manager.RyuApp):
-    #OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION, ofproto_v1_3.OFP_VERSION]
-    OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION]
+    OFP_VERSIONS = [ofproto_v1_0.OFP_VERSION, ofproto_v1_3.OFP_VERSION]
     _CONTEXTS = { 'wsgi': WSGIApplication }
     def __init__(self,*args, **kwargs):
         super(Ryu,self).__init__(*args,**kwargs)
@@ -862,7 +865,6 @@ class Ryu(app_manager.RyuApp):
         for field in fields:
             if header.has_key(field):
                 match[field] = header[field]
-        pprint.pprint(match)
         priority = flow.priority
         self.api.remove_flow(header=match, priority=priority)
 
@@ -899,7 +901,7 @@ class Ryu(app_manager.RyuApp):
         if flow.match.in_port > 0:
             obj['phys_port'] = flow.match.in_port
         priority =  flow.priority
-        #self.api.remove_flow(header=obj, priority=priority)
+        self.api.remove_flow(header=obj, priority=priority)
         
 
     def process_flow_stats(self, stats, dp):
