@@ -310,7 +310,11 @@ sub build_command_list {
 			       "show switch [% sw_name %] domain [% domain_name %] sensor_group [% group_id %] status",
 			       "show switch [% sw_name %] domain [% domain_name %] sensor_group [% group_id %] sensors",
 			       "show switch [% sw_name %] domain [% domain_name %] sensor_group [% group_id %] sensor [% sensor_id %]",
-			       "show flows good", "show flows bad", "help", "?", "quit", "exit" ];
+			       "show flows [% sw_name %] good", 
+                               "show flows [% sw_name %] bad",
+                               "show flows [% sw_name %] forwarding",
+                               "show flows [% sw_name %] blocking",
+                               "help", "?", "quit", "exit" ];
     
     my $tt  = Template->new() || die $Template::ERROR;
     
@@ -420,13 +424,21 @@ show switch [sw_name] domain [domain_name] sensor_group [group_id] sensor [senso
 
      returns the status of the sensor
 
-show flows good
+show flows [sw_name] good
  
      returns a list of currently bypassed flows
 
-show flows bad
+show flows [sw_name] bad
 
      returns a list of currently blocked flows
+
+show flows [sw_name] forwarding
+
+     returns a list of currently forwarding flows
+
+show flows [sw_name] blocking
+
+     returns a list of currently blocking flows
 
 quit | exit
      exit application
@@ -667,8 +679,12 @@ END
 	
 	
 	
-    }elsif( $input =~ /^show flows good/){
-	$ws->set_url("$base_url:$port/scipass/flows/get_good_flows");
+    }elsif( $input =~ /^show flows (\S+) good/){
+	my $switch_dpid = $1;
+        if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+        }
+        $ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/flows/get_good_flows");
 	my $res = $ws->foo();
 	if(!defined($res)){
             print "No Flows Bypassing\n";
@@ -680,8 +696,44 @@ END
             print $self->flow_to_human($flow) . "\n\n";
         }
 
-    }elsif( $input =~ /^show flows bad/){
-	$ws->set_url("$base_url:$port/scipass/flows/get_bad_flows");
+    }elsif( $input =~ /^show flows (\S+) bad/){
+        my $switch_dpid = $1;
+        if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+        }
+	$ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/flows/get_bad_flows");
+        my $res = $ws->foo();
+        if(!defined($res)){
+            print "No Flows Being Dropped\n";
+            return;
+        }
+
+        foreach my $flow (@$res){
+            print "Flow:\n";
+            print $self->flow_to_human($flow) . "\n\n";
+        }
+    }elsif( $input =~ /^show flows (\S+) forwarding/){
+        my $switch_dpid = $1;
+        if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+        }
+        $ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/flows/forwarding_flows");
+        my $res = $ws->foo();
+        if(!defined($res)){
+            print "No Flows Being Forwarded\n";
+            return;
+        }
+
+        foreach my $flow (@$res){
+            print "Flow:\n";
+            print $self->flow_to_human($flow) . "\n\n";
+        }
+    }elsif( $input =~ /^show flows (\S+) blocking/){
+        my $switch_dpid = $1;
+        if(defined($self->{'switch_names'}->{$switch_dpid})){
+            $switch_dpid = $self->{'switch_names'}->{$switch_dpid}->{'dpid'};
+        }
+        $ws->set_url("$base_url:$port/scipass/switch/$switch_dpid/flows/blocking_flows");
         my $res = $ws->foo();
         if(!defined($res)){
             print "No Flows Being Dropped\n";
