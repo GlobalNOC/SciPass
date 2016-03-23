@@ -222,7 +222,7 @@ class TestFunctionality(unittest.TestCase):
         #self.logger.error("testing good flow")
         self.assertEquals(len(flows),25)
         flows = []
-        self.api.good_flow({"nw_src": "10.0.20.2/32", "nw_dst":"156.56.6.1/32", "tp_src":1, "tp_dst":2})
+        self.api.good_flow({"nw_src": "10.0.20.2/32", "nw_dst":"156.56.6.1/32", "tp_src":1, "tp_dst":2}, dp="%016x" % datapath.id)
         self.assertEquals(len(flows),2)
         flow = flows[0]
         self.assertEqual(int(flow['hard_timeout']),0)
@@ -254,7 +254,7 @@ class TestFunctionality(unittest.TestCase):
         #self.logger.error("testing good flow")
         self.assertEquals(len(flows),25)
         flows = []
-        self.api.bad_flow({"nw_src": "10.0.20.2/32", "nw_dst":"156.56.6.1/32", "tp_src":1, "tp_dst":2})
+        self.api.bad_flow({"nw_src": "10.0.20.2/32", "nw_dst":"156.56.6.1/32", "tp_src":1, "tp_dst":2},dp="%016x" % datapath.id)
         self.assertEquals(len(flows),2)
         print flows[0]
         print flows[1]

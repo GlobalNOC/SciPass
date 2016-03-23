@@ -21,7 +21,7 @@ class BalancerInitTest(unittest.TestCase):
                           config = str(os.getcwd()) + "/t/etc/SciPass_balancer_only.xml" )
 
     def test_bad_flow(self):
-        #first setup the handler to get all the flows that were sent                                                                                                       
+        #first setup the handler to get all the flows that were sent                                                                                            
         flows = []
         def flowSent(dpid = None, domain =  None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
             obj = {'dpid': dpid, 'header': header,
@@ -34,16 +34,13 @@ class BalancerInitTest(unittest.TestCase):
 
 
         self.api.registerForwardingStateChangeHandler(flowSent)
-
         datapath = Mock(id=1)
         self.api.switchJoined(datapath)
         self.assertTrue( len(flows) == 1132)
         flows = []
         
-        self.api.bad_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2})
+        self.api.bad_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2}, dp="%016x" % datapath.id)
         self.assertEquals(len(flows),2)
-        print flows[0]
-        print flows[1]
         flow = flows[0]
         self.assertEqual(int(flow['hard_timeout']),0)
         self.assertEqual(int(flow['idle_timeout']),90)
@@ -63,7 +60,7 @@ class BalancerInitTest(unittest.TestCase):
 
 
         flows = []
-        self.api.bad_flow({"nw_dst": "10.0.20.2/32", "nw_src":"8.8.8.8/32", "tp_src":2, "tp_dst":1})
+        self.api.bad_flow({"nw_dst": "10.0.20.2/32", "nw_src":"8.8.8.8/32", "tp_src":2, "tp_dst":1},dp="%016x" % datapath.id)
         self.assertEquals(len(flows),2)
         print flows[0]
         print flows[1]
@@ -106,10 +103,8 @@ class BalancerInitTest(unittest.TestCase):
         self.assertTrue( len(flows) == 1132)
         flows = []
 
-        self.api.good_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2})
+        self.api.good_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2},dp="%016x" % datapath.id)
         self.assertEquals(len(flows),2)
-        print flows[0]
-        print flows[1]
         flow = flows[0]
         self.assertEqual(int(flow['hard_timeout']),0)
         self.assertEqual(int(flow['idle_timeout']),90)
@@ -128,7 +123,7 @@ class BalancerInitTest(unittest.TestCase):
         self.assertEqual(flow['dpid'],"%016x" % datapath.id)
 
         flows = []
-        self.api.good_flow({"nw_dst": "10.0.20.2/32", "nw_src":"8.8.8.8/32", "tp_src":2, "tp_dst":1})
+        self.api.good_flow({"nw_dst": "10.0.20.2/32", "nw_src":"8.8.8.8/32", "tp_src":2, "tp_dst":1},dp="%016x" % datapath.id)
         self.assertEquals(len(flows),2)
         print flows[0]
         print flows[1]
@@ -148,11 +143,97 @@ class BalancerInitTest(unittest.TestCase):
         self.assertEqual(int(flow['priority']),65535)
         self.assertEqual(flow['command'],"ADD")
         self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+        
+
+    def test_forwarding_flow(self):
+        #first setup the handler to get all the flows that were sent                                                                                            
+        flows = []
+        def flowSent(dpid = None, domain =  None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
+            obj = {'dpid': dpid, 'header': header,
+                   'actions': actions, 'command': command,
+                   'priority': priority,
+                   'idle_timeout': idle_timeout,
+                   'hard_timeout': hard_timeout}
+            flows.append(obj)
+            #logging.error(obj)
+
+
+        self.api.registerForwardingStateChangeHandler(flowSent)
+
+        datapath = Mock(id=1)
+        self.api.switchJoined(datapath)
+        self.assertTrue( len(flows) == 1132)
+        flows = []
+        #test add
+        self.api.add_forwarding_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2,"out_port": 20}, dp="%016x" % datapath.id)
+        self.assertEquals(len(flows),1)
+        flow=flows[0]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),0)
+        self.assertEqual(flow['header'],{'tp_src': 1, 'nw_src': ipaddr.IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': ipaddr.IPv4Network('8.8.8.8/32')})
+        self.assertEqual(flow['actions'], [{'type': 'output', 'port': 20}])
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+
+        #test del
+        flows=[]
+        self.api.del_forwarding_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2,"out_port": 20}, dp="%016x" % datapath.id)
+        self.assertEquals(len(flows),1)
+        flow=flows[0]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),0)
+        self.assertEqual(flow['header'],{'tp_src': 1, 'nw_src': ipaddr.IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': ipaddr.IPv4Network('8.8.8.8/32')})
+        self.assertEqual(flow['actions'], [{'type': 'output', 'port': 20}])
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"DELETE_STRICT")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
 
         
+    def test_blocking_flow(self):
+        #first setup the handler to get all the flows that were sent                                                                                          
+        flows = []
+        def flowSent(dpid = None, domain =  None, header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
+            obj = {'dpid': dpid, 'header': header,
+                   'actions': actions, 'command': command,
+                   'priority': priority,
+                   'idle_timeout': idle_timeout,
+                   'hard_timeout': hard_timeout}
+            flows.append(obj)
+            logging.error(obj)                                                                                                                                     
+
+        self.api.registerForwardingStateChangeHandler(flowSent)
+
+        datapath = Mock(id=1)
+        self.api.switchJoined(datapath)
+        self.assertTrue( len(flows) == 1132)
+        flows = []
+        #test add                          
+        self.api.add_blocking_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2}, dp="%016x" % datapath.id)
+        self.assertEquals(len(flows),1)
+        flow=flows[0]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),0)
+        self.assertEqual(flow['header'],{'tp_src': 1, 'nw_src': ipaddr.IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': ipaddr.IPv4Network('8.8.8.8/32')})
+        self.assertEqual(flow['actions'], [])
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"ADD")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
         
+        #test del
+        flows=[]
+        self.api.del_blocking_flow({"nw_src": "10.0.20.2/32", "nw_dst":"8.8.8.8/32", "tp_src":1, "tp_dst":2}, dp="%016x" % datapath.id)
+        self.assertEquals(len(flows),1)
+        flow=flows[0]
+        self.assertEqual(int(flow['hard_timeout']),0)
+        self.assertEqual(int(flow['idle_timeout']),0)
+        self.assertEqual(flow['header'],{'tp_src': 1, 'nw_src': ipaddr.IPv4Network('10.0.20.2/32'), 'tp_dst': 2, 'nw_dst': ipaddr.IPv4Network('8.8.8.8/32')})
+        self.assertEqual(flow['actions'], [])
+        self.assertEqual(int(flow['priority']),65535)
+        self.assertEqual(flow['command'],"DELETE_STRICT")
+        self.assertEqual(flow['dpid'],"%016x" % datapath.id)
+
     def testInit(self):
-
         #first setup the handler to get all the flows that were sent
         flows = []
         def flowSent(dpid = None, domain = None,header = None, actions = None,command = None, priority = None, idle_timeout = None, hard_timeout = None):
@@ -339,7 +420,7 @@ class BalancerInitTest(unittest.TestCase):
             total_runs += 1
 
         self.assertEquals(len(flows), 0)
-
+        
 def suite():
     suite = unittest.TestLoader().loadTestsFromTestCase(BalancerInitTest)
     return suite
