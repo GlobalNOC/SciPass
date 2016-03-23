@@ -551,6 +551,7 @@ class TestStateChange(unittest.TestCase):
         
 
     def test_initial_config(self):
+        self.api.saveState(self.datapath)
         assert(os.path.isfile(self.state) == 1)
         with open(self.state) as data_file:
             data = json.load(data_file)
@@ -571,6 +572,7 @@ class TestStateChange(unittest.TestCase):
         group = self.api.getBalancer("%016x" % self.datapath.id, "IUPUI").getPrefixGroup(net2)
         res = self.api.getBalancer("%016x" % self.datapath.id, "IUPUI").splitSensorPrefix(group,net2,check=False)
         self.assertTrue(res == 1)
+        self.api.saveState(self.datapath)
         self.api.switchLeave(self.datapath)
         time.sleep(3)
         self.api = SciPass( logger = logging.getLogger(__name__),
